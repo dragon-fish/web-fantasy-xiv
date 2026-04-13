@@ -82,6 +82,9 @@ export class SkillResolver {
       caster.gcdTimer = GCD_DURATION
     }
 
+    // Spawn AoE zones immediately at cast start (telegraph shows during cast)
+    this.spawnZones(caster, skill)
+
     this.bus.emit('skill:cast_start', { caster, skill, target: caster.target })
     return true
   }
@@ -101,26 +104,29 @@ export class SkillResolver {
       caster.facing = this.facingToward(caster, targetEntity)
     }
 
-    // Spawn AoE zones
-    if (skill.zones && skill.zones.length > 0) {
-      const targetPos: Vec2 | null = targetEntity
-        ? { x: targetEntity.position.x, y: targetEntity.position.y }
-        : null
-
-      for (const zoneDef of skill.zones) {
-        this.zoneMgr.spawn(
-          zoneDef,
-          skill.id,
-          { x: caster.position.x, y: caster.position.y },
-          caster.facing,
-          targetPos,
-          caster.id,
-        )
-      }
-    }
-
+    this.spawnZones(caster, skill)
     this.bus.emit('skill:cast_complete', { caster, skill })
     return true
+  }
+
+  private spawnZones(caster: Entity, skill: SkillDef): void {
+    if (!skill.zones || skill.zones.length === 0) return
+
+    const targetEntity = caster.target ? this.entityMgr.get(caster.target) : null
+    const targetPos: Vec2 | null = targetEntity
+      ? { x: targetEntity.position.x, y: targetEntity.position.y }
+      : null
+
+    for (const zoneDef of skill.zones) {
+      this.zoneMgr.spawn(
+        zoneDef,
+        skill.id,
+        { x: caster.position.x, y: caster.position.y },
+        caster.facing,
+        targetPos,
+        caster.id,
+      )
+    }
   }
 
   private facingToward(from: Entity, to: Entity): number {
@@ -190,25 +196,8 @@ export class SkillResolver {
       }
     }
 
-    // Spawn AoE zones if any
-    if (skill?.zones && skill.zones.length > 0) {
-      const targetEntity = targetId ? this.entityMgr.get(targetId) : null
-      const targetPos: Vec2 | null = targetEntity
-        ? { x: targetEntity.position.x, y: targetEntity.position.y }
-        : null
-
-      for (const zoneDef of skill.zones) {
-        this.zoneMgr.spawn(
-          zoneDef,
-          skillId,
-          { x: entity.position.x, y: entity.position.y },
-          entity.facing,
-          targetPos,
-          entity.id,
-        )
-      }
-    }
-
+    // Zones were already spawned at cast start (startCast),
+    // so we only emit completion here.
     this.bus.emit('skill:cast_complete', { caster: entity, skill })
   }
 

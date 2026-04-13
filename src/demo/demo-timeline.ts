@@ -36,8 +36,8 @@ const ARENA_DEF: ArenaDef = {
 
 function makeFan(id: string, name: string, angle: number): SkillDef {
   return {
-    id, name, type: 'ability',
-    castTime: 0, cooldown: 0, gcd: false,
+    id, name, type: 'spell',
+    castTime: 3000, cooldown: 0, gcd: false,
     targetType: 'aoe', requiresTarget: false, range: 0,
     zones: [{
       anchor: { type: 'caster' },
