@@ -1,6 +1,6 @@
 // src/renderer/aoe-renderer.ts
 import {
-  MeshBuilder, StandardMaterial, Color3,
+  MeshBuilder, StandardMaterial, Color3, Color4,
   type Scene, type Mesh,
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
@@ -8,7 +8,6 @@ import type { ActiveAoeZone } from '@/skill/aoe-zone'
 
 interface AoeMesh {
   mesh: Mesh
-  outline?: Mesh  // wireframe border for telegraph
   zone: ActiveAoeZone
   phase: 'telegraph' | 'resolve'
   waveRing?: Mesh
@@ -19,7 +18,7 @@ export class AoeRenderer {
   private telegraphMat: StandardMaterial
   private telegraphKbMat: StandardMaterial
   private resolveMat: StandardMaterial
-  private outlineMat: StandardMaterial
+  private edgeColor: Color4
 
   constructor(private scene: Scene, bus: EventBus) {
     this.telegraphMat = new StandardMaterial('aoe-telegraph', scene)
@@ -37,12 +36,8 @@ export class AoeRenderer {
     this.resolveMat.emissiveColor = new Color3(0.8, 0.0, 0.0)
     this.resolveMat.alpha = 0.5
 
-    // Outline material (wireframe)
-    this.outlineMat = new StandardMaterial('aoe-outline', scene)
-    this.outlineMat.diffuseColor = new Color3(1.0, 0.5, 0.0)
-    this.outlineMat.emissiveColor = new Color3(0.8, 0.4, 0.0)
-    this.outlineMat.alpha = 0.5
-    this.outlineMat.wireframe = true
+    // Edge rendering color for telegraph outlines
+    this.edgeColor = new Color4(1.0, 0.5, 0.0, 0.6)
 
     bus.on('aoe:zone_created', (payload: { zone: ActiveAoeZone }) => {
       this.createMesh(payload.zone)
@@ -53,10 +48,7 @@ export class AoeRenderer {
       if (entry) {
         entry.phase = 'resolve'
         entry.mesh.material = this.resolveMat
-        if (entry.outline) {
-          entry.outline.dispose()
-          entry.outline = undefined
-        }
+        entry.mesh.disableEdgesRendering()
         if (entry.waveRing) {
           entry.waveRing.dispose()
           entry.waveRing = undefined
@@ -131,11 +123,11 @@ export class AoeRenderer {
         }, this.scene)
         mesh.position.y = 0.02
         mesh.material = hasDisplacement ? this.telegraphKbMat : this.telegraphMat
-        const ringOutline = mesh.clone(`outline-${zone.id}`)
-        ringOutline.position.y += 0.01
-        ringOutline.material = this.outlineMat
+        mesh.enableEdgesRendering()
+        mesh.edgesWidth = 2.0
+        mesh.edgesColor = this.edgeColor
         const waveRing = hasDisplacement ? this.createWaveRing(zone) : undefined
-        this.meshes.set(zone.id, { mesh, outline: ringOutline, zone, phase: 'telegraph', waveRing })
+        this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing })
         return
 
       case 'rect':
@@ -167,13 +159,13 @@ export class AoeRenderer {
 
     mesh.material = hasDisplacement ? this.telegraphKbMat : this.telegraphMat
 
-    // Wireframe outline for better edge visibility
-    const outline = mesh.clone(`outline-${zone.id}`)
-    outline.position.y += 0.01 // slightly above fill
-    outline.material = this.outlineMat
+    // Edge outline for telegraph boundary
+    mesh.enableEdgesRendering()
+    mesh.edgesWidth = 2.0
+    mesh.edgesColor = this.edgeColor
 
     const waveRing = hasDisplacement ? this.createWaveRing(zone) : undefined
-    this.meshes.set(zone.id, { mesh, outline, zone, phase: 'telegraph', waveRing })
+    this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing })
   }
 
   /** Create a torus ring that scales in/out to indicate displacement direction */
@@ -204,7 +196,6 @@ export class AoeRenderer {
     const entry = this.meshes.get(zoneId)
     if (!entry) return
     entry.mesh.dispose()
-    entry.outline?.dispose()
     if (entry.waveRing) {
       entry.waveRing.material?.dispose()
       entry.waveRing.dispose()
