@@ -48,8 +48,8 @@ export class SkillResolver {
     // Independent cooldown check
     if (skill.cooldown > 0 && this.getCooldown(caster.id, skill.id) > 0) return false
 
-    // Range check for targeted skills
-    if (skill.range > 0 && skill.targetType === 'single') {
+    // Range check for skills that require a target (single or AoE with range > 0)
+    if (skill.range > 0) {
       const target = caster.target ? this.entityMgr.get(caster.target) : null
       if (!target || !target.alive) return false
       if (distance(caster.position, target.position) > skill.range) return false
@@ -63,6 +63,14 @@ export class SkillResolver {
   }
 
   private startCast(caster: Entity, skill: SkillDef): boolean {
+    // Auto-face target when starting a cast
+    if (caster.target && skill.range > 0) {
+      const targetEntity = this.entityMgr.get(caster.target)
+      if (targetEntity) {
+        caster.facing = this.facingToward(caster, targetEntity)
+      }
+    }
+
     caster.casting = {
       skillId: skill.id,
       targetId: caster.target,
@@ -87,9 +95,14 @@ export class SkillResolver {
       this.setCooldown(caster.id, skill.id, skill.cooldown)
     }
 
+    // Auto-face target when using a targeted skill
+    const targetEntity = caster.target ? this.entityMgr.get(caster.target) : null
+    if (targetEntity && skill.range > 0) {
+      caster.facing = this.facingToward(caster, targetEntity)
+    }
+
     // Spawn AoE zones
     if (skill.zones && skill.zones.length > 0) {
-      const targetEntity = caster.target ? this.entityMgr.get(caster.target) : null
       const targetPos: Vec2 | null = targetEntity
         ? { x: targetEntity.position.x, y: targetEntity.position.y }
         : null
@@ -108,6 +121,12 @@ export class SkillResolver {
 
     this.bus.emit('skill:cast_complete', { caster, skill })
     return true
+  }
+
+  private facingToward(from: Entity, to: Entity): number {
+    const dx = to.position.x - from.position.x
+    const dy = to.position.y - from.position.y
+    return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
   }
 
   interruptCast(entity: Entity): void {

@@ -45,8 +45,8 @@ export class PlayerController {
       }
     }
 
-    // Movement (blocked while casting or stunned)
-    if (!this.player.casting && !this.buffSystem.isStunned(this.player)) {
+    // Movement (blocked while stunned, but interrupts casting)
+    if (!this.buffSystem.isStunned(this.player)) {
       const dir = computeMoveDirection(this.input.keys)
       if (dir.x !== 0 || dir.y !== 0) {
         // Moving interrupts casting

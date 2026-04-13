@@ -38,7 +38,7 @@ export const DEMO_SKILLS: SkillDef[] = [
     range: 20,
     effects: [{ type: 'damage', potency: 4 }],
   },
-  // 3: 扇形战技（正面 120°）
+  // 3: 扇形战技（正面 90°，朝向目标）
   {
     id: 'overpower',
     name: '超压斧',
@@ -47,11 +47,11 @@ export const DEMO_SKILLS: SkillDef[] = [
     cooldown: 0,
     gcd: true,
     targetType: 'aoe',
-    range: 0,
+    range: 8,
     zones: [{
       anchor: { type: 'caster' },
-      direction: { type: 'caster_facing' },
-      shape: { type: 'fan', radius: 8, angle: 120 },
+      direction: { type: 'toward_target' },
+      shape: { type: 'fan', radius: 8, angle: 90 },
       telegraphDuration: 0,
       resolveDelay: 0,
       hitEffectDuration: 300,
