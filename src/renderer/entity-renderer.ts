@@ -101,7 +101,7 @@ export class EntityRenderer {
       rangeRing.material = rangeMat
     }
 
-    // Aggro detection fan (boss/mob only): very faint 120° fan
+    // Aggro detection fan (boss/mob only): very faint 120° fan centered on forward direction
     let aggroFan: any = null
     if (entity.type === 'boss' || entity.type === 'mob') {
       const fanRange = autoAtkRange || 5
@@ -111,6 +111,10 @@ export class EntityRenderer {
         arc: 120 / 360,  // 120° aggro cone
       }, this.scene)
       aggroFan.rotation.x = Math.PI / 2  // lay flat
+      // Rotate the fan so it's centered on +Z (forward direction)
+      // CreateDisc arc starts at +X in local space, so rotate -60° (half of 120°)
+      // to center it, then rotate -90° to align +X arc start with +Z forward
+      aggroFan.rotation.y = -(Math.PI / 2) + (60 * Math.PI) / 180
       aggroFan.position.y = 0.01
       aggroFan.parent = root
 

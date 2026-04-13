@@ -1,5 +1,18 @@
 import type { SkillDef } from '@/core/types'
 
+/** Auto-attack: ability type, no GCD, used by auto-attack timer only */
+export const AUTO_ATTACK: SkillDef = {
+  id: 'auto_attack',
+  name: '自动攻击',
+  type: 'ability',
+  castTime: 0,
+  cooldown: 0,
+  gcd: false,
+  targetType: 'single',
+  range: 5,
+  effects: [{ type: 'damage', potency: 1 }],
+}
+
 export const DEMO_SKILLS: SkillDef[] = [
   {
     id: 'basic_attack',

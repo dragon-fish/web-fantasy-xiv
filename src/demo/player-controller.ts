@@ -28,6 +28,7 @@ export class PlayerController {
     private skills: SkillDef[],
     private arena: Arena,
     private autoAttackInterval: number,
+    private autoAttackSkill?: SkillDef,
   ) {}
 
   /** Returns 'pause' if ESC should trigger pause menu (no higher-priority action consumed it) */
@@ -104,15 +105,12 @@ export class PlayerController {
       this.skillResolver.tryUse(this.player, this.skills[skillIdx])
     }
 
-    // Auto-attack when target locked (left click or auto)
-    if (this.player.target && this.player.inCombat) {
+    // Auto-attack when target locked (uses dedicated auto-attack skill, no GCD)
+    if (this.player.target && this.player.inCombat && this.autoAttackSkill) {
       this.player.autoAttackTimer += dt
       if (this.player.autoAttackTimer >= this.autoAttackInterval) {
         this.player.autoAttackTimer -= this.autoAttackInterval
-        // Use first skill (basic attack) as auto-attack
-        if (this.skills.length > 0) {
-          this.skillResolver.tryUse(this.player, this.skills[0])
-        }
+        this.skillResolver.tryUse(this.player, this.autoAttackSkill)
       }
     }
 

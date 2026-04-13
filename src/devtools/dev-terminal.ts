@@ -61,10 +61,15 @@ export class DevTerminal {
 
     parent.appendChild(this.container)
 
-    // Toggle with ~ key
+    // Toggle with ~ key, close with ESC
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Backquote') {
         e.preventDefault()
+        this.toggle()
+      }
+      if (e.code === 'Escape' && this.visible) {
+        e.preventDefault()
+        e.stopPropagation()
         this.toggle()
       }
     })

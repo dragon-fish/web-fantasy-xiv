@@ -11,11 +11,11 @@ export class SceneManager {
     this.scene = new Scene(this.engine)
     this.scene.clearColor.set(0.12, 0.12, 0.14, 1) // dark gray
 
-    // Fixed top-down camera (~60° from top, good for ARPG)
+    // Fixed top-down camera (~70° elevation from ground = 20° from zenith)
     this.camera = new ArcRotateCamera(
       'camera',
       -Math.PI / 2, // alpha: rotation around Y
-      Math.PI / 3, // beta: ~60° from top
+      (20 * Math.PI) / 180, // beta: 20° from zenith (~70° elevation)
       40, // radius: distance from target
       Vector3.Zero(),
       this.scene,
