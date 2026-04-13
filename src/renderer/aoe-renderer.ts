@@ -22,13 +22,13 @@ export class AoeRenderer {
 
   constructor(private scene: Scene, bus: EventBus) {
     this.telegraphMat = new StandardMaterial('aoe-telegraph', scene)
-    this.telegraphMat.diffuseColor = new Color3(1.0, 0.6, 0.0)
-    this.telegraphMat.emissiveColor = new Color3(0.5, 0.3, 0.0)
+    this.telegraphMat.diffuseColor = new Color3(0.95, 0.45, 0.0)
+    this.telegraphMat.emissiveColor = new Color3(0.5, 0.2, 0.0)
     this.telegraphMat.alpha = 0.3
 
     this.telegraphKbMat = new StandardMaterial('aoe-telegraph-kb', scene)
-    this.telegraphKbMat.diffuseColor = new Color3(1.0, 0.7, 0.2)
-    this.telegraphKbMat.emissiveColor = new Color3(0.4, 0.25, 0.0)
+    this.telegraphKbMat.diffuseColor = new Color3(0.95, 0.5, 0.05)
+    this.telegraphKbMat.emissiveColor = new Color3(0.4, 0.15, 0.0)
     this.telegraphKbMat.alpha = 0.15
 
     this.resolveMat = new StandardMaterial('aoe-resolve', scene)
@@ -37,7 +37,7 @@ export class AoeRenderer {
     this.resolveMat.alpha = 0.5
 
     // Edge rendering color for telegraph outlines
-    this.edgeColor = new Color4(1.0, 0.5, 0.0, 0.6)
+    this.edgeColor = new Color4(0.95, 0.4, 0.0, 0.7)
 
     bus.on('aoe:zone_created', (payload: { zone: ActiveAoeZone }) => {
       this.createMesh(payload.zone)
