@@ -14,6 +14,7 @@ interface EntityMeshGroup {
   facingArrow: any   // arrow showing facing direction
   rangeRing?: any    // auto-attack range ring at feet
   aggroFan?: any     // aggro detection fan (boss only, semi-transparent)
+  baseEmissive: Color3  // stored once at creation for flash restore
 }
 
 export class EntityRenderer {
@@ -125,7 +126,7 @@ export class EntityRenderer {
       aggroFan.material = aggroMat
     }
 
-    this.meshes.set(entity.id, { root, body, hitPoint, facingArrow, rangeRing, aggroFan })
+    this.meshes.set(entity.id, { root, body, hitPoint, facingArrow, rangeRing, aggroFan, baseEmissive: bodyMat.emissiveColor.clone() })
   }
 
   /** Call each render frame to sync positions */
@@ -157,11 +158,11 @@ export class EntityRenderer {
     if (!group) return
 
     const mat = group.body.material as StandardMaterial
-    const original = mat.emissiveColor.clone()
     mat.emissiveColor = Color3.White().scale(0.6)
 
+    // Always restore to the base color stored at creation, not "current"
     setTimeout(() => {
-      mat.emissiveColor = original
+      mat.emissiveColor = group.baseEmissive.clone()
     }, 100)
   }
 

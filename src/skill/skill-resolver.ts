@@ -136,13 +136,17 @@ export class SkillResolver {
   updateCooldowns(entity: Entity, dt: number): void {
     const cds = this.cooldowns.get(entity.id)
     if (!cds) return
+    const expired: string[] = []
     for (const [skillId, remaining] of cds) {
       const next = remaining - dt
       if (next <= 0) {
-        cds.delete(skillId)
+        expired.push(skillId)
       } else {
         cds.set(skillId, next)
       }
+    }
+    for (const id of expired) {
+      cds.delete(id)
     }
   }
 
