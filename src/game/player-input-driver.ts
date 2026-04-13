@@ -8,10 +8,11 @@ import type { EventBus } from '@/core/event-bus'
 import type { Arena } from '@/arena/arena'
 import { computeMoveDirection, computeFacingAngle } from '@/input/input-manager'
 
-/** How far in advance (ms) a skill can be queued before GCD/CD completes */
 const SKILL_QUEUE_WINDOW = 500
-/** Slidecast window: movement won't interrupt cast within this many ms of completion */
 const SLIDECAST_WINDOW = 300
+const REGEN_INTERVAL = 3000
+const REGEN_RATE_IDLE = 0.20  // 20% max HP per tick out of combat
+const REGEN_RATE_COMBAT = 0.02 // 2% max HP per tick in combat
 
 export interface PlayerInputConfig {
   skills: SkillDef[]
@@ -22,6 +23,7 @@ export interface PlayerInputConfig {
 
 export class PlayerInputDriver {
   private queuedSkill: SkillDef | null = null
+  private regenTimer = 0
 
   constructor(
     private entity: Entity,
@@ -126,6 +128,17 @@ export class PlayerInputDriver {
     // Tick ALL entities' GCD / casting / cooldowns
     this.skillResolver.updateAll(dt)
     this.buffSystem.update(p, dt)
+
+    // Passive HP regen
+    if (p.alive && p.hp < p.maxHp) {
+      this.regenTimer += dt
+      if (this.regenTimer >= REGEN_INTERVAL) {
+        this.regenTimer -= REGEN_INTERVAL
+        const rate = p.inCombat ? REGEN_RATE_COMBAT : REGEN_RATE_IDLE
+        const heal = Math.floor(p.maxHp * rate)
+        p.hp = Math.min(p.maxHp, p.hp + heal)
+      }
+    }
 
     return null
   }
