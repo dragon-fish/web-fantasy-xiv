@@ -71,6 +71,14 @@ export { UIManager } from './ui/ui-manager'
 export { MainMenu } from './ui/main-menu'
 export { PauseMenu } from './ui/pause-menu'
 
+// Game (reusable components)
+export { CameraController } from './game/camera-controller'
+export type { CameraFollowConfig } from './game/camera-controller'
+export { CombatResolver } from './game/combat-resolver'
+export { PlayerInputDriver } from './game/player-input-driver'
+export type { PlayerInputConfig } from './game/player-input-driver'
+export { DisplacementAnimator, EASING } from './game/displacement-animator'
+
 // DevTools
 export { DevTerminal } from './devtools/dev-terminal'
 export { CommandRegistry } from './devtools/commands'

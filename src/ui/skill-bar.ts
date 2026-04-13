@@ -1,14 +1,14 @@
 // src/ui/skill-bar.ts
-import type { SkillDef } from '@/core/types'
+import type { SkillBarEntry } from './ui-manager'
 
 export class SkillBar {
   private slots: HTMLDivElement[] = []
   private cooldownOverlays: HTMLDivElement[] = []
   private cooldownTexts: HTMLSpanElement[] = []
-  private skills: SkillDef[]
+  private entries: SkillBarEntry[]
 
-  constructor(parent: HTMLDivElement, skills: SkillDef[]) {
-    this.skills = skills
+  constructor(parent: HTMLDivElement, entries: SkillBarEntry[]) {
+    this.entries = entries
 
     const bar = document.createElement('div')
     bar.style.cssText = `
@@ -16,7 +16,8 @@ export class SkillBar {
       display: flex; gap: 6px;
     `
 
-    for (let i = 0; i < skills.length; i++) {
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       const slot = document.createElement('div')
       slot.style.cssText = `
         width: 48px; height: 48px; background: rgba(0,0,0,0.8);
@@ -26,7 +27,7 @@ export class SkillBar {
       `
 
       const keyLabel = document.createElement('span')
-      keyLabel.textContent = `${i + 1}`
+      keyLabel.textContent = entry.key
       keyLabel.style.cssText = `
         position: absolute; top: 2px; left: 4px; font-size: 10px;
         color: rgba(255,255,255,0.5);
@@ -34,7 +35,7 @@ export class SkillBar {
       slot.appendChild(keyLabel)
 
       const nameLabel = document.createElement('span')
-      nameLabel.textContent = skills[i]?.name?.slice(0, 3) ?? ''
+      nameLabel.textContent = entry.skill.name.slice(0, 3)
       nameLabel.style.cssText = 'font-size: 9px; text-align: center;'
       slot.appendChild(nameLabel)
 
@@ -65,19 +66,16 @@ export class SkillBar {
     parent.appendChild(bar)
   }
 
-  /** Update all slots. Pass GCD state + per-skill CD getter. */
   update(gcdRemaining: number, gcdTotal: number, getCooldown: (skillId: string) => number): void {
-    for (let i = 0; i < this.skills.length; i++) {
-      const skill = this.skills[i]
+    for (let i = 0; i < this.entries.length; i++) {
+      const skill = this.entries[i].skill
       const overlay = this.cooldownOverlays[i]
       const text = this.cooldownTexts[i]
 
-      // Ability with independent CD
       if (!skill.gcd && skill.cooldown > 0) {
         const cd = getCooldown(skill.id)
         if (cd > 0) {
-          const pct = (cd / skill.cooldown) * 100
-          overlay.style.height = `${pct}%`
+          overlay.style.height = `${(cd / skill.cooldown) * 100}%`
           text.style.display = 'block'
           text.textContent = (cd / 1000).toFixed(1)
         } else {
@@ -87,10 +85,8 @@ export class SkillBar {
         continue
       }
 
-      // GCD skill
       if (skill.gcd && gcdRemaining > 0) {
-        const pct = (gcdRemaining / gcdTotal) * 100
-        overlay.style.height = `${pct}%`
+        overlay.style.height = `${(gcdRemaining / gcdTotal) * 100}%`
         text.style.display = 'block'
         text.textContent = (gcdRemaining / 1000).toFixed(1)
       } else {

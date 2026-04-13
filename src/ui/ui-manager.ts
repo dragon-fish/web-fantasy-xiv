@@ -2,11 +2,17 @@
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 import type { SkillDef } from '@/core/types'
+import type { SceneManager } from '@/renderer/scene-manager'
 import { HpBar } from './hp-bar'
 import { SkillBar } from './skill-bar'
 import { CastBar } from './cast-bar'
 import { DamageFloater } from './damage-floater'
 import { GCD_DURATION } from '@/skill/skill-resolver'
+
+export interface SkillBarEntry {
+  key: string     // display label, e.g. "1", "Q"
+  skill: SkillDef
+}
 
 export class UIManager {
   private playerHp: HpBar
@@ -15,17 +21,18 @@ export class UIManager {
   private playerCastBar: CastBar
   private bossCastBar: CastBar
   private damageFloater: DamageFloater
+  private sceneManager: SceneManager | null = null
 
   constructor(
     root: HTMLDivElement,
     bus: EventBus,
-    skills: SkillDef[],
+    entries: SkillBarEntry[],
   ) {
     DamageFloater.injectStyles()
 
     this.bossHp = new HpBar(root, '', '#cc3333', 'top')
     this.playerHp = new HpBar(root, '', '#3388cc', 'bottom')
-    this.skillBar = new SkillBar(root, skills)
+    this.skillBar = new SkillBar(root, entries)
     this.playerCastBar = new CastBar(root, {
       position: 'bottom: 120px',
       color: 'linear-gradient(90deg, #4a9eff, #82c0ff)',
@@ -37,9 +44,25 @@ export class UIManager {
     this.damageFloater = new DamageFloater(root)
 
     bus.on('damage:dealt', (payload: { target: Entity; amount: number }) => {
-      const x = window.innerWidth / 2 + (Math.random() - 0.5) * 100
-      const y = window.innerHeight / 2 + (Math.random() - 0.5) * 50
-      this.damageFloater.spawn(x, y, payload.amount, false)
+      let sx = window.innerWidth / 2
+      let sy = window.innerHeight / 2
+
+      if (this.sceneManager) {
+        const projected = this.sceneManager.worldToScreen(
+          payload.target.position.x,
+          payload.target.position.y,
+          2, // above head
+        )
+        if (projected) {
+          sx = projected.x
+          sy = projected.y
+        }
+      }
+
+      // Add slight random offset so overlapping numbers are readable
+      sx += (Math.random() - 0.5) * 40
+      sy += (Math.random() - 0.5) * 20
+      this.damageFloater.spawn(sx, sy, payload.amount, false)
     })
 
     bus.on('skill:cast_start', (payload: { caster: Entity; skill: { name: string } }) => {
@@ -62,6 +85,11 @@ export class UIManager {
         this.bossCastBar.hide()
       }
     })
+  }
+
+  /** Bind to SceneManager for world-to-screen projection (damage floater positioning) */
+  bindScene(sceneManager: SceneManager): void {
+    this.sceneManager = sceneManager
   }
 
   update(player: Entity, boss: Entity, getCooldown: (skillId: string) => number): void {

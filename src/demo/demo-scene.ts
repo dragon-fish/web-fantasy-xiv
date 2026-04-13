@@ -10,168 +10,89 @@ import { SkillResolver } from '@/skill/skill-resolver'
 import { BuffSystem } from '@/combat/buff'
 import { AoeZoneManager } from '@/skill/aoe-zone'
 import { Arena } from '@/arena/arena'
-import { calculateDamage } from '@/combat/damage'
 import { InputManager } from '@/input/input-manager'
-import { PlayerController } from './player-controller'
+import { CameraController } from '@/game/camera-controller'
+import { CombatResolver } from '@/game/combat-resolver'
+import { PlayerInputDriver } from '@/game/player-input-driver'
+import { DisplacementAnimator } from '@/game/displacement-animator'
 import { UIManager } from '@/ui/ui-manager'
 import { PauseMenu } from '@/ui/pause-menu'
 import { DevTerminal } from '@/devtools/dev-terminal'
 import { CommandRegistry } from '@/devtools/commands'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
-import type { ArenaDef, SkillDef } from '@/core/types'
-import type { Entity } from '@/entity/entity'
+import { DEMO_SKILL_BAR } from './demo-skill-bar'
+import type { ArenaDef } from '@/core/types'
 
-const DEMO_ARENA_DEF: ArenaDef = {
+const DEMO_ARENA: ArenaDef = {
   name: 'Training Ground',
   shape: { type: 'circle', radius: 15 },
   boundary: 'wall',
 }
 
 export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): void {
-  // --- Core systems ---
   const bus = new EventBus()
   const entityMgr = new EntityManager(bus)
   const buffSystem = new BuffSystem(bus)
   const zoneMgr = new AoeZoneManager(bus, entityMgr)
   const skillResolver = new SkillResolver(bus, entityMgr, buffSystem, zoneMgr)
-  const arena = new Arena(DEMO_ARENA_DEF)
+  const arena = new Arena(DEMO_ARENA)
   const gameLoop = new GameLoop()
+  const displacer = new DisplacementAnimator(arena)
 
-  // --- DevTools ---
-  const commandRegistry = new CommandRegistry()
-  const devTerminal = new DevTerminal(bus, commandRegistry)
+  new CombatResolver(bus, entityMgr, buffSystem, arena, displacer)
 
-  // --- Rendering ---
   const sceneManager = new SceneManager(canvas)
-  new ArenaRenderer(sceneManager.scene, DEMO_ARENA_DEF)
+  new ArenaRenderer(sceneManager.scene, DEMO_ARENA)
   const entityRenderer = new EntityRenderer(sceneManager.scene, bus)
   const aoeRenderer = new AoeRenderer(sceneManager.scene, bus)
   const hitEffectRenderer = new HitEffectRenderer(sceneManager.scene, bus, entityRenderer)
 
-  // --- Entities ---
   const player = entityMgr.create({
-    id: 'player',
-    type: 'player',
+    id: 'player', type: 'player',
     position: { x: 0, y: -5, z: 0 },
-    hp: 30000,
-    maxHp: 30000,
-    attack: 1000,
-    speed: 6,
-    size: 0.5,
-    autoAttackRange: 5,
-    skillIds: DEMO_SKILLS.map((s) => s.id),
+    hp: 30000, maxHp: 30000, attack: 1000,
+    speed: 6, size: 0.5, autoAttackRange: 5,
   })
   player.inCombat = true
 
   const dummy = entityMgr.create({
-    id: 'dummy',
-    type: 'boss',
+    id: 'dummy', type: 'boss',
     position: { x: 0, y: 0, z: 0 },
-    hp: 999999,
-    maxHp: 999999,
-    attack: 0,
-    speed: 0,
-    size: 1.5,
-    autoAttackRange: 5,
-    facing: 180, // face south (toward camera)
+    hp: 999999, maxHp: 999999, attack: 0,
+    speed: 0, size: 1.5, autoAttackRange: 5, facing: 180,
   })
 
-  // --- Input ---
-  const input = new InputManager(canvas)
+  const camera = new CameraController()
+  camera.follow(player)
 
-  // --- Player controller ---
-  const playerCtrl = new PlayerController(
-    player,
-    input,
-    skillResolver,
-    buffSystem,
-    entityMgr,
-    bus,
-    DEMO_SKILLS,
-    arena,
-    3000,
-    AUTO_ATTACK,
-    new Map([[100, SKILL_DASH], [101, SKILL_BACKSTEP]]),
+  const input = new InputManager(canvas)
+  const playerDriver = new PlayerInputDriver(
+    player, input, skillResolver, buffSystem, entityMgr, bus, arena,
+    {
+      skills: DEMO_SKILLS,
+      extraSkills: new Map([[100, SKILL_DASH], [101, SKILL_BACKSTEP]]),
+      autoAttackSkill: AUTO_ATTACK,
+      autoAttackInterval: 3000,
+    },
   )
 
-  // --- UI ---
-  const uiManager = new UIManager(uiRoot, bus, DEMO_SKILLS)
+  const uiManager = new UIManager(uiRoot, bus, DEMO_SKILL_BAR)
+  uiManager.bindScene(sceneManager)
   const pauseMenu = new PauseMenu(uiRoot)
+  const devTerminal = new DevTerminal(bus, new CommandRegistry())
   devTerminal.mount(uiRoot)
 
-  // --- Pause ---
   let paused = false
+  pauseMenu.onResumeGame(() => { paused = false; pauseMenu.hide() })
+  pauseMenu.onQuitGame(() => window.location.reload())
 
-  pauseMenu.onResumeGame(() => {
-    paused = false
-    pauseMenu.hide()
-  })
-
-  pauseMenu.onQuitGame(() => {
-    window.location.reload()
-  })
-
-  // --- Damage handling: single-target skills ---
-  bus.on('skill:cast_complete', (payload: { caster: Entity; skill: SkillDef | any }) => {
-    if (payload.caster.id !== player.id) return
-    const skill = payload.skill as SkillDef | undefined
-    if (!skill?.effects) return
-
-    const target = player.target ? entityMgr.get(player.target) : null
-    if (!target) return
-
-    for (const effect of skill.effects) {
-      if (effect.type === 'damage') {
-        const dmg = calculateDamage({
-          attack: player.attack,
-          potency: effect.potency,
-          increases: buffSystem.getDamageIncreases(player),
-          mitigations: buffSystem.getMitigations(target),
-        })
-        target.hp = Math.max(0, target.hp - dmg)
-        bus.emit('damage:dealt', { source: player, target, amount: dmg, skill })
-      }
-    }
-  })
-
-  // --- Damage handling: AoE zones ---
-  bus.on('aoe:zone_resolved', (payload: { zone: any; hitEntities: Entity[] }) => {
-    for (const hit of payload.hitEntities) {
-      for (const effect of payload.zone.def.effects) {
-        if (effect.type === 'damage') {
-          const dmg = calculateDamage({
-            attack: player.attack,
-            potency: effect.potency,
-            increases: buffSystem.getDamageIncreases(player),
-            mitigations: buffSystem.getMitigations(hit),
-          })
-          hit.hp = Math.max(0, hit.hp - dmg)
-          bus.emit('damage:dealt', { source: player, target: hit, amount: dmg, skill: null })
-        }
-      }
-    }
-  })
-
-  // --- Mouse world position (ray-plane intersection, works outside arena) ---
-  function updateMouseWorld(): void {
-    const pos = sceneManager.pickGroundPosition()
-    if (pos) input.updateMouseWorldPos(pos)
-  }
-
-  // --- Game loop ---
-  sceneManager.snapTo(player.position.x, player.position.y)
   let lastTime = performance.now()
 
   gameLoop.onUpdate((dt) => {
-    if (paused) return
-    if (devTerminal.isVisible()) return // freeze game while terminal is open
-
-    const result = playerCtrl.update(dt)
-    if (result === 'pause') {
-      paused = true
-      pauseMenu.show()
-      return
-    }
+    if (paused || devTerminal.isVisible()) return
+    const result = playerDriver.update(dt)
+    if (result === 'pause') { paused = true; pauseMenu.show(); return }
+    displacer.update(dt)
     zoneMgr.update(dt)
   })
 
@@ -180,18 +101,17 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     const delta = now - lastTime
     lastTime = now
 
-    updateMouseWorld()
+    const mousePos = sceneManager.pickGroundPosition()
+    if (mousePos) input.updateMouseWorldPos(mousePos)
     gameLoop.tick(delta)
 
+    const camPos = camera.update(delta)
+    sceneManager.setCameraTarget(camPos.x, camPos.y)
     entityRenderer.updateAll(entityMgr.getAlive())
     aoeRenderer.update(now)
     hitEffectRenderer.update(delta, (id) => entityMgr.get(id))
-    sceneManager.followTarget(player.position.x, player.position.y, delta)
-    uiManager.update(player, dummy, (skillId) => skillResolver.getCooldown(player.id, skillId))
+    uiManager.update(player, dummy, (sid) => skillResolver.getCooldown(player.id, sid))
   })
 
   window.addEventListener('resize', () => sceneManager.engine.resize())
-
-  console.log('XIV Stage Play — Training Dummy Demo Ready')
-  console.log('Controls: WASD move, mouse aim, right-click lock target, 1-4 skills, ~ dev terminal')
 }
