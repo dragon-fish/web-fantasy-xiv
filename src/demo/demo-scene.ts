@@ -58,6 +58,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     attack: 1000,
     speed: 6,
     size: 0.5,
+    autoAttackRange: 5,
     skillIds: DEMO_SKILLS.map((s) => s.id),
   })
   player.inCombat = true
@@ -71,6 +72,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     attack: 0,
     speed: 0,
     size: 1.5,
+    autoAttackRange: 5,
     facing: 180, // face south (toward camera)
   })
 

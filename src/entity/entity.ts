@@ -28,6 +28,9 @@ export interface Entity {
   maxHp: number
   attack: number
 
+  autoAttackRange: number   // max range for auto-attack
+  aggroRange: number        // proximity aggro detection range (boss/mob)
+
   alive: boolean
   inCombat: boolean
   casting: CastState | null
@@ -49,6 +52,8 @@ export interface CreateEntityOptions {
   hp?: number
   maxHp?: number
   attack?: number
+  autoAttackRange?: number
+  aggroRange?: number
   skillIds?: string[]
 }
 
@@ -64,6 +69,8 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     hp: opts.hp ?? maxHp,
     maxHp,
     attack: opts.attack ?? 0,
+    autoAttackRange: opts.autoAttackRange ?? 0,
+    aggroRange: opts.aggroRange ?? 0,
     alive: true,
     inCombat: false,
     casting: null,

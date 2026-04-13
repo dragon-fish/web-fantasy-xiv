@@ -85,10 +85,9 @@ export class EntityRenderer {
 
     // Auto-attack range ring: thin torus at feet
     let rangeRing: any = null
-    const autoAtkRange = (entity as any).autoAttackRange
-    if (autoAtkRange && autoAtkRange > 0) {
+    if (entity.autoAttackRange > 0) {
       rangeRing = MeshBuilder.CreateTorus(`range-${entity.id}`, {
-        diameter: autoAtkRange * 2,
+        diameter: entity.autoAttackRange * 2,
         thickness: 0.04,
         tessellation: 48,
       }, this.scene)
@@ -102,27 +101,25 @@ export class EntityRenderer {
       rangeRing.material = rangeMat
     }
 
-    // Aggro detection fan (boss/mob only): very faint 120° fan centered on forward direction
+    // Aggro detection fan (boss/mob only): pink 120° fan, visible only when idle
     let aggroFan: any = null
-    if (entity.type === 'boss' || entity.type === 'mob') {
-      const fanRange = autoAtkRange || 5
+    if ((entity.type === 'boss' || entity.type === 'mob') && entity.aggroRange > 0) {
+      const aggroAngle = 120
       aggroFan = MeshBuilder.CreateDisc(`aggro-${entity.id}`, {
-        radius: fanRange,
+        radius: entity.aggroRange,
         tessellation: 48,
-        arc: 120 / 360,  // 120° aggro cone
+        arc: aggroAngle / 360,
       }, this.scene)
-      aggroFan.rotation.x = Math.PI / 2  // lay flat
-      // Rotate the fan so it's centered on +Z (forward direction)
-      // CreateDisc arc starts at +X in local space, so rotate -60° (half of 120°)
-      // to center it, then rotate -90° to align +X arc start with +Z forward
-      aggroFan.rotation.y = -(Math.PI / 2) + (60 * Math.PI) / 180
+      aggroFan.rotation.x = Math.PI / 2 // lay flat
+      // Center arc on forward (+Z): rotation = (0 - 90 + aggroAngle/2) * PI/180
+      aggroFan.rotation.y = ((0 - 90 + aggroAngle / 2) * Math.PI) / 180
       aggroFan.position.y = 0.01
       aggroFan.parent = root
 
       const aggroMat = new StandardMaterial(`aggro-mat-${entity.id}`, this.scene)
-      aggroMat.diffuseColor = new Color3(1, 1, 0.6)
-      aggroMat.emissiveColor = new Color3(0.2, 0.2, 0.1)
-      aggroMat.alpha = 0.08  // very faint
+      aggroMat.diffuseColor = new Color3(1.0, 0.4, 0.6)   // pink
+      aggroMat.emissiveColor = new Color3(0.4, 0.1, 0.2)
+      aggroMat.alpha = 0.12
       aggroFan.material = aggroMat
     }
 
@@ -142,6 +139,11 @@ export class EntityRenderer {
       // Babylon Y rotation: 0=+z, clockwise when viewed from above
       // Game: 0=+y(north)=+z(babylon), so direct mapping in radians
       group.root.rotation.y = (entity.facing * Math.PI) / 180
+
+      // Hide aggro fan once in combat
+      if (group.aggroFan) {
+        group.aggroFan.isVisible = !entity.inCombat
+      }
     }
   }
 

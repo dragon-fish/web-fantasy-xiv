@@ -73,6 +73,7 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
     attack: 1000,
     speed: 6,
     size: 0.5,
+    autoAttackRange: 5,
     skillIds: DEMO_SKILLS.map((s) => s.id),
   })
 
@@ -85,6 +86,8 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
     attack: 1, // potency=1 → 1 damage per auto
     speed: 3,
     size: 1.5,
+    autoAttackRange: 5,
+    aggroRange: 8,
     facing: 180, // face south (toward player spawn)
   })
 
