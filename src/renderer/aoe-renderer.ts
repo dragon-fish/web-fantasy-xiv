@@ -104,15 +104,14 @@ export class AoeRenderer {
     mesh.position.set(zone.center.x, 0.02, zone.center.y)
 
     // Apply facing rotation (around Y axis)
-    // For fan/rect: CreateDisc arc starts at +X in local space.
-    // After rotation.x = PI/2 (lay flat), local +X becomes world +X.
-    // Our facing 0° = +Z (north). So we need to rotate by -(facing + 90°) to align
-    // the arc center with the facing direction, plus half-arc offset to center it.
+    // After rotation.x = PI/2, CreateDisc arc starts at +X (east=90°), sweeps CCW.
+    // Arc center is at (90 - A/2)°. To align center with facing F:
+    //   rotation.y = (F - 90 + A/2) * PI/180
+    // For non-fan shapes (rect/circle), simply rotate by facing.
     if (shape.type === 'fan') {
-      const halfArc = (shape.angle / 2) * (Math.PI / 180)
-      mesh.rotation.y = -(zone.facing * Math.PI / 180) - (Math.PI / 2) + halfArc
+      mesh.rotation.y = ((zone.facing - 90 + shape.angle / 2) * Math.PI) / 180
     } else {
-      mesh.rotation.y = -(zone.facing * Math.PI) / 180
+      mesh.rotation.y = (zone.facing * Math.PI) / 180
     }
 
     mesh.material = this.telegraphMat
