@@ -77,7 +77,7 @@ function parseZone(raw: any): AoeZoneDef {
 // --- Timeline ---
 export interface TimelineAction {
   at: number          // absolute ms
-  action: string      // 'use' | 'loop' | 'switch_arena' | 'spawn_entity' | 'lock_facing'
+  action: string      // 'use' | 'loop' | 'switch_arena' | 'spawn_entity' | 'lock_facing' | 'enable_ai' | 'disable_ai' | 'teleport'
   use?: string        // skill id
   loop?: number       // target time ms
   arena?: string      // arena alias

@@ -36,6 +36,12 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
     out.push({ at, action: 'spawn_entity', entity: entry.entity, position: entry.position })
   } else if (entry.action === 'lock_facing') {
     out.push({ at, action: 'lock_facing', facing: entry.facing, locked: entry.locked })
+  } else if (entry.action === 'enable_ai') {
+    out.push({ at, action: 'enable_ai' })
+  } else if (entry.action === 'disable_ai') {
+    out.push({ at, action: 'disable_ai' })
+  } else if (entry.action === 'teleport') {
+    out.push({ at, action: 'teleport', position: entry.position })
   }
 
   if (entry.then) {
