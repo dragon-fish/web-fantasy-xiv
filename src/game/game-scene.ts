@@ -93,7 +93,7 @@ export class GameScene {
     this.displacer = new DisplacementAnimator(this.arena)
     this.zoneMgr = new AoeZoneManager(this.bus, this.entityMgr)
     this.skillResolver = new SkillResolver(this.bus, this.entityMgr, this.buffSystem, this.zoneMgr)
-    new CombatResolver(this.bus, this.entityMgr, this.buffSystem, this.arena, this.displacer)
+    new CombatResolver(this.bus, this.entityMgr, this.buffSystem, this.arena, this.zoneMgr, this.displacer)
 
     // Rendering
     this.sceneManager = new SceneManager(config.canvas)

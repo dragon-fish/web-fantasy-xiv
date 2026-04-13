@@ -6,6 +6,7 @@ import type { Entity } from '@/entity/entity'
 import type { SkillDef, SkillEffectDef } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
+import type { AoeZoneManager } from '@/skill/aoe-zone'
 import type { DisplacementAnimator } from './displacement-animator'
 
 /**
@@ -20,6 +21,7 @@ export class CombatResolver {
     private entityMgr: EntityManager,
     private buffSystem: BuffSystem,
     private arena: Arena,
+    private zoneMgr?: AoeZoneManager,
     private displacer?: DisplacementAnimator,
   ) {
     // Single-target skill effects
@@ -118,11 +120,13 @@ export class CombatResolver {
   private applyDisplacement(entity: Entity, newPos: { x: number; y: number }): void {
     const clamped = this.arena.clampPosition(newPos)
 
-    // Forced movement interrupts casting
+    // Forced movement interrupts casting + cancels zones
     if (entity.casting) {
+      const skillId = entity.casting.skillId
+      this.zoneMgr?.cancelZones(entity.id, skillId)
       entity.casting = null
       entity.gcdTimer = 0
-      this.bus.emit('skill:cast_interrupted', { caster: entity, skillId: null, reason: 'displacement' })
+      this.bus.emit('skill:cast_interrupted', { caster: entity, skillId, reason: 'displacement' })
     }
 
     if (this.displacer) {

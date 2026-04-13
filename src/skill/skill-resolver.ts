@@ -149,6 +149,8 @@ export class SkillResolver {
   interruptCast(entity: Entity): void {
     if (!entity.casting) return
     const skillId = entity.casting.skillId
+    // Cancel any zones spawned by this cast (telegraph only, not yet resolved)
+    this.zoneMgr.cancelZones(entity.id, skillId)
     entity.casting = null
     entity.gcdTimer = 0
     this.bus.emit('skill:cast_interrupted', { caster: entity, skillId, reason: 'interrupted' })
@@ -206,10 +208,12 @@ export class SkillResolver {
     if (targetId && skill && skill.range > 0) {
       const target = this.entityMgr.get(targetId)
       if (!target || !target.alive) {
+        this.zoneMgr.cancelZones(entity.id, skillId)
         this.bus.emit('skill:cast_interrupted', { caster: entity, skillId, reason: 'target_lost' })
         return
       }
       if (distance(entity.position, target.position) > skill.range) {
+        this.zoneMgr.cancelZones(entity.id, skillId)
         this.bus.emit('skill:cast_interrupted', { caster: entity, skillId, reason: 'out_of_range' })
         return
       }

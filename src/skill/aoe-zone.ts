@@ -139,6 +139,17 @@ export class AoeZoneManager {
     }
   }
 
+  /** Remove all unresolved zones spawned by a specific cast (for cast interrupts) */
+  cancelZones(casterId: string, skillId: string): void {
+    for (let i = this.zones.length - 1; i >= 0; i--) {
+      const zone = this.zones[i]
+      if (zone.casterId === casterId && zone.skillId === skillId && !zone.resolved) {
+        this.zones.splice(i, 1)
+        this.bus.emit('aoe:zone_removed', { zone })
+      }
+    }
+  }
+
   getActiveZones(): readonly ActiveAoeZone[] {
     return this.zones
   }
