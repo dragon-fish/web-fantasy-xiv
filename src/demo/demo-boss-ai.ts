@@ -67,7 +67,7 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
   const player = entityMgr.create({
     id: 'player',
     type: 'player',
-    position: { x: 0, y: -8, z: 0 },
+    position: { x: 0, y: -12, z: 0 },
     hp: 30000,
     maxHp: 30000,
     attack: 1000,

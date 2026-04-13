@@ -71,6 +71,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     attack: 0,
     speed: 0,
     size: 1.5,
+    facing: 180, // face south (toward camera)
   })
 
   // --- Input ---
