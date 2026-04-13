@@ -77,10 +77,14 @@ export class CombatResolver {
           break
         }
 
-        case 'heal':
-          if (!target) break
-          target.hp = Math.min(target.maxHp, target.hp + (caster?.attack ?? 0) * effect.potency)
+        case 'heal': {
+          const healTarget = target ?? caster // self-heal if no target
+          if (!healTarget) break
+          const healAmount = Math.floor((caster?.attack ?? healTarget.attack) * effect.potency)
+          healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + healAmount)
+          this.bus.emit('damage:dealt', { source: caster ?? healTarget, target: healTarget, amount: -healAmount, skill: null })
           break
+        }
 
         case 'dash':
           if (!caster || !target) break

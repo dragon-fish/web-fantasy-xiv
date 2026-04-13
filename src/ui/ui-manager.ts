@@ -68,7 +68,8 @@ export class UIManager {
       // Add slight random offset so overlapping numbers are readable
       sx += (Math.random() - 0.5) * 40
       sy += (Math.random() - 0.5) * 20
-      this.damageFloater.spawn(sx, sy, payload.amount, false)
+      const isHeal = payload.amount < 0
+      this.damageFloater.spawn(sx, sy, Math.abs(payload.amount), isHeal)
     })
 
     bus.on('skill:cast_start', (payload: { caster: Entity; skill: { name: string } }) => {

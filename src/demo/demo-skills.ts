@@ -94,25 +94,18 @@ export const DEMO_SKILLS: SkillDef[] = [
     range: 0,
     effects: [{ type: 'apply_buff', buffId: 'rampart' }],
   },
-  // 6: 战嚎（圆形AOE）
+  // 6: 治疗魔法（1.8s咏唱，自身回血）
   {
-    id: 'rage_burst',
-    name: '战嚎',
-    type: 'ability',
-    castTime: 0,
-    cooldown: 15000,
-    gcd: false,
-    targetType: 'aoe',
+    id: 'cure',
+    name: '治疗',
+    type: 'spell',
+    castTime: 1800,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'single',
     requiresTarget: false,
     range: 0,
-    zones: [{
-      anchor: { type: 'caster' },
-      direction: { type: 'none' },
-      shape: { type: 'circle', radius: 6 },
-      resolveDelay: 0,
-      hitEffectDuration: 300,
-      effects: [{ type: 'damage', potency: 5 }],
-    }],
+    effects: [{ type: 'heal', potency: 5 }],
   },
 ]
 
