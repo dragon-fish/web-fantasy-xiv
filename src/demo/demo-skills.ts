@@ -96,7 +96,7 @@ export const DEMO_SKILLS: SkillDef[] = [
       anchor: { type: 'caster' },
       direction: { type: 'toward_target' },
       shape: { type: 'rect', length: 20, width: 3 },
-      resolveDelay: 0,
+      resolveDelay: 1500, // matches castTime — damage on cast complete
       hitEffectDuration: 300,
       effects: [{ type: 'damage', potency: 3 }],
     }],
