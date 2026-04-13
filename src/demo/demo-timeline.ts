@@ -98,7 +98,14 @@ const TIMELINE_ACTIONS: TimelineAction[] = [
 
 const ENRAGE_CONFIG = { time: 30000, castTime: 10000, skill: 'enrage_blast' }
 
+let cleanup: (() => void) | null = null
+
 export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): void {
+  // Clean up previous run
+  if (cleanup) {
+    cleanup()
+    cleanup = null
+  }
   // --- Core systems ---
   const bus = new EventBus()
   const entityMgr = new EntityManager(bus)
@@ -283,11 +290,12 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
     overlay.appendChild(text)
 
     const hint = document.createElement('p')
-    hint.textContent = 'Click to return to menu'
-    hint.style.cssText = 'font-size: 14px; color: #888;'
+    hint.textContent = 'Click to retry'
+    hint.style.cssText = 'font-size: 14px; color: #888; cursor: pointer;'
     overlay.appendChild(hint)
 
-    overlay.addEventListener('click', () => window.location.reload())
+    overlay.style.cursor = 'pointer'
+    overlay.addEventListener('click', () => startTimelineDemo(canvas, uiRoot))
     uiRoot.appendChild(overlay)
   }
 
@@ -351,7 +359,17 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
     uiManager.update(player, boss, (skillId) => skillResolver.getCooldown(player.id, skillId))
   })
 
-  window.addEventListener('resize', () => sceneManager.engine.resize())
+  const onResize = () => sceneManager.engine.resize()
+  window.addEventListener('resize', onResize)
+
+  // Register cleanup for restart
+  cleanup = () => {
+    sceneManager.dispose()
+    input.dispose()
+    window.removeEventListener('resize', onResize)
+    // Remove all UI children added by this run
+    while (uiRoot.firstChild) uiRoot.removeChild(uiRoot.firstChild)
+  }
 
   console.log('XIV Stage Play — Timeline Demo')
   console.log('Boss rotates 90° fan clockwise every 5s. Enrage at 30s. Dodge!')
