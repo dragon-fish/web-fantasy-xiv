@@ -49,6 +49,7 @@ export class GameScene {
   readonly skillResolver: SkillResolver
   readonly arena: Arena
   readonly gameLoop = new GameLoop()
+  readonly combatResolver: CombatResolver
   readonly displacer: DisplacementAnimator
 
   // Rendering
@@ -93,7 +94,7 @@ export class GameScene {
     this.displacer = new DisplacementAnimator(this.arena)
     this.zoneMgr = new AoeZoneManager(this.bus, this.entityMgr)
     this.skillResolver = new SkillResolver(this.bus, this.entityMgr, this.buffSystem, this.zoneMgr)
-    new CombatResolver(this.bus, this.entityMgr, this.buffSystem, this.arena, this.zoneMgr, this.displacer)
+    this.combatResolver = new CombatResolver(this.bus, this.entityMgr, this.buffSystem, this.arena, this.zoneMgr, this.displacer)
 
     // Rendering
     this.sceneManager = new SceneManager(config.canvas)
@@ -109,6 +110,7 @@ export class GameScene {
     // UI
     this.uiManager = new UIManager(config.uiRoot, this.bus, config.skillBarEntries)
     this.uiManager.bindScene(this.sceneManager)
+    this.uiManager.bindBuffSystem(this.buffSystem)
     this.pauseMenu = new PauseMenu(config.uiRoot)
     this.devTerminal = new DevTerminal(this.bus, new CommandRegistry())
     this.devTerminal.mount(config.uiRoot)

@@ -1,6 +1,7 @@
 import { GameScene } from '@/game/game-scene'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_SKILL_BAR } from './demo-skill-bar'
+import { DEMO_BUFFS } from './demo-buffs'
 import type { ArenaDef } from '@/core/types'
 
 const ARENA: ArenaDef = {
@@ -41,6 +42,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     speed: 0, size: 1.5, autoAttackRange: 5, facing: 180,
   })
   scene.bossEntity = dummy
+  scene.combatResolver.registerBuffs(DEMO_BUFFS)
 
   scene.announce.show('战斗开始')
   scene.start()

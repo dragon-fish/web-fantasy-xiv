@@ -15,7 +15,7 @@ export const AUTO_ATTACK: SkillDef = {
 }
 
 export const DEMO_SKILLS: SkillDef[] = [
-  // 1: 单体战技（需要目标）
+  // 1: 单体战技
   {
     id: 'slash',
     name: '斩击',
@@ -28,20 +28,27 @@ export const DEMO_SKILLS: SkillDef[] = [
     range: 5,
     effects: [{ type: 'damage', potency: 2 }],
   },
-  // 2: 单体魔法（需要目标，有咏唱）
+  // 2: 直线射击（矩形魔法，有咏唱）
   {
-    id: 'fire1',
-    name: '火炎',
+    id: 'line_shot',
+    name: '直线射击',
     type: 'spell',
-    castTime: 2000,
+    castTime: 1500,
     cooldown: 0,
     gcd: true,
-    targetType: 'single',
+    targetType: 'aoe',
     requiresTarget: true,
-    range: 20,
-    effects: [{ type: 'damage', potency: 4 }],
+    range: 15,
+    zones: [{
+      anchor: { type: 'caster' },
+      direction: { type: 'toward_target' },
+      shape: { type: 'rect', length: 12, width: 3 },
+      resolveDelay: 1500,
+      hitEffectDuration: 300,
+      effects: [{ type: 'damage', potency: 3 }],
+    }],
   },
-  // 3: 扇形战技（需要目标，朝向目标释放）
+  // 3: 扇形战技
   {
     id: 'overpower',
     name: '超压斧',
@@ -61,7 +68,33 @@ export const DEMO_SKILLS: SkillDef[] = [
       effects: [{ type: 'damage', potency: 1.5 }],
     }],
   },
-  // 4: 以自身为圆心的圆形能力技（不需要目标）
+  // 4: 强化（增伤20%，8s）
+  {
+    id: 'embolden',
+    name: '强化',
+    type: 'ability',
+    castTime: 0,
+    cooldown: 30000,
+    gcd: false,
+    targetType: 'single',
+    requiresTarget: false,
+    range: 0,
+    effects: [{ type: 'apply_buff', buffId: 'embolden' }],
+  },
+  // 5: 铁壁（减伤40%，8s）
+  {
+    id: 'rampart',
+    name: '铁壁',
+    type: 'ability',
+    castTime: 0,
+    cooldown: 25000,
+    gcd: false,
+    targetType: 'single',
+    requiresTarget: false,
+    range: 0,
+    effects: [{ type: 'apply_buff', buffId: 'rampart' }],
+  },
+  // 6: 战嚎（圆形AOE）
   {
     id: 'rage_burst',
     name: '战嚎',
@@ -81,42 +114,9 @@ export const DEMO_SKILLS: SkillDef[] = [
       effects: [{ type: 'damage', potency: 5 }],
     }],
   },
-  // 5: 矩形魔法（需要目标，朝向目标释放，有咏唱）
-  {
-    id: 'piercing_ray',
-    name: '穿透射线',
-    type: 'spell',
-    castTime: 1500,
-    cooldown: 0,
-    gcd: true,
-    targetType: 'aoe',
-    requiresTarget: true,
-    range: 25,
-    zones: [{
-      anchor: { type: 'caster' },
-      direction: { type: 'toward_target' },
-      shape: { type: 'rect', length: 20, width: 3 },
-      resolveDelay: 1500, // matches castTime — damage on cast complete
-      hitEffectDuration: 300,
-      effects: [{ type: 'damage', potency: 3 }],
-    }],
-  },
-  // 6: 长 CD 能力技（不需要目标，自身增强）
-  {
-    id: 'berserk',
-    name: '狂暴',
-    type: 'ability',
-    castTime: 0,
-    cooldown: 60000,
-    gcd: false,
-    targetType: 'single',
-    requiresTarget: false,
-    range: 0,
-    effects: [{ type: 'damage', potency: 10 }],
-  },
 ]
 
-/** Q key: dash to target (15m range, needs target) */
+/** Q key: dash to target */
 export const SKILL_DASH: SkillDef = {
   id: 'dash',
   name: '突进',
@@ -130,7 +130,7 @@ export const SKILL_DASH: SkillDef = {
   effects: [{ type: 'dash' }],
 }
 
-/** E key: backstep away from target (5m range, 10m jump, needs target) */
+/** E key: backstep away from target */
 export const SKILL_BACKSTEP: SkillDef = {
   id: 'backstep',
   name: '后跳',

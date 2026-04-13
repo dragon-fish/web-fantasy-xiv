@@ -3,10 +3,12 @@ import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 import type { SkillDef } from '@/core/types'
 import type { SceneManager } from '@/renderer/scene-manager'
+import type { BuffSystem } from '@/combat/buff'
 import { HpBar } from './hp-bar'
 import { SkillBar } from './skill-bar'
 import { CastBar } from './cast-bar'
 import { DamageFloater } from './damage-floater'
+import { BuffBar } from './buff-bar'
 import { GCD_DURATION } from '@/skill/skill-resolver'
 
 export interface SkillBarEntry {
@@ -21,7 +23,9 @@ export class UIManager {
   private playerCastBar: CastBar
   private bossCastBar: CastBar
   private damageFloater: DamageFloater
+  private buffBar: BuffBar
   private sceneManager: SceneManager | null = null
+  private buffSystem: BuffSystem | null = null
 
   constructor(
     root: HTMLDivElement,
@@ -42,6 +46,7 @@ export class UIManager {
       color: 'linear-gradient(90deg, #cc5533, #ff7744)',
     })
     this.damageFloater = new DamageFloater(root)
+    this.buffBar = new BuffBar(root)
 
     bus.on('damage:dealt', (payload: { target: Entity; amount: number }) => {
       let sx = window.innerWidth / 2
@@ -92,6 +97,10 @@ export class UIManager {
     this.sceneManager = sceneManager
   }
 
+  bindBuffSystem(buffSystem: BuffSystem): void {
+    this.buffSystem = buffSystem
+  }
+
   update(player: Entity, boss: Entity, getCooldown: (skillId: string) => number): void {
     this.playerHp.update(player.hp, player.maxHp)
     this.bossHp.update(boss.hp, boss.maxHp)
@@ -104,6 +113,10 @@ export class UIManager {
       this.bossCastBar.updateProgress(boss.casting.elapsed, boss.casting.castTime)
     } else {
       this.bossCastBar.hide()
+    }
+
+    if (this.buffSystem) {
+      this.buffBar.update(player, this.buffSystem)
     }
   }
 }

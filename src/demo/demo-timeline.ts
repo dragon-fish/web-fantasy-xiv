@@ -4,6 +4,7 @@ import { TimelineScheduler } from '@/timeline/timeline-scheduler'
 import { TimelineDisplay } from '@/ui/timeline-display'
 import { loadEncounter } from '@/game/encounter-loader'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
+import { DEMO_BUFFS } from './demo-buffs'
 import { DEMO_SKILL_BAR } from './demo-skill-bar'
 import type { TimelineAction } from '@/config/schema'
 import type { Entity } from '@/entity/entity'
@@ -40,6 +41,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
 
   const boss = s.entityMgr.create(enc.boss)
   s.bossEntity = boss
+  s.combatResolver.registerBuffs(DEMO_BUFFS)
 
   const bossAI = new BossBehavior(boss, enc.bossAI)
   bossAI.lockFacing(boss.facing)

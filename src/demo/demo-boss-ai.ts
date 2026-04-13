@@ -2,6 +2,7 @@ import { GameScene } from '@/game/game-scene'
 import { BossBehavior } from '@/ai/boss-behavior'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_SKILL_BAR } from './demo-skill-bar'
+import { DEMO_BUFFS } from './demo-buffs'
 import type { ArenaDef, SkillDef } from '@/core/types'
 import type { Entity } from '@/entity/entity'
 
@@ -51,6 +52,7 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
     speed: 3, size: 1.5, autoAttackRange: 5, aggroRange: 8, facing: 180,
   })
   s.bossEntity = boss
+  s.combatResolver.registerBuffs(DEMO_BUFFS)
 
   const bossAI = new BossBehavior(boss, {
     chaseRange: 5, autoAttackRange: 15, autoAttackInterval: 3000, aggroRange: 8,

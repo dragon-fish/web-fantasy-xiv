@@ -3,7 +3,7 @@ import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
-import type { SkillDef, SkillEffectDef } from '@/core/types'
+import type { SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import type { AoeZoneManager } from '@/skill/aoe-zone'
@@ -16,6 +16,8 @@ import type { DisplacementAnimator } from './displacement-animator'
  * for ANY caster/target combination.
  */
 export class CombatResolver {
+  private buffDefs = new Map<string, BuffDef>()
+
   constructor(
     private bus: EventBus,
     private entityMgr: EntityManager,
@@ -45,6 +47,12 @@ export class CombatResolver {
     })
   }
 
+  registerBuffs(defs: Record<string, BuffDef>): void {
+    for (const [id, def] of Object.entries(defs)) {
+      this.buffDefs.set(id, def)
+    }
+  }
+
   private resolveEffects(
     effects: SkillEffectDef[],
     caster: Entity | null | undefined,
@@ -56,6 +64,15 @@ export class CombatResolver {
           if (!caster || !target) break
           this.applyDamage(caster, target, effect.potency)
           break
+
+        case 'apply_buff': {
+          // Self-buff: apply to caster
+          const entity = caster ?? target
+          if (!entity) break
+          const buffDef = this.buffDefs.get(effect.buffId)
+          if (buffDef) this.buffSystem.applyBuff(entity, buffDef, entity.id)
+          break
+        }
 
         case 'heal':
           if (!target) break
