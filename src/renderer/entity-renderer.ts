@@ -47,6 +47,7 @@ export class EntityRenderer {
     }, this.scene)
     body.position.y = height / 2
     body.parent = root
+    body.renderingGroupId = 1
 
     const bodyMat = new StandardMaterial(`mat-${entity.id}`, this.scene)
     bodyMat.diffuseColor = color
@@ -60,6 +61,7 @@ export class EntityRenderer {
     }, this.scene)
     hitPoint.position.y = 0.05
     hitPoint.parent = root
+    hitPoint.renderingGroupId = 1
 
     const hitMat = new StandardMaterial(`hit-mat-${entity.id}`, this.scene)
     hitMat.diffuseColor = new Color3(0.1, 0.1, 0.1)
@@ -77,6 +79,7 @@ export class EntityRenderer {
     facingArrow.rotation.x = Math.PI / 2
     facingArrow.position.set(0, 0.08, radius + 0.4)
     facingArrow.parent = root
+    facingArrow.renderingGroupId = 1
 
     const arrowMat = new StandardMaterial(`arrow-mat-${entity.id}`, this.scene)
     arrowMat.diffuseColor = color.scale(1.3) // slightly brighter than body
