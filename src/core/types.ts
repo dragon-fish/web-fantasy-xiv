@@ -52,9 +52,8 @@ export interface AoeZoneDef {
   anchor: AnchorType
   direction: DirectionType
   shape: AoeShapeDef
-  telegraphDelay?: number // ms before telegraph appears (default 0 = immediate)
-  telegraphDuration: number // ms telegraph is visible after appearing
-  resolveDelay: number // ms from zone CREATION to damage resolve
+  resolveDelay: number // ms from zone creation to damage resolve
+  telegraphBefore?: number // ms before resolve to show telegraph (default = resolveDelay = show immediately)
   hitEffectDuration: number // ms, default 500
   effects: SkillEffectDef[]
   /** Visual hint for displacement direction in telegraph */

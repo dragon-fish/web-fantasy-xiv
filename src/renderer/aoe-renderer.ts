@@ -1,6 +1,6 @@
 // src/renderer/aoe-renderer.ts
 import {
-  MeshBuilder, StandardMaterial, Color3, TransformNode,
+  MeshBuilder, StandardMaterial, Color3,
   type Scene, type Mesh,
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
@@ -10,36 +10,26 @@ interface AoeMesh {
   mesh: Mesh
   zone: ActiveAoeZone
   phase: 'telegraph' | 'resolve'
-  arrows?: Mesh[] // displacement hint arrows
+  waveRing?: Mesh // displacement wave effect
 }
 
 export class AoeRenderer {
   private meshes = new Map<string, AoeMesh>()
   private telegraphMat: StandardMaterial
-  private telegraphKbMat: StandardMaterial // lighter for knockback/pull base
+  private telegraphKbMat: StandardMaterial
   private resolveMat: StandardMaterial
-  private arrowMat: StandardMaterial
 
   constructor(private scene: Scene, bus: EventBus) {
-    // Telegraph: semi-transparent orange, pulsing
     this.telegraphMat = new StandardMaterial('aoe-telegraph', scene)
     this.telegraphMat.diffuseColor = new Color3(1.0, 0.6, 0.0)
     this.telegraphMat.emissiveColor = new Color3(0.5, 0.3, 0.0)
     this.telegraphMat.alpha = 0.3
 
-    // Knockback/pull base: fainter orange
     this.telegraphKbMat = new StandardMaterial('aoe-telegraph-kb', scene)
     this.telegraphKbMat.diffuseColor = new Color3(1.0, 0.7, 0.2)
     this.telegraphKbMat.emissiveColor = new Color3(0.4, 0.25, 0.0)
     this.telegraphKbMat.alpha = 0.15
 
-    // Arrow overlay for displacement direction
-    this.arrowMat = new StandardMaterial('aoe-arrow', scene)
-    this.arrowMat.diffuseColor = new Color3(1.0, 0.6, 0.0)
-    this.arrowMat.emissiveColor = new Color3(0.6, 0.3, 0.0)
-    this.arrowMat.alpha = 0.4
-
-    // Resolve: red flash
     this.resolveMat = new StandardMaterial('aoe-resolve', scene)
     this.resolveMat.diffuseColor = new Color3(1.0, 0.0, 0.0)
     this.resolveMat.emissiveColor = new Color3(0.8, 0.0, 0.0)
@@ -54,9 +44,10 @@ export class AoeRenderer {
       if (entry) {
         entry.phase = 'resolve'
         entry.mesh.material = this.resolveMat
-        // Hide arrows on resolve
-        entry.arrows?.forEach((a) => a.dispose())
-        entry.arrows = undefined
+        if (entry.waveRing) {
+          entry.waveRing.dispose()
+          entry.waveRing = undefined
+        }
       }
     })
 
@@ -65,29 +56,37 @@ export class AoeRenderer {
     })
   }
 
-  /** Call each frame to animate telegraph pulse + displacement arrows */
   update(time: number): void {
     const pulse = 0.2 + Math.sin(time * 0.005) * 0.1
     this.telegraphMat.alpha = pulse
     this.telegraphKbMat.alpha = pulse * 0.5
 
-    // Animate displacement arrows: cycle position along direction
+    // Animate displacement wave rings
     for (const entry of this.meshes.values()) {
-      if (!entry.arrows || entry.phase !== 'telegraph') continue
+      if (!entry.waveRing || entry.phase !== 'telegraph') continue
+
       const hint = entry.zone.def.displacementHint
       if (!hint) continue
 
-      // Cycle arrows outward (knockback) or inward (pull)
-      const cycle = (time * 0.003) % 1 // 0-1 repeating
-      const dir = hint === 'knockback' ? 1 : -1
+      const shape = entry.zone.def.shape
+      let maxRadius = 0
+      if (shape.type === 'circle') maxRadius = shape.radius
+      else if (shape.type === 'ring') maxRadius = shape.outerRadius
+      else continue
 
-      for (let i = 0; i < entry.arrows.length; i++) {
-        const arrow = entry.arrows[i]
-        const baseOffset = i / entry.arrows.length
-        const t = (baseOffset + cycle * dir + 1) % 1
-        // Fade: arrows near start are transparent, near end are opaque
-        const fade = hint === 'knockback' ? t : 1 - t
-        ;(arrow.material as StandardMaterial).alpha = fade * 0.5
+      // Wave cycle: 0→1 repeating over ~1.5s
+      const cycle = (time * 0.0007) % 1
+
+      if (hint === 'knockback') {
+        // Expand outward: small → large
+        const scale = 0.2 + cycle * 0.8
+        entry.waveRing.scaling.set(scale, 1, scale)
+        ;(entry.waveRing.material as StandardMaterial).alpha = (1 - cycle) * 0.3
+      } else {
+        // Contract inward: large → small
+        const scale = 1.0 - cycle * 0.8
+        entry.waveRing.scaling.set(scale, 1, scale)
+        ;(entry.waveRing.material as StandardMaterial).alpha = cycle * 0.3
       }
     }
   }
@@ -100,15 +99,13 @@ export class AoeRenderer {
     switch (shape.type) {
       case 'circle':
         mesh = MeshBuilder.CreateDisc(`aoe-${zone.id}`, {
-          radius: shape.radius,
-          tessellation: 48,
+          radius: shape.radius, tessellation: 48,
         }, this.scene)
         break
 
       case 'fan':
         mesh = MeshBuilder.CreateDisc(`aoe-${zone.id}`, {
-          radius: shape.radius,
-          tessellation: 48,
+          radius: shape.radius, tessellation: 48,
           arc: shape.angle / 360,
         }, this.scene)
         break
@@ -121,14 +118,13 @@ export class AoeRenderer {
         }, this.scene)
         mesh.position.y = 0.02
         mesh.material = hasDisplacement ? this.telegraphKbMat : this.telegraphMat
-        const arrowsRing = hasDisplacement ? this.createDisplacementArrows(zone) : undefined
-        this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', arrows: arrowsRing })
+        const waveRing = hasDisplacement ? this.createWaveRing(zone) : undefined
+        this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing })
         return
 
       case 'rect':
         mesh = MeshBuilder.CreatePlane(`aoe-${zone.id}`, {
-          width: shape.width,
-          height: shape.length,
+          width: shape.width, height: shape.length,
         }, this.scene)
         break
 
@@ -155,58 +151,42 @@ export class AoeRenderer {
 
     mesh.material = hasDisplacement ? this.telegraphKbMat : this.telegraphMat
 
-    const arrows = hasDisplacement ? this.createDisplacementArrows(zone) : undefined
-    this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', arrows })
+    const waveRing = hasDisplacement ? this.createWaveRing(zone) : undefined
+    this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing })
   }
 
-  /** Create small arrow cones radiating outward (knockback) or inward (pull) */
-  private createDisplacementArrows(zone: ActiveAoeZone): Mesh[] {
-    const arrows: Mesh[] = []
+  /** Create a torus ring that scales in/out to indicate displacement direction */
+  private createWaveRing(zone: ActiveAoeZone): Mesh {
     const shape = zone.def.shape
-    const hint = zone.def.displacementHint!
-
-    // Determine radius for arrow placement
     let radius = 0
-    if (shape.type === 'circle') radius = shape.radius * 0.6
+    if (shape.type === 'circle') radius = shape.radius
     else if (shape.type === 'ring') radius = (shape.innerRadius + shape.outerRadius) / 2
-    else return arrows
+    else radius = 5
 
-    const count = 8 // arrows around the circle
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2
+    const ring = MeshBuilder.CreateTorus(`wave-${zone.id}`, {
+      diameter: radius * 2,
+      thickness: 0.3,
+      tessellation: 48,
+    }, this.scene)
+    ring.position.set(zone.center.x, 0.04, zone.center.y)
 
-      const arrow = MeshBuilder.CreateCylinder(`arrow-${zone.id}-${i}`, {
-        height: 1.0,
-        diameterTop: 0,
-        diameterBottom: 0.4,
-        tessellation: 6,
-      }, this.scene)
+    const mat = new StandardMaterial(`wave-mat-${zone.id}`, this.scene)
+    mat.diffuseColor = new Color3(1.0, 0.6, 0.0)
+    mat.emissiveColor = new Color3(0.6, 0.3, 0.0)
+    mat.alpha = 0.3
+    ring.material = mat
 
-      // Lay flat, point outward (knockback) or inward (pull)
-      arrow.rotation.x = Math.PI / 2
-      arrow.rotation.y = angle + (hint === 'pull' ? Math.PI : 0)
-
-      const x = zone.center.x + Math.cos(angle) * radius
-      const z = zone.center.y + Math.sin(angle) * radius
-      arrow.position.set(x, 0.04, z)
-
-      const mat = this.arrowMat.clone(`arrow-mat-${zone.id}-${i}`)
-      arrow.material = mat
-
-      arrows.push(arrow)
-    }
-
-    return arrows
+    return ring
   }
 
   private removeMesh(zoneId: string): void {
     const entry = this.meshes.get(zoneId)
     if (!entry) return
     entry.mesh.dispose()
-    entry.arrows?.forEach((a) => {
-      a.material?.dispose()
-      a.dispose()
-    })
+    if (entry.waveRing) {
+      entry.waveRing.material?.dispose()
+      entry.waveRing.dispose()
+    }
     this.meshes.delete(zoneId)
   }
 }

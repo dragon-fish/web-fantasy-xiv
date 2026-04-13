@@ -55,7 +55,6 @@ describe('parseSkillConfig', () => {
         anchor: { type: 'caster' },
         direction: { type: 'none' },
         shape: { type: 'circle', radius: 8 },
-        telegraphDuration: 2000,
         resolveDelay: 3000,
         hitEffectDuration: 500,
         effects: [{ type: 'damage', potency: 5000 }],

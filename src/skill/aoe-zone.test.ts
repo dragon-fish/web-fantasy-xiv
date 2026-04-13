@@ -10,7 +10,6 @@ function makeCircleZone(overrides?: Partial<AoeZoneDef>): AoeZoneDef {
     anchor: { type: 'position', x: 0, y: 0 },
     direction: { type: 'none' },
     shape: { type: 'circle', radius: 5 },
-    telegraphDuration: 2000,
     resolveDelay: 3000,
     hitEffectDuration: 500,
     effects: [{ type: 'damage', potency: 1000 }],

@@ -44,7 +44,8 @@ function makeFan(id: string, name: string, angle: number): SkillDef {
       anchor: { type: 'caster' },
       direction: { type: 'fixed', angle },
       shape: { type: 'fan', radius: 12, angle: 90 },
-      telegraphDuration: 3000, resolveDelay: 3000, hitEffectDuration: 500,
+      resolveDelay: 3000, hitEffectDuration: 500,
+      // telegraphBefore omitted → defaults to resolveDelay → shows immediately
       effects: [{ type: 'damage', potency: 15000 }],
     }],
   }
@@ -56,38 +57,35 @@ const FAN_NORTH = makeFan('fan_north', '扇形斩・后', 0)
 const FAN_EAST = makeFan('fan_east', '扇形斩・左', 90)
 
 // --- Left-Right Cleave (5s cast, right appears 3s in) ---
-// One spell with two zones, right zone has telegraphDelay=3000
 const LEFT_RIGHT_CLEAVE: SkillDef = {
   id: 'left_right_cleave', name: '左右开弓', type: 'spell',
   castTime: 5000, cooldown: 0, gcd: false,
   targetType: 'aoe', requiresTarget: false, range: 0,
   zones: [
-    // Left 180° (appears immediately, resolves at 5s)
+    // Left 180°: resolves at 5s, telegraph shows 5s before = immediately
     {
       anchor: { type: 'caster' },
-      direction: { type: 'fixed', angle: 90 }, // boss faces south → left = east
+      direction: { type: 'fixed', angle: 90 },
       shape: { type: 'fan', radius: 14, angle: 180 },
-      telegraphDelay: 0,
-      telegraphDuration: 5000,
       resolveDelay: 5000,
+      telegraphBefore: 5000, // show from t=0
       hitEffectDuration: 500,
       effects: [{ type: 'damage', potency: 15000 }],
     },
-    // Right 180° (appears at 3s, resolves at 7s)
+    // Right 180°: resolves at 7s, telegraph shows 4s before = at t=3s
     {
       anchor: { type: 'caster' },
-      direction: { type: 'fixed', angle: 270 }, // boss faces south → right = west
+      direction: { type: 'fixed', angle: 270 },
       shape: { type: 'fan', radius: 14, angle: 180 },
-      telegraphDelay: 3000,
-      telegraphDuration: 4000,
       resolveDelay: 7000,
+      telegraphBefore: 4000, // show from t=3s
       hitEffectDuration: 500,
       effects: [{ type: 'damage', potency: 15000 }],
     },
   ],
 }
 
-// --- Knockback AoE (circle centered on boss, pushes outward 8m) ---
+// --- Knockback AoE ---
 const KNOCKBACK_BLAST: SkillDef = {
   id: 'knockback_blast', name: '击退冲击', type: 'spell',
   castTime: 3000, cooldown: 0, gcd: false,
@@ -96,9 +94,7 @@ const KNOCKBACK_BLAST: SkillDef = {
     anchor: { type: 'caster' },
     direction: { type: 'none' },
     shape: { type: 'circle', radius: 20 },
-    telegraphDuration: 3000,
-    resolveDelay: 3000,
-    hitEffectDuration: 500,
+    resolveDelay: 3000, hitEffectDuration: 500,
     effects: [{ type: 'damage', potency: 3000 }, { type: 'knockback', distance: 8, source: { type: 'caster' } }],
     displacementHint: 'knockback',
   }],
@@ -113,9 +109,7 @@ const PULL_VORTEX: SkillDef = {
     anchor: { type: 'caster' },
     direction: { type: 'none' },
     shape: { type: 'circle', radius: 20 },
-    telegraphDuration: 3000,
-    resolveDelay: 3000,
-    hitEffectDuration: 500,
+    resolveDelay: 3000, hitEffectDuration: 500,
     effects: [{ type: 'damage', potency: 2000 }, { type: 'pull', distance: 5, source: { type: 'caster' } }],
     displacementHint: 'pull',
   }],
@@ -129,7 +123,7 @@ const ENRAGE_SKILL: SkillDef = {
   zones: [{
     anchor: { type: 'caster' }, direction: { type: 'none' },
     shape: { type: 'circle', radius: 99 },
-    telegraphDuration: 0, resolveDelay: 0, hitEffectDuration: 500,
+    resolveDelay: 0, hitEffectDuration: 500,
     effects: [{ type: 'damage', potency: 999999 }],
   }],
 }

@@ -13,6 +13,8 @@ export interface ActiveAoeZone {
   center: Vec2
   facing: number
   elapsed: number
+  /** Time (ms from creation) when telegraph appears */
+  telegraphAt: number
   telegraphVisible: boolean
   resolved: boolean
 }
@@ -38,6 +40,10 @@ export class AoeZoneManager {
     const center = this.resolveAnchor(def.anchor, casterPos, targetPos)
     const facing = this.resolveDirection(def.direction, casterFacing, center, targetPos)
 
+    // telegraphBefore defaults to resolveDelay (show immediately on creation)
+    const telegraphBefore = def.telegraphBefore ?? def.resolveDelay
+    const telegraphAt = Math.max(0, def.resolveDelay - telegraphBefore)
+
     const zone: ActiveAoeZone = {
       id: `zone_${nextZoneId++}`,
       def,
@@ -46,18 +52,19 @@ export class AoeZoneManager {
       center,
       facing,
       elapsed: 0,
+      telegraphAt,
       telegraphVisible: false,
       resolved: false,
     }
 
     this.zones.push(zone)
 
-    // Emit immediately if no delay, otherwise deferred in update()
-    const delay = def.telegraphDelay ?? 0
-    if (delay <= 0) {
+    // Show immediately if telegraphAt is 0
+    if (telegraphAt <= 0) {
       zone.telegraphVisible = true
       this.bus.emit('aoe:zone_created', { zone, skill: skillId })
     }
+
     return zone
   }
 
@@ -67,8 +74,7 @@ export class AoeZoneManager {
       zone.elapsed += dt
 
       // Deferred telegraph appearance
-      const delay = zone.def.telegraphDelay ?? 0
-      if (!zone.telegraphVisible && zone.elapsed >= delay) {
+      if (!zone.telegraphVisible && zone.elapsed >= zone.telegraphAt) {
         zone.telegraphVisible = true
         this.bus.emit('aoe:zone_created', { zone, skill: zone.skillId })
       }
