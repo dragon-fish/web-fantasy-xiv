@@ -35,10 +35,18 @@ export type AoeShapeDef =
   | { type: 'ring'; innerRadius: number; outerRadius: number }
   | { type: 'rect'; length: number; width: number }
 
+export type DisplacementSource =
+  | { type: 'caster' }
+  | { type: 'position'; x: number; y: number }
+
 export type SkillEffectDef =
   | { type: 'damage'; potency: number }
   | { type: 'heal'; potency: number }
   | { type: 'apply_buff'; buffId: string }
+  | { type: 'dash' }                                                    // caster dashes to 1m from target
+  | { type: 'backstep'; distance: number }                              // caster jumps backward from target
+  | { type: 'knockback'; distance: number; source?: DisplacementSource } // push target away from source (default: caster)
+  | { type: 'pull'; distance: number; source?: DisplacementSource }      // pull target toward source (default: caster)
 
 export interface AoeZoneDef {
   anchor: AnchorType

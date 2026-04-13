@@ -35,6 +35,7 @@ export { pointInCircle, pointInFan, pointInRing, pointInRect } from './arena/geo
 export { calculateDamage } from './combat/damage'
 export type { DamageParams } from './combat/damage'
 export { BuffSystem } from './combat/buff'
+export { calcDash, calcBackstep, calcKnockback, calcPull } from './combat/displacement'
 
 // Skill
 export { isPointInAoeShape } from './skill/aoe-shape'

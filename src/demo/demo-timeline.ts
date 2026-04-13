@@ -303,6 +303,7 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
   }
 
   // --- Game loop ---
+  sceneManager.snapTo(player.position.x, player.position.y)
   let lastTime = performance.now()
 
   gameLoop.onUpdate((dt) => {
@@ -352,7 +353,7 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
     entityRenderer.updateAll(entityMgr.getAlive())
     aoeRenderer.update(now)
     hitEffectRenderer.update(delta, (id) => entityMgr.get(id))
-    sceneManager.followTarget(player.position.x, player.position.y)
+    sceneManager.followTarget(player.position.x, player.position.y, delta)
     uiManager.update(player, boss, (skillId) => skillResolver.getCooldown(player.id, skillId))
   })
 
