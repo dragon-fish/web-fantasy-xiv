@@ -34,6 +34,7 @@ const ARENA_DEF: ArenaDef = {
   boundary: 'wall',
 }
 
+// --- 90° fan skills (3s cast) ---
 function makeFan(id: string, name: string, angle: number): SkillDef {
   return {
     id, name, type: 'spell',
@@ -54,6 +55,73 @@ const FAN_WEST = makeFan('fan_west', '扇形斩・右', 270)
 const FAN_NORTH = makeFan('fan_north', '扇形斩・后', 0)
 const FAN_EAST = makeFan('fan_east', '扇形斩・左', 90)
 
+// --- Left-Right Cleave (5s cast, right appears 3s in) ---
+// One spell with two zones, right zone has telegraphDelay=3000
+const LEFT_RIGHT_CLEAVE: SkillDef = {
+  id: 'left_right_cleave', name: '左右开弓', type: 'spell',
+  castTime: 5000, cooldown: 0, gcd: false,
+  targetType: 'aoe', requiresTarget: false, range: 0,
+  zones: [
+    // Left 180° (appears immediately, resolves at 5s)
+    {
+      anchor: { type: 'caster' },
+      direction: { type: 'fixed', angle: 90 }, // boss faces south → left = east
+      shape: { type: 'fan', radius: 14, angle: 180 },
+      telegraphDelay: 0,
+      telegraphDuration: 5000,
+      resolveDelay: 5000,
+      hitEffectDuration: 500,
+      effects: [{ type: 'damage', potency: 15000 }],
+    },
+    // Right 180° (appears at 3s, resolves at 7s)
+    {
+      anchor: { type: 'caster' },
+      direction: { type: 'fixed', angle: 270 }, // boss faces south → right = west
+      shape: { type: 'fan', radius: 14, angle: 180 },
+      telegraphDelay: 3000,
+      telegraphDuration: 4000,
+      resolveDelay: 7000,
+      hitEffectDuration: 500,
+      effects: [{ type: 'damage', potency: 15000 }],
+    },
+  ],
+}
+
+// --- Knockback AoE (circle centered on boss, pushes outward 8m) ---
+const KNOCKBACK_BLAST: SkillDef = {
+  id: 'knockback_blast', name: '击退冲击', type: 'spell',
+  castTime: 3000, cooldown: 0, gcd: false,
+  targetType: 'aoe', requiresTarget: false, range: 0,
+  zones: [{
+    anchor: { type: 'caster' },
+    direction: { type: 'none' },
+    shape: { type: 'circle', radius: 20 },
+    telegraphDuration: 3000,
+    resolveDelay: 3000,
+    hitEffectDuration: 500,
+    effects: [{ type: 'damage', potency: 3000 }, { type: 'knockback', distance: 8, source: { type: 'caster' } }],
+    displacementHint: 'knockback',
+  }],
+}
+
+// --- Pull AoE (circle, pulls toward center 5m) ---
+const PULL_VORTEX: SkillDef = {
+  id: 'pull_vortex', name: '引力漩涡', type: 'spell',
+  castTime: 3000, cooldown: 0, gcd: false,
+  targetType: 'aoe', requiresTarget: false, range: 0,
+  zones: [{
+    anchor: { type: 'caster' },
+    direction: { type: 'none' },
+    shape: { type: 'circle', radius: 20 },
+    telegraphDuration: 3000,
+    resolveDelay: 3000,
+    hitEffectDuration: 500,
+    effects: [{ type: 'damage', potency: 2000 }, { type: 'pull', distance: 5, source: { type: 'caster' } }],
+    displacementHint: 'pull',
+  }],
+}
+
+// --- Enrage ---
 const ENRAGE_SKILL: SkillDef = {
   id: 'enrage_blast', name: '时间切迫', type: 'ability',
   castTime: 0, cooldown: 0, gcd: false,
@@ -66,16 +134,25 @@ const ENRAGE_SKILL: SkillDef = {
   }],
 }
 
+// --- Timeline ---
+// Phase 1: Clockwise fans (0-15s)
+// Phase 2: Left-right cleave (20s, 5s cast → left at 25s, right at 27s)
+// Phase 3: Knockback (30s), then Pull (38s)
+// Enrage at 60s
 const TIMELINE_ACTIONS: TimelineAction[] = [
+  // Phase 1: clockwise fan rotation
   { at: 0, action: 'use', use: 'fan_south' },
   { at: 5000, action: 'use', use: 'fan_west' },
   { at: 10000, action: 'use', use: 'fan_north' },
   { at: 15000, action: 'use', use: 'fan_east' },
-  { at: 20000, action: 'use', use: 'fan_south' },
-  { at: 25000, action: 'use', use: 'fan_west' },
+  // Phase 2: left-right cleave
+  { at: 22000, action: 'use', use: 'left_right_cleave' },
+  // Phase 3: knockback then pull
+  { at: 32000, action: 'use', use: 'knockback_blast' },
+  { at: 40000, action: 'use', use: 'pull_vortex' },
 ]
 
-const ENRAGE_CONFIG = { time: 30000, castTime: 10000, skill: 'enrage_blast' }
+const ENRAGE_CONFIG = { time: 60000, castTime: 10000, skill: 'enrage_blast' }
 
 let cleanup: (() => void) | null = null
 
@@ -95,7 +172,10 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
   new CombatResolver(bus, entityMgr, buffSystem, arena, displacer)
 
   const skillMap = new Map<string, SkillDef>()
-  for (const s of [FAN_SOUTH, FAN_WEST, FAN_NORTH, FAN_EAST, ENRAGE_SKILL]) {
+  for (const s of [
+    FAN_SOUTH, FAN_WEST, FAN_NORTH, FAN_EAST,
+    LEFT_RIGHT_CLEAVE, KNOCKBACK_BLAST, PULL_VORTEX, ENRAGE_SKILL,
+  ]) {
     skillMap.set(s.id, s)
   }
 

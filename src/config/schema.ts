@@ -66,10 +66,12 @@ function parseZone(raw: any): AoeZoneDef {
     anchor: raw.anchor,
     direction: raw.direction,
     shape: raw.shape,
+    telegraphDelay: raw.telegraphDelay ?? 0,
     telegraphDuration: raw.telegraphDuration ?? 0,
     resolveDelay: raw.resolveDelay ?? 0,
     hitEffectDuration: raw.hitEffectDuration ?? 500,
     effects: raw.effects ?? [],
+    displacementHint: raw.displacementHint,
   }
 }
 
