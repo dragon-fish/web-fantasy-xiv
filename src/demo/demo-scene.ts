@@ -21,6 +21,7 @@ import { DevTerminal } from '@/devtools/dev-terminal'
 import { CommandRegistry } from '@/devtools/commands'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_SKILL_BAR } from './demo-skill-bar'
+import { DebugInfo } from '@/ui/debug-info'
 import type { ArenaDef } from '@/core/types'
 
 const DEMO_ARENA: ArenaDef = {
@@ -81,6 +82,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
   const pauseMenu = new PauseMenu(uiRoot)
   const devTerminal = new DevTerminal(bus, new CommandRegistry())
   devTerminal.mount(uiRoot)
+  const debugInfo = new DebugInfo(uiRoot)
 
   let paused = false
   pauseMenu.onResumeGame(() => { paused = false; pauseMenu.hide() })
@@ -111,6 +113,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     aoeRenderer.update(now)
     hitEffectRenderer.update(delta, (id) => entityMgr.get(id))
     uiManager.update(player, dummy, (sid) => skillResolver.getCooldown(player.id, sid))
+    debugInfo.update(delta, player, null) // no combat timer in training dummy
   })
 
   window.addEventListener('resize', () => sceneManager.engine.resize())

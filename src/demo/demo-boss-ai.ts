@@ -22,6 +22,7 @@ import { DevTerminal } from '@/devtools/dev-terminal'
 import { CommandRegistry } from '@/devtools/commands'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_SKILL_BAR } from './demo-skill-bar'
+import { DebugInfo } from '@/ui/debug-info'
 import type { ArenaDef, SkillDef } from '@/core/types'
 import type { Entity } from '@/entity/entity'
 
@@ -96,18 +97,24 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
   const pauseMenu = new PauseMenu(uiRoot)
   const devTerminal = new DevTerminal(bus, new CommandRegistry())
   devTerminal.mount(uiRoot)
+  const debugInfo = new DebugInfo(uiRoot)
 
   let paused = false
+  let combatStartTime: number | null = null
   pauseMenu.onResumeGame(() => { paused = false; pauseMenu.hide() })
   pauseMenu.onQuitGame(() => window.location.reload())
 
+  function engageCombat() {
+    if (boss.inCombat) return
+    bossAI.engage()
+    boss.target = player.id
+    player.inCombat = true
+    combatStartTime = performance.now()
+    bus.emit('combat:started', { entities: [player, boss] })
+  }
+
   bus.on('damage:dealt', (payload: { source: Entity; target: Entity }) => {
-    if (payload.target.id === boss.id && !boss.inCombat) {
-      bossAI.engage()
-      boss.target = player.id
-      player.inCombat = true
-      bus.emit('combat:started', { entities: [player, boss] })
-    }
+    if (payload.target.id === boss.id && !boss.inCombat) engageCombat()
   })
 
   let lastTime = performance.now()
@@ -117,12 +124,7 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
     const result = playerDriver.update(dt)
     if (result === 'pause') { paused = true; pauseMenu.show(); return }
 
-    if (!boss.inCombat && bossAI.checkAggro(player)) {
-      bossAI.engage()
-      boss.target = player.id
-      player.inCombat = true
-      bus.emit('combat:started', { entities: [player, boss] })
-    }
+    if (!boss.inCombat && bossAI.checkAggro(player)) engageCombat()
     if (boss.inCombat && boss.alive) {
       bossAI.updateFacing(player)
       bossAI.updateMovement(player, dt)
@@ -151,6 +153,8 @@ export function startBossAiDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElemen
     aoeRenderer.update(now)
     hitEffectRenderer.update(delta, (id) => entityMgr.get(id))
     uiManager.update(player, boss, (sid) => skillResolver.getCooldown(player.id, sid))
+    const elapsed = combatStartTime != null ? performance.now() - combatStartTime : null
+    debugInfo.update(delta, player, elapsed)
   })
 
   window.addEventListener('resize', () => sceneManager.engine.resize())

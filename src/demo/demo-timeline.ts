@@ -24,6 +24,7 @@ import { DevTerminal } from '@/devtools/dev-terminal'
 import { CommandRegistry } from '@/devtools/commands'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_SKILL_BAR } from './demo-skill-bar'
+import { DebugInfo } from '@/ui/debug-info'
 import type { ArenaDef, SkillDef, AoeZoneDef } from '@/core/types'
 import type { TimelineAction } from '@/config/schema'
 import type { Entity } from '@/entity/entity'
@@ -316,6 +317,7 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
   const pauseMenu = new PauseMenu(uiRoot)
   const devTerminal = new DevTerminal(bus, new CommandRegistry())
   devTerminal.mount(uiRoot)
+  const debugInfo = new DebugInfo(uiRoot)
 
   let paused = false
   let battleOver = false
@@ -421,6 +423,7 @@ export function startTimelineDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElem
     aoeRenderer.update(now)
     hitEffectRenderer.update(delta, (id) => entityMgr.get(id))
     uiManager.update(player, boss, (sid) => skillResolver.getCooldown(player.id, sid))
+    debugInfo.update(delta, player, combatStarted ? scheduler.elapsed : null)
   })
 
   const onResize = () => sceneManager.engine.resize()
