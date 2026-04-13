@@ -78,6 +78,8 @@ export { CombatResolver } from './game/combat-resolver'
 export { PlayerInputDriver } from './game/player-input-driver'
 export type { PlayerInputConfig } from './game/player-input-driver'
 export { DisplacementAnimator, EASING } from './game/displacement-animator'
+export { GameScene } from './game/game-scene'
+export type { GameSceneConfig } from './game/game-scene'
 export { loadEncounter, parseEncounterYaml } from './game/encounter-loader'
 export type { EncounterData } from './game/encounter-loader'
 
