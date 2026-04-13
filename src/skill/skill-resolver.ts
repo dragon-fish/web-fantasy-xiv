@@ -193,7 +193,7 @@ export class SkillResolver {
     this.bus.emit('skill:cast_complete', { caster: entity, skill })
   }
 
-  private getCooldown(entityId: string, skillId: string): number {
+  getCooldown(entityId: string, skillId: string): number {
     return this.cooldowns.get(entityId)?.get(skillId) ?? 0
   }
 

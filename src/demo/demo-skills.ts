@@ -14,8 +14,9 @@ export const AUTO_ATTACK: SkillDef = {
 }
 
 export const DEMO_SKILLS: SkillDef[] = [
+  // 1: 单体战技
   {
-    id: 'basic_attack',
+    id: 'slash',
     name: '斩击',
     type: 'weaponskill',
     castTime: 0,
@@ -25,17 +26,19 @@ export const DEMO_SKILLS: SkillDef[] = [
     range: 5,
     effects: [{ type: 'damage', potency: 2 }],
   },
+  // 2: 单体魔法（有咏唱）
   {
-    id: 'heavy_swing',
-    name: '重劈',
-    type: 'weaponskill',
-    castTime: 0,
+    id: 'fire1',
+    name: '火炎',
+    type: 'spell',
+    castTime: 2000,
     cooldown: 0,
     gcd: true,
     targetType: 'single',
-    range: 5,
-    effects: [{ type: 'damage', potency: 3.5 }],
+    range: 20,
+    effects: [{ type: 'damage', potency: 4 }],
   },
+  // 3: 扇形战技（正面 120°）
   {
     id: 'overpower',
     name: '超压斧',
@@ -55,12 +58,13 @@ export const DEMO_SKILLS: SkillDef[] = [
       effects: [{ type: 'damage', potency: 1.5 }],
     }],
   },
+  // 4: 以自身为圆心的圆形能力技
   {
     id: 'rage_burst',
     name: '战嚎',
     type: 'ability',
     castTime: 0,
-    cooldown: 30000,
+    cooldown: 15000,
     gcd: false,
     targetType: 'aoe',
     range: 0,
@@ -73,5 +77,37 @@ export const DEMO_SKILLS: SkillDef[] = [
       hitEffectDuration: 300,
       effects: [{ type: 'damage', potency: 5 }],
     }],
+  },
+  // 5: 锁定目标释放的矩形魔法（有咏唱）
+  {
+    id: 'piercing_ray',
+    name: '穿透射线',
+    type: 'spell',
+    castTime: 1500,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'aoe',
+    range: 25,
+    zones: [{
+      anchor: { type: 'caster' },
+      direction: { type: 'toward_target' },
+      shape: { type: 'rect', length: 20, width: 3 },
+      telegraphDuration: 1500,
+      resolveDelay: 0,
+      hitEffectDuration: 300,
+      effects: [{ type: 'damage', potency: 3 }],
+    }],
+  },
+  // 6: 长 CD 能力技（测试独立 CD 倒计时）
+  {
+    id: 'berserk',
+    name: '狂暴',
+    type: 'ability',
+    castTime: 0,
+    cooldown: 60000,
+    gcd: false,
+    targetType: 'single',
+    range: 0,
+    effects: [{ type: 'damage', potency: 10 }],
   },
 ]

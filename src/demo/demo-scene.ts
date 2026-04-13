@@ -190,7 +190,7 @@ export function startDemo(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement): vo
     aoeRenderer.update(now)
     hitEffectRenderer.update(delta, (id) => entityMgr.get(id))
     sceneManager.followTarget(player.position.x, player.position.y)
-    uiManager.update(player, dummy)
+    uiManager.update(player, dummy, (skillId) => skillResolver.getCooldown(player.id, skillId))
   })
 
   window.addEventListener('resize', () => sceneManager.engine.resize())

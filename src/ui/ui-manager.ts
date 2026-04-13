@@ -48,10 +48,10 @@ export class UIManager {
     })
   }
 
-  update(player: Entity, boss: Entity): void {
+  update(player: Entity, boss: Entity, getCooldown: (skillId: string) => number): void {
     this.playerHp.update(player.hp, player.maxHp)
     this.bossHp.update(boss.hp, boss.maxHp)
-    this.skillBar.updateGcd(player.gcdTimer, GCD_DURATION)
+    this.skillBar.update(player.gcdTimer, GCD_DURATION, getCooldown)
 
     if (player.casting) {
       this.castBar.updateProgress(player.casting.elapsed, player.casting.castTime)

@@ -73,6 +73,8 @@ export class InputManager {
         case 'Digit2': this.pendingSkill = 1; break
         case 'Digit3': this.pendingSkill = 2; break
         case 'Digit4': this.pendingSkill = 3; break
+        case 'Digit5': this.pendingSkill = 4; break
+        case 'Digit6': this.pendingSkill = 5; break
         case 'Escape': this.escPressed = true; break
       }
     })
