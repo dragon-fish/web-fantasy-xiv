@@ -227,8 +227,9 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
         if (inLethalBoundary || deathZoneMgr.isInAnyZone(pos)) {
           s.player.hp -= DEATH_ZONE_DAMAGE
           s.bus.emit('damage:dealt', {
-            source: s.player, target: s.player,
-            amount: DEATH_ZONE_DAMAGE, skill: null,
+            source: { id: '场地' } as any, target: s.player,
+            amount: DEATH_ZONE_DAMAGE,
+            skill: { name: inLethalBoundary ? '场外死亡' : '死亡区域' },
           })
         }
       }
