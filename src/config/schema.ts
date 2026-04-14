@@ -127,6 +127,8 @@ export interface TimelineAction {
   angle?: number     // roll angle in degrees (positive = clockwise)
   snapMs?: number    // ms for snap phase
   returnMs?: number  // ms for return phase
+  // script fields
+  script?: string   // for run_script
 }
 
 // --- Phase system ---

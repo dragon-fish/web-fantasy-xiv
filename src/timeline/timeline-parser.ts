@@ -116,6 +116,8 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
     out.push({ at, action: 'show_dialog', dialogText: entry.text })
   } else if (entry.action === 'hide_dialog') {
     out.push({ at, action: 'hide_dialog' })
+  } else if (entry.action === 'run_script') {
+    out.push({ at, action: 'run_script', script: entry.script })
   }
 
   if (entry.then) {

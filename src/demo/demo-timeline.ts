@@ -4,6 +4,7 @@ import { BossBehavior } from '@/ai/boss-behavior'
 import { PhaseScheduler } from '@/timeline/phase-scheduler'
 import { loadEncounter } from '@/game/encounter-loader'
 import { DeathZoneManager } from '@/arena/death-zone-manager'
+import { ScriptRunner } from '@/timeline/script-runner'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_BUFFS } from './demo-buffs'
 import { announceText, battleResult, damageLog, combatElapsed as combatElapsedSignal, timelineEntries, dialogText, type TimelineEntry } from '@/ui/state'
@@ -104,6 +105,95 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
   if (enc.arena.deathZones) deathZoneMgr.loadInitial(enc.arena.deathZones)
   s.playerDriver.setWallZoneProvider(() => deathZoneMgr.getWallZones())
 
+  const scriptRunner = new ScriptRunner({
+    bus: s.bus,
+    buildCtx: () => ({
+      // Entity access
+      player: s.player,
+      getEntity: (id: string) => entityMap.get(id) ?? null,
+
+      // Game actions
+      showDialog: (text: string) => { dialogText.value = text },
+      hideDialog: () => { dialogText.value = '' },
+      activatePhase: (phaseId: string) => scheduler.activatePhase(phaseId),
+      teleport: (entityId: string, x: number, y: number) => {
+        const e = entityMap.get(entityId)
+        if (e) {
+          s.displacer.start(e, x, y, 400)
+          s.bus.emit('entity:teleported', { entity: e, position: { x, y } })
+        }
+      },
+      setVisible: (entityId: string, visible: boolean) => {
+        const e = entityMap.get(entityId)
+        if (e) e.visible = visible
+      },
+      setTargetable: (entityId: string, targetable: boolean) => {
+        const e = entityMap.get(entityId)
+        if (e) {
+          e.targetable = targetable
+          if (!targetable && s.player.target === e.id) {
+            s.player.target = null
+            s.bus.emit('target:released', { entity: s.player })
+          }
+        }
+      },
+      enableAI: (entityId: string) => {
+        const e = entityMap.get(entityId)
+        if (e) {
+          aiEnabled.add(e.id)
+          const ai = aiMap.get(e.id)
+          ai?.unlockFacing()
+          e.target = s.player.id
+        }
+      },
+      disableAI: (entityId: string) => {
+        aiEnabled.delete(entityId)
+      },
+      useSkill: (entityId: string, skillId: string) => {
+        const e = entityMap.get(entityId)
+        const skill = enc.skills.get(skillId)
+        if (e && skill) {
+          if (e.type === 'mob' || e.type === 'boss') e.target = s.player.id
+          s.skillResolver.tryUse(e, skill)
+        }
+      },
+      spawnEntity: (opts: any) => {
+        const id = opts.id ?? `mob_${Date.now()}`
+        const entity = s.entityMgr.create({
+          id,
+          type: opts.type ?? 'mob',
+          group: opts.group ?? opts.type ?? 'mob',
+          visible: opts.visible ?? true,
+          targetable: opts.targetable ?? true,
+          hp: opts.hp ?? 1000,
+          maxHp: opts.hp ?? 1000,
+          attack: opts.attack ?? 100,
+          speed: opts.speed ?? 0,
+          size: opts.size ?? 0.5,
+          position: { x: opts.x ?? 0, y: opts.y ?? 0, z: 0 },
+          facing: opts.facing ?? 180,
+        })
+        entityMap.set(id, entity)
+        if (entity.type === 'mob' || entity.type === 'boss') {
+          const ai = new BossBehavior(entity, {})
+          ai.lockFacing(entity.facing)
+          aiMap.set(id, ai)
+        }
+        return entity
+      },
+      addDeathZone: (def: any) => {
+        deathZoneMgr.add({
+          id: def.id,
+          center: { x: def.center.x, y: def.center.y },
+          facing: def.facing ?? 0,
+          shape: def.shape,
+          behavior: def.behavior ?? 'lethal',
+        })
+      },
+      removeDeathZone: (id: string) => deathZoneMgr.remove(id),
+    }),
+  })
+
   // Helper: resolve entity from action (default: boss)
   function resolveEntity(action: TimelineAction): Entity | undefined {
     return action.entity ? entityMap.get(action.entity) : boss
@@ -125,6 +215,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
     if (payload.target.id === boss.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
         s.battleOver = true
+        scriptRunner.disposeAll()
         s.bus.emit('combat:ended', { result: 'victory' })
         battleResult.value = 'victory'
       }
@@ -133,6 +224,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
     if (payload.target.id === s.player.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
         s.battleOver = true
+        scriptRunner.disposeAll()
         s.bus.emit('combat:ended', { result: 'wipe' })
         battleResult.value = 'wipe'
       }
@@ -244,6 +336,9 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
         break
       case 'hide_dialog':
         dialogText.value = ''
+        break
+      case 'run_script':
+        if (action.script) scriptRunner.run(action.script)
         break
     }
   })
