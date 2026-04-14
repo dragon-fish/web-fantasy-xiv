@@ -161,7 +161,7 @@ export class CombatResolver {
       entity.position.x = clamped.x
       entity.position.y = clamped.y
     }
-    this.bus.emit('entity:moved', { entity, from: null, to: clamped })
+    this.bus.emit('entity:displaced', { entity, from: null, to: clamped })
   }
 
   private resolveDisplacementSource(

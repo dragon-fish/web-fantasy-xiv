@@ -80,6 +80,8 @@ export class PlayerInputDriver {
         const clamped = this.arena.clampPosition({ x: p.position.x, y: p.position.y })
         p.position.x = clamped.x
         p.position.y = clamped.y
+
+        this.bus.emit('player:walk', { entity: p, position: { x: p.position.x, y: p.position.y } })
       }
     }
 

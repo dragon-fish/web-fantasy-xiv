@@ -203,6 +203,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       case 'teleport':
         if (target && action.position) {
           s.displacer.start(target, action.position.x, action.position.y, 400)
+          s.bus.emit('entity:teleported', { entity: target, position: action.position })
         }
         break
       case 'set_visible':

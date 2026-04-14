@@ -43,6 +43,6 @@ describe('EventBus', () => {
 
   it('should not throw when emitting event with no subscribers', () => {
     const bus = new EventBus()
-    expect(() => bus.emit('entity:moved', {})).not.toThrow()
+    expect(() => bus.emit('entity:displaced', {})).not.toThrow()
   })
 })
