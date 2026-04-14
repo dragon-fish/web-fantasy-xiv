@@ -1,15 +1,10 @@
-// Pure HTML-building functions extracted from tooltip.ts.
+// Pure HTML-building functions for FF14-style tooltips.
 // No DOM classes — safe to import in Preact components.
 
 const TYPE_NAMES: Record<string, string> = {
   weaponskill: '战技',
   spell: '魔法',
   ability: '能力技',
-}
-
-const TARGET_NAMES: Record<string, string> = {
-  single: '单体',
-  aoe: '范围',
 }
 
 export function buildSkillTooltip(skill: {
@@ -27,25 +22,33 @@ export function buildSkillTooltip(skill: {
 }, buffDefs?: Map<string, { name: string; duration: number; type: string; effects: { type: string; value?: number }[] }>): string {
   const lines: string[] = []
 
-  lines.push(`<div style="color:#fff;font-size:13px;font-weight:bold;margin-bottom:4px">${skill.name}</div>`)
+  // Header: name + type + range
+  lines.push(`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">`)
+  lines.push(`<div>`)
+  lines.push(`<div style="color:#fff;font-size:15px;font-weight:bold;line-height:1.2">${skill.name}</div>`)
+  lines.push(`<div style="color:#b8a06a;font-size:11px;margin-top:2px">${TYPE_NAMES[skill.type] ?? skill.type}</div>`)
+  lines.push(`</div>`)
+  // Right side: range info
+  const rightStats: string[] = []
+  if (skill.range && skill.range > 0) rightStats.push(`距离 ${skill.range}m`)
+  if (skill.mpCost && skill.mpCost > 0) rightStats.push(`<span style="color:#4488cc">MP ${skill.mpCost}</span>`)
+  if (rightStats.length) {
+    lines.push(`<div style="color:#aaa;font-size:11px;text-align:right;white-space:nowrap;margin-left:12px">${rightStats.join('<br>')}</div>`)
+  }
+  lines.push(`</div>`)
 
-  const tags: string[] = []
-  tags.push(`<span style="color:#aaa">${TYPE_NAMES[skill.type] ?? skill.type}</span>`)
-  if (skill.targetType) tags.push(`<span style="color:#888">${TARGET_NAMES[skill.targetType] ?? skill.targetType}</span>`)
-  if (skill.gcd) tags.push(`<span style="color:#666">GCD</span>`)
-  lines.push(tags.join(' · '))
+  // Cast time + recast time row
+  const castLabel = (skill.castTime && skill.castTime > 0) ? `${(skill.castTime / 1000).toFixed(2)}秒` : '即时'
+  const recastLabel = skill.gcd ? '2.50秒' : (skill.cooldown && skill.cooldown > 0) ? `${(skill.cooldown / 1000).toFixed(0)}秒` : '-'
+  lines.push(`<div style="display:flex;gap:16px;margin:6px 0;padding:4px 0;border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08)">`)
+  lines.push(`<div><div style="color:#888;font-size:9px">咏唱时间</div><div style="color:#fff;font-size:14px;font-weight:bold">${castLabel}</div></div>`)
+  lines.push(`<div><div style="color:#888;font-size:9px">复唱时间</div><div style="color:#fff;font-size:14px;font-weight:bold">${recastLabel}</div></div>`)
+  lines.push(`</div>`)
 
-  const stats: string[] = []
-  if (skill.castTime && skill.castTime > 0) stats.push(`咏唱 ${(skill.castTime / 1000).toFixed(1)}s`)
-  if (skill.mpCost && skill.mpCost > 0) stats.push(`<span style="color:#4488cc">MP ${skill.mpCost}</span>`)
-  if (skill.cooldown && skill.cooldown > 0) stats.push(`CD ${(skill.cooldown / 1000).toFixed(0)}s`)
-  if (skill.range && skill.range > 0) stats.push(`距离 ${skill.range}m`)
-  if (skill.requiresTarget) stats.push('需要目标')
-  if (stats.length) lines.push(`<div style="color:#999;font-size:11px;margin-top:2px">${stats.join(' | ')}</div>`)
-
+  // Effects
   if (skill.effects?.length) {
     for (const e of skill.effects) {
-      lines.push(`<div style="margin-top:3px">${formatEffect(e)}</div>`)
+      lines.push(`<div style="margin-top:3px;font-size:12px">${formatEffect(e, skill.range, skill.requiresTarget)}</div>`)
       if (e.type === 'apply_buff' && e.buffId && buffDefs) {
         const bd = buffDefs.get(e.buffId)
         if (bd) lines.push(formatBuffDescription(bd))
@@ -55,10 +58,10 @@ export function buildSkillTooltip(skill: {
 
   if (skill.zones?.length) {
     for (const z of skill.zones) {
-      if (z.shape) lines.push(`<div style="color:#888;font-size:11px">${formatShape(z.shape)}</div>`)
+      if (z.shape) lines.push(`<div style="color:#777;font-size:10px;margin-top:2px">${formatShape(z.shape)}</div>`)
       if (z.effects) {
         for (const e of z.effects) {
-          lines.push(`<div style="margin-top:2px">${formatEffect(e)}</div>`)
+          lines.push(`<div style="margin-top:2px;font-size:12px">${formatEffect(e, skill.range, skill.requiresTarget)}</div>`)
           if (e.type === 'apply_buff' && e.buffId && buffDefs) {
             const bd = buffDefs.get(e.buffId)
             if (bd) lines.push(formatBuffDescription(bd))
@@ -81,18 +84,20 @@ export function buildBuffTooltip(buff: {
   const lines: string[] = []
 
   const color = buff.type === 'debuff' ? '#ff8888' : '#88ff88'
-  lines.push(`<div style="color:${color};font-size:13px;font-weight:bold;margin-bottom:4px">${buff.name}</div>`)
-  lines.push(`<span style="color:#aaa">${buff.type === 'debuff' ? '减益' : '增益'}</span>`)
+  lines.push(`<div style="color:${color};font-size:14px;font-weight:bold;margin-bottom:4px">${buff.name}</div>`)
+  lines.push(`<span style="color:#b8a06a;font-size:11px">${buff.type === 'debuff' ? '减益' : '增益'}</span>`)
 
   if (buff.stacks > 1) lines.push(` · <span style="color:#ddd">${buff.stacks} 层</span>`)
 
   if (buff.remaining > 0) {
-    lines.push(`<div style="color:#999;font-size:11px;margin-top:2px">剩余 ${(buff.remaining / 1000).toFixed(1)}s</div>`)
+    lines.push(`<div style="color:#999;font-size:11px;margin-top:4px">剩余 ${(buff.remaining / 1000).toFixed(1)}s</div>`)
   }
 
+  lines.push(`<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:6px;padding-top:4px">`)
   for (const e of buff.effects) {
-    lines.push(`<div style="margin-top:3px">${formatBuffEffect(e, buff.stacks)}</div>`)
+    lines.push(`<div style="margin-top:2px;font-size:12px">${formatBuffEffect(e, buff.stacks)}</div>`)
   }
+  lines.push(`</div>`)
 
   return lines.join('')
 }
@@ -100,16 +105,26 @@ export function buildBuffTooltip(buff: {
 function formatBuffDescription(bd: { name: string; duration: number; type: string; effects: { type: string; value?: number }[] }): string {
   const dur = (bd.duration / 1000).toFixed(0)
   const descs = bd.effects.map((e) => formatBuffEffect(e, 1)).join('，')
-  return `<div style="color:#aaa;font-size:11px;margin-left:8px;border-left:2px solid rgba(255,255,255,0.1);padding-left:6px">${bd.name} ${dur}s：${descs}</div>`
+  return `<div style="color:#aaa;font-size:11px;margin-left:8px;border-left:2px solid rgba(184,160,106,0.3);padding-left:6px;margin-top:2px">${bd.name} ${dur}s：${descs}</div>`
 }
 
-function formatEffect(e: { type: string; potency?: number; buffId?: string; distance?: number; stacks?: number }): string {
+function formatEffect(e: { type: string; potency?: number; buffId?: string; distance?: number; stacks?: number }, skillRange?: number, requiresTarget?: boolean): string {
   switch (e.type) {
-    case 'damage': return `<span style="color:#ff8888">伤害 ×${e.potency}</span>`
-    case 'heal': return `<span style="color:#88ff88">治疗 ×${e.potency}</span>`
-    case 'apply_buff': return `<span style="color:#ffcc66">施加 ${e.buffId}${e.stacks && e.stacks > 1 ? ` ×${e.stacks}` : ''}</span>`
-    case 'dash': return `<span style="color:#88ccff">突进至目标</span>`
-    case 'backstep': return `<span style="color:#88ccff">后跳 ${e.distance}m</span>`
+    case 'damage': return `<span style="color:#ff8888">伤害 威力：${formatPotency(e.potency)}</span>`
+    case 'heal': return `<span style="color:#88ff88">治疗 威力：${formatPotency(e.potency)}</span>`
+    case 'apply_buff': return `<span style="color:#ffcc66">追加效果：${e.buffId}${e.stacks && e.stacks > 1 ? ` ×${e.stacks}` : ''}</span>`
+    case 'dash': {
+      const desc = requiresTarget
+        ? `冲向${skillRange ? ` ${skillRange}m 内的` : ''}目标`
+        : `迅速移动到自身前方 ${e.distance ?? skillRange ?? '?'}m 处`
+      return `<span style="color:#88ccff">${desc}</span><br><span style="color:#666;font-size:10px">止步状态下无法发动</span>`
+    }
+    case 'backstep': {
+      const desc = requiresTarget
+        ? `面对目标后跳 ${e.distance}m`
+        : `迅速移动到自身后方 ${e.distance}m 处`
+      return `<span style="color:#88ccff">${desc}</span><br><span style="color:#666;font-size:10px">止步状态下无法发动</span>`
+    }
     case 'knockback': return `<span style="color:#ffaa66">击退 ${e.distance}m</span>`
     case 'pull': return `<span style="color:#ffaa66">吸引 ${e.distance}m</span>`
     default: return `<span style="color:#888">${e.type}</span>`
@@ -121,7 +136,7 @@ function formatBuffEffect(e: { type: string; value?: number }, stacks: number): 
   const total = v * stacks
   const pct = (total * 100).toFixed(0)
   switch (e.type) {
-    case 'damage_increase': return `<span style="color:#ff8888">增伤 +${pct}%</span>`
+    case 'damage_increase': return `<span style="color:#ff8888">攻击力 +${pct}%</span>`
     case 'mitigation': return `<span style="color:#88ccff">减伤 ${(v * 100).toFixed(0)}%</span>`
     case 'vulnerability': return `<span style="color:#ff6666">易伤 +${pct}%${stacks > 1 ? ` (${(v * 100).toFixed(0)}% × ${stacks})` : ''}</span>`
     case 'speed_modify': return `<span style="color:#88ff88">速度 ${v > 0 ? '+' : ''}${(v * 100).toFixed(0)}%</span>`
@@ -131,6 +146,12 @@ function formatBuffEffect(e: { type: string; value?: number }, stacks: number): 
     case 'stun': return `<span style="color:#ff6666">眩晕</span>`
     default: return `<span style="color:#888">${e.type}</span>`
   }
+}
+
+function formatPotency(potency?: number): string {
+  if (potency == null) return ''
+  const pct = potency * 100
+  return pct % 1 === 0 ? `${pct}%` : `${pct.toFixed(1)}%`
 }
 
 function formatShape(s: { type: string; radius?: number; angle?: number; length?: number; width?: number }): string {
