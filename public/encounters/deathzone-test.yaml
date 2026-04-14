@@ -57,7 +57,7 @@ entities:
     speed: 0
     size: 1
     facing: 180
-    position: { x: 0, y: 18, z: 0 }
+    position: { x: 0, y: -15, z: 0 }  # starts near player, teleports north on combat start
     autoAttackRange: 0
     aggroRange: 0
     visible: true
@@ -96,13 +96,23 @@ local_skills:
 skills: {}
 
 timeline:
-  # 5s后解锁boss可选中
-  - at: 5000
+  # Boss teleports to north end after combat starts
+  - at: 500
+    action: teleport
+    entity: boss
+    position: { x: 0, y: 18 }
+  - at: 1000
+    action: lock_facing
+    entity: boss
+    facing: 180
+
+  # Unlock boss after player has time to see the teleport
+  - at: 3000
     action: set_targetable
     entity: boss
     value: true
 
-  # 30s 狂暴
+  # 30s enrage
   - at: 30000
     use: enrage_knockback
     entity: boss
