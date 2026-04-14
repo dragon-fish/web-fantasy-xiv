@@ -177,7 +177,6 @@ function formatBuffEffect(e: { type: string; value?: number }, stacks: number): 
     case 'speed_modify': return `<span style="color:#88ff88">速度 ${v > 0 ? '+' : ''}${(v * 100).toFixed(0)}%</span>`
     case 'dot': return `<span style="color:#ff8888">持续伤害</span>`
     case 'hot': return `<span style="color:#88ff88">持续治疗</span>`
-    case 'shield': return `<span style="color:#ffcc66">护盾 ${v}</span>`
     case 'lifesteal': return `<span style="color:#88ff88">吸血 ${(v * 100).toFixed(0)}%</span>`
     case 'mp_on_hit': return `<span style="color:#4488cc">受击回复 MP ${v}</span>`
     case 'undying': return `<span style="color:#ffcc66">HP不会低于1</span>`

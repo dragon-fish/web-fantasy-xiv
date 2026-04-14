@@ -1,9 +1,11 @@
 import type { BuffDef } from '@/core/types'
+import { effectIcon, skillEffectIcon, stackIcons } from './icon-paths'
 
 export const DEMO_BUFFS: Record<string, BuffDef> = {
   vulnerability: {
     id: 'vulnerability',
     name: '易伤',
+    iconPerStack: stackIcons(effectIcon, 17101, 16),
     type: 'debuff',
     duration: 8000,
     stackable: true,
@@ -13,6 +15,7 @@ export const DEMO_BUFFS: Record<string, BuffDef> = {
   embolden: {
     id: 'embolden',
     name: '攻击力提升',
+    icon: effectIcon(15021),
     type: 'buff',
     duration: 15000,
     stackable: false,
@@ -22,6 +25,7 @@ export const DEMO_BUFFS: Record<string, BuffDef> = {
   rampart: {
     id: 'rampart',
     name: '铁壁',
+    icon: skillEffectIcon(10152),
     type: 'buff',
     duration: 8000,
     stackable: false,
@@ -31,11 +35,24 @@ export const DEMO_BUFFS: Record<string, BuffDef> = {
   junze: {
     id: 'junze',
     name: '润泽',
+    icon: effectIcon(15021),
     type: 'buff',
     duration: 30000,
     stackable: true,
     maxStacks: 4,
     effects: [{ type: 'damage_increase', value: 0.1 }],
+  },
+  shield: {
+    id: 'shield',
+    name: '护盾',
+    description: '吸收伤害的护盾。',
+    icon: effectIcon(16676),
+    type: 'buff',
+    duration: 0,
+    stackable: true,
+    maxStacks: Infinity,
+    shield: true,
+    effects: [],
   },
 }
 

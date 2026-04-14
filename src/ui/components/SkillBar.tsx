@@ -58,7 +58,10 @@ export function SkillBar() {
             <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
               {entry.key}
             </span>
-            <span style={{ fontSize: 9, textAlign: 'center' }}>{skill.name.slice(0, 3)}</span>
+            {skill.icon
+              ? <img src={skill.icon} style={{ width: 40, height: 40, objectFit: 'contain', pointerEvents: 'none' }} />
+              : <span style={{ fontSize: 9, textAlign: 'center' }}>{skill.name.slice(0, 3)}</span>
+            }
             {cdPct > 0 && (
               <div
                 style={{

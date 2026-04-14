@@ -42,7 +42,7 @@ export type DisplacementSource =
 export type SkillEffectDef =
   | { type: 'damage'; potency: number }
   | { type: 'heal'; potency: number }
-  | { type: 'apply_buff'; buffId: string; stacks?: number }
+  | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number }
   | { type: 'consume_buffs'; buffIds: string[] }                         // remove listed buffs from caster on resolve
   | { type: 'consume_all_buff_stacks'; buffId: string }                  // remove all stacks of a buff
   | { type: 'consume_buff_stacks'; buffId: string; stacks: number }      // remove N stacks from a buff
@@ -69,6 +69,8 @@ export interface AoeZoneDef {
 export interface SkillDef {
   id: string
   name: string
+  /** Icon image URL; falls back to text abbreviation when absent */
+  icon?: string
   type: SkillType
   castTime: number // ms
   cooldown: number // ms
@@ -105,7 +107,6 @@ export type BuffEffectDef =
   | { type: 'hot'; potency: number; interval: number }
   | { type: 'vulnerability'; value: number }  // per-stack damage taken increase (additive)
   | { type: 'haste'; value: number }    // reduce cast time, GCD, and AA interval (0.15 = 15%)
-  | { type: 'shield'; value: number }       // absorb damage, removed when depleted
   | { type: 'lifesteal'; value: number }    // heal caster for % of damage dealt (0.2 = 20%)
   | { type: 'mp_on_hit'; value: number }    // restore flat MP when taking damage
   | { type: 'undying' }                     // HP cannot drop below 1
@@ -117,10 +118,21 @@ export interface BuffDef {
   name: string
   /** Human-readable description shown in buff tooltip */
   description?: string
+  /** Icon image URL; falls back to arrow text when absent */
+  icon?: string
+  /**
+   * Per-stack icon overrides. Key = stack count, value = image URL.
+   * Use key 0 as fallback when the current stack count has no matching entry
+   * (stack count will be rendered as text in top-right corner).
+   */
+  iconPerStack?: Record<number, string>
   type: BuffType
   duration: number // ms, 0 = permanent
   stackable: boolean
   maxStacks: number
+  /** Shield buff: stacks = shield HP, absorbs damage before HP.
+   *  Re-application only replaces if new shield has both more stacks AND longer duration. */
+  shield?: boolean
   effects: BuffEffectDef[]
 }
 

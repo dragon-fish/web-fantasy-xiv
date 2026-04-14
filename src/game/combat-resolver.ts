@@ -85,7 +85,7 @@ export class CombatResolver {
           const buffTarget = buffDef.type === 'debuff' ? target : (caster ?? target)
           if (!buffTarget) break
           const stacks = effect.stacks ?? 1
-          this.buffSystem.applyBuff(buffTarget, buffDef, (caster ?? buffTarget).id, stacks)
+          this.buffSystem.applyBuff(buffTarget, buffDef, (caster ?? buffTarget).id, stacks, effect.duration)
           break
         }
 

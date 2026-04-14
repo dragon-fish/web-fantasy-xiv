@@ -4,6 +4,7 @@ import type { SkillDef, BuffDef } from '@/core/types'
 export interface HpState {
   current: number
   max: number
+  shield?: number
 }
 
 export interface CastInfo {
@@ -24,6 +25,10 @@ export interface BuffSnapshot {
   defId: string
   name: string
   description?: string
+  /** Icon image URL; falls back to arrow text when absent */
+  icon?: string
+  /** Per-stack icon overrides (key 0 = fallback) */
+  iconPerStack?: Record<number, string>
   type: 'buff' | 'debuff'
   stacks: number
   remaining: number

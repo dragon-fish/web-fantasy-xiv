@@ -5,11 +5,11 @@ import {
   ROLE_DASH, ROLE_DASH_FORWARD, ROLE_BACKSTEP, ROLE_SECOND_WIND,
 } from './role-skills'
 import { DEMO_SKILLS } from './demo-skills'
-import { SAMURAI_SKILLS, SAMURAI_BUFFS, SAMURAI_BUFF_MAP } from './swordsman-skills'
-import { BLM_SKILLS, BLM_LEYLINE_STEP, BLM_BUFFS, BLM_BUFF_MAP } from './blm-skills'
-import { BRD_SKILLS, BRD_BUFFS, BRD_BUFF_MAP } from './bard-skills'
-import { DRK_SKILLS, DRK_BUFFS, DRK_BUFF_MAP } from './drk-skills'
-import { DEMO_BUFFS, DEMO_BUFF_MAP } from './demo-buffs'
+import { SAMURAI_SKILLS, SAMURAI_BUFFS } from './swordsman-skills'
+import { BLM_SKILLS, BLM_LEYLINE_STEP, BLM_BUFFS } from './blm-skills'
+import { BRD_SKILLS, BRD_BUFFS } from './bard-skills'
+import { DRK_SKILLS, DRK_BUFFS } from './drk-skills'
+import { DEMO_BUFFS } from './demo-buffs'
 
 /** Job category — matches icon filenames in public/assets/images/class_jobs/ */
 export enum JobCategory {
@@ -66,6 +66,15 @@ export interface PlayerJob {
   passiveBuffs?: { buffId: string; interval: number; stacks: number; requiresBuff?: string }[]
 }
 
+/** Merge job-specific buffs with shared DEMO_BUFFS */
+function mergeBuffs(jobBuffs: Record<string, BuffDef>): Record<string, BuffDef> {
+  return { ...DEMO_BUFFS, ...jobBuffs }
+}
+
+function mergeBuffMap(jobBuffs: Record<string, BuffDef>): Map<string, BuffDef> {
+  return new Map(Object.entries(mergeBuffs(jobBuffs)))
+}
+
 // ─── Helper ──────────────────────────────────────────────
 
 function buildSkillBar(skills: SkillDef[], q: SkillDef, e: SkillDef): SkillBarEntry[] {
@@ -96,7 +105,7 @@ export const DEFAULT_JOB: PlayerJob = {
   autoAttackInterval: 3000,
   skillBar: buildSkillBar(DEMO_SKILLS, ROLE_DASH, ROLE_BACKSTEP),
   buffs: DEMO_BUFFS,
-  buffMap: DEMO_BUFF_MAP,
+  buffMap: mergeBuffMap({}),
 }
 
 export const SAMURAI_JOB: PlayerJob = {
@@ -117,8 +126,8 @@ export const SAMURAI_JOB: PlayerJob = {
   autoAttackSkill: MELEE_AUTO,
   autoAttackInterval: 2800,
   skillBar: buildSkillBar([...SAMURAI_SKILLS, ROLE_SECOND_WIND], ROLE_DASH, ROLE_BACKSTEP),
-  buffs: SAMURAI_BUFFS,
-  buffMap: SAMURAI_BUFF_MAP,
+  buffs: mergeBuffs(SAMURAI_BUFFS),
+  buffMap: mergeBuffMap(SAMURAI_BUFFS),
 }
 
 export const BLM_JOB: PlayerJob = {
@@ -139,8 +148,8 @@ export const BLM_JOB: PlayerJob = {
   autoAttackSkill: CASTER_AUTO,
   autoAttackInterval: 3000,
   skillBar: buildSkillBar(BLM_SKILLS, ROLE_DASH, BLM_LEYLINE_STEP),
-  buffs: BLM_BUFFS,
-  buffMap: BLM_BUFF_MAP,
+  buffs: mergeBuffs(BLM_BUFFS),
+  buffMap: mergeBuffMap(BLM_BUFFS),
   passiveBuffs: [
     { buffId: 'blm_enochian', interval: 500, stacks: 1 },
   ],
@@ -164,8 +173,8 @@ export const BRD_JOB: PlayerJob = {
   autoAttackSkill: PHYS_RANGED_AUTO,
   autoAttackInterval: 3000,
   skillBar: buildSkillBar([...BRD_SKILLS, ROLE_SECOND_WIND], ROLE_DASH_FORWARD, ROLE_BACKSTEP),
-  buffs: BRD_BUFFS,
-  buffMap: BRD_BUFF_MAP,
+  buffs: mergeBuffs(BRD_BUFFS),
+  buffMap: mergeBuffMap(BRD_BUFFS),
   passiveBuffs: [
     { buffId: 'brd_pitch', interval: 1000, stacks: 1, requiresBuff: 'brd_minuet' },
   ],
@@ -174,7 +183,7 @@ export const BRD_JOB: PlayerJob = {
 export const DRK_JOB: PlayerJob = {
   id: 'drk',
   name: '暗黑骑士',
-  description: '以生命为代价换取强大攻击力的坦克职业。暗影弹消耗HP造成高额伤害，吸血斩回复生命，暗黑意志和暗影壁提供攻防转换窗口，行尸走肉是最后的保命手段。',
+  description: '以生命为代价换取强大攻击力的坦克职业。噬魂斩消耗HP造成高额伤害，吸收波远程回复生命，嗜血和暗影墙提供攻防转换窗口，行尸走肉是最后的保命手段。',
   category: JobCategory.Tank,
   stats: {
     hp: 12000,
@@ -188,8 +197,8 @@ export const DRK_JOB: PlayerJob = {
   autoAttackSkill: MELEE_AUTO,
   autoAttackInterval: 3000,
   skillBar: buildSkillBar([...DRK_SKILLS, ROLE_SECOND_WIND], ROLE_DASH, ROLE_BACKSTEP),
-  buffs: DRK_BUFFS,
-  buffMap: DRK_BUFF_MAP,
+  buffs: mergeBuffs(DRK_BUFFS),
+  buffMap: mergeBuffMap(DRK_BUFFS),
 }
 
 /** All available jobs */

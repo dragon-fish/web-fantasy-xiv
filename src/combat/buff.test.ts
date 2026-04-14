@@ -61,7 +61,8 @@ describe('BuffSystem', () => {
 
     system.update(entity, 5000)
     expect(entity.buffs).toHaveLength(1)
-    expect(entity.buffs[0].remaining).toBe(5000)
+    // duration 10000 + 1000 grace period - 5000 elapsed = 6000
+    expect(entity.buffs[0].remaining).toBe(6000)
   })
 
   it('should remove expired buff and emit event', () => {
@@ -71,7 +72,8 @@ describe('BuffSystem', () => {
     const handler = vi.fn()
     bus.on('buff:removed', handler)
 
-    system.update(entity, 10000)
+    // duration 10000 + 1000 grace period = 11000 total
+    system.update(entity, 11000)
     expect(entity.buffs).toHaveLength(0)
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({
       target: entity,

@@ -4,13 +4,18 @@ interface BarProps {
   current: number
   max: number
   color: string
+  shield?: number
   height?: number
   top?: number | string
   bottom?: number | string
 }
 
-function Bar({ current, max, color, height = 24, top, bottom }: BarProps) {
+function Bar({ current, max, color, shield, height = 24, top, bottom }: BarProps) {
   const pct = max > 0 ? (current / max) * 100 : 0
+  const shieldPct = shield && max > 0 ? (shield / max) * 100 : 0
+  // Cap combined HP + shield at 100%
+  const clampedShieldPct = Math.min(shieldPct, 100 - pct)
+
   return (
     <div
       style={{
@@ -24,13 +29,25 @@ function Bar({ current, max, color, height = 24, top, bottom }: BarProps) {
       }}
     >
       <div style={{ height: '100%', background: color, width: `${pct}%`, transition: 'width 0.1s' }} />
+      {clampedShieldPct > 0 && (
+        <div
+          style={{
+            position: 'absolute', top: 0,
+            left: `${pct}%`,
+            height: '100%',
+            background: '#ddcc44',
+            width: `${clampedShieldPct}%`,
+            transition: 'width 0.1s, left 0.1s',
+          }}
+        />
+      )}
       <span
         style={{
           position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
           fontSize: 11, zIndex: 1, textShadow: '1px 1px 2px #000',
         }}
       >
-        {Math.floor(current)} / {max}
+        {shield ? `${Math.floor(current)}+${shield} / ${max}` : `${Math.floor(current)} / ${max}`}
       </span>
     </div>
   )
@@ -43,7 +60,7 @@ export function BossHpBar() {
 
 export function PlayerHpBar() {
   const hp = playerHp.value
-  return <Bar current={hp.current} max={hp.max} color="#44aa44" bottom={80} />
+  return <Bar current={hp.current} max={hp.max} color="#44aa44" shield={hp.shield} bottom={80} />
 }
 
 export function PlayerMpBar() {

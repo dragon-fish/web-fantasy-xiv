@@ -16,16 +16,37 @@ export class BuffSystem {
     return this.defs.get(id)
   }
 
-  applyBuff(entity: Entity, def: BuffDef, sourceId: string, addStacks = 1): void {
+  applyBuff(entity: Entity, def: BuffDef, sourceId: string, addStacks = 1, durationOverride?: number): void {
     this.registerDef(def)
 
     // Add 1s grace period to all timed buffs.
     // Without this, a 15s buff with 2.5s GCD requires frame-perfect input
     // to land the 6th GCD at exactly 15.0s. The extra 1s ensures the last
     // action within the intended window always goes through.
-    const effectiveDuration = def.duration > 0 ? def.duration + 1000 : 0
+    const baseDuration = durationOverride ?? def.duration
+    const effectiveDuration = baseDuration > 0 ? baseDuration + 1000 : 0
 
     const existing = entity.buffs.find((b) => b.defId === def.id)
+
+    // Shield buffs: stacks = shield HP.
+    // Permanent (duration=0): replace only if new shield has more stacks.
+    // Timed: replace only if new shield has both more stacks AND more duration.
+    if (def.shield) {
+      if (existing) {
+        const amountBetter = existing.stacks < addStacks
+        const durationBetter = effectiveDuration === 0 || existing.remaining < effectiveDuration
+        if (amountBetter && durationBetter) {
+          existing.stacks = addStacks
+          existing.remaining = effectiveDuration
+          existing.sourceId = sourceId
+        }
+      } else {
+        entity.buffs.push({ defId: def.id, sourceId, remaining: effectiveDuration, stacks: addStacks })
+        this.bus.emit('buff:applied', { target: entity, buff: def, source: sourceId })
+      }
+      return
+    }
+
     if (existing && !def.stackable) {
       // Non-stackable: just refresh duration (take longer)
       existing.remaining = Math.max(existing.remaining, effectiveDuration)
@@ -40,18 +61,12 @@ export class BuffSystem {
       return
     }
 
-    const inst: BuffInstance = {
+    entity.buffs.push({
       defId: def.id,
       sourceId,
       remaining: effectiveDuration,
       stacks: Math.min(addStacks, def.maxStacks),
-    }
-
-    // Initialize shield HP from shield effect
-    const shieldEffect = def.effects.find(e => e.type === 'shield') as { type: 'shield'; value: number } | undefined
-    if (shieldEffect) inst.shieldHp = shieldEffect.value
-
-    entity.buffs.push(inst)
+    })
 
     this.bus.emit('buff:applied', { target: entity, buff: def, source: sourceId })
   }
@@ -169,22 +184,33 @@ export class BuffSystem {
       .reduce((sum, e) => sum + (e.effect as { type: 'mp_on_hit'; value: number }).value, 0)
   }
 
-  /** Absorb damage with shield buffs. Returns damage remaining after absorption. */
+  /** Absorb damage with shield buffs (stacks = shield HP). Returns damage remaining after absorption. */
   absorbShield(entity: Entity, damage: number): number {
     let remaining = damage
     for (let i = entity.buffs.length - 1; i >= 0; i--) {
       if (remaining <= 0) break
       const inst = entity.buffs[i]
-      if (inst.shieldHp == null || inst.shieldHp <= 0) continue
-      const absorbed = Math.min(inst.shieldHp, remaining)
-      inst.shieldHp -= absorbed
+      const def = this.defs.get(inst.defId)
+      if (!def?.shield) continue
+      const absorbed = Math.min(inst.stacks, remaining)
+      inst.stacks -= absorbed
       remaining -= absorbed
-      if (inst.shieldHp <= 0) {
+      if (inst.stacks <= 0) {
         entity.buffs.splice(i, 1)
-        this.bus.emit('buff:removed', { target: entity, buff: this.defs.get(inst.defId), reason: 'shield_broken' })
+        this.bus.emit('buff:removed', { target: entity, buff: def, reason: 'shield_broken' })
       }
     }
     return remaining
+  }
+
+  /** Get total shield HP across all shield buffs on entity */
+  getShieldTotal(entity: Entity): number {
+    let total = 0
+    for (const inst of entity.buffs) {
+      const def = this.defs.get(inst.defId)
+      if (def?.shield) total += inst.stacks
+    }
+    return total
   }
 
   getSpeedModifier(entity: Entity): number {

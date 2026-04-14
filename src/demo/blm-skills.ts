@@ -1,4 +1,5 @@
 import type { SkillDef, BuffDef } from '@/core/types'
+import { skillEffectIcon, stackIcons } from './icon-paths'
 
 export const BLM_SKILLS: SkillDef[] = [
   // 1: Fire — long cast, high MP cost, stacks Astral Fire, consumes all Umbral Ice
@@ -128,6 +129,7 @@ export const BLM_BUFFS: Record<string, BuffDef> = {
     id: 'blm_astral',
     name: '星极火',
     description: '火炎每层额外增加35%威力。释放冰结时消耗1层使其即时咏唱。',
+    iconPerStack: stackIcons(skillEffectIcon, 10463, 3),
     type: 'buff',
     duration: 0,
     stackable: true,
@@ -138,6 +140,7 @@ export const BLM_BUFFS: Record<string, BuffDef> = {
     id: 'blm_umbral_ice',
     name: '灵极冰',
     description: '释放火炎时消耗1层代替MP消耗。',
+    iconPerStack: stackIcons(skillEffectIcon, 10466, 3),
     type: 'buff',
     duration: 0,
     stackable: true,
@@ -148,6 +151,7 @@ export const BLM_BUFFS: Record<string, BuffDef> = {
     id: 'blm_enochian',
     name: '天语',
     description: '战斗中每秒自动获得2层。消耗50层可释放核爆。',
+    icon: skillEffectIcon(10461),
     type: 'buff',
     duration: 0,
     stackable: true,
@@ -157,6 +161,7 @@ export const BLM_BUFFS: Record<string, BuffDef> = {
   blm_leylines_active: {
     id: 'blm_leylines_active',
     name: '黑魔纹',
+    icon: skillEffectIcon(12653),
     type: 'buff',
     duration: 15000,
     stackable: false,
@@ -166,6 +171,7 @@ export const BLM_BUFFS: Record<string, BuffDef> = {
   blm_leylines_buff: {
     id: 'blm_leylines_buff',
     name: '黑魔纹效果',
+    icon: skillEffectIcon(12654),
     type: 'buff',
     duration: 3000,
     stackable: false,

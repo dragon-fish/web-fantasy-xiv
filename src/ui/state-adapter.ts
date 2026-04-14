@@ -70,7 +70,8 @@ export function createStateAdapter(deps: StateAdapterDeps) {
   bus.on('skill:cast_interrupted', onCastInterrupted)
 
   function writeFrame(player: Entity, boss: Entity, getCooldown: (skillId: string) => number): void {
-    state.playerHp.value = { current: player.hp, max: player.maxHp }
+    const shield = buffSystem.getShieldTotal(player)
+    state.playerHp.value = { current: player.hp, max: player.maxHp, shield: shield > 0 ? shield : undefined }
     if (player.maxMp > 0) state.playerMp.value = { current: player.mp, max: player.maxMp }
     state.bossHp.value = { current: boss.hp, max: boss.maxHp }
     state.gcdState.value = { remaining: player.gcdTimer, total: player.gcdDuration }
@@ -98,6 +99,8 @@ export function createStateAdapter(deps: StateAdapterDeps) {
         defId: inst.defId,
         name: def?.name ?? inst.defId,
         description: def?.description,
+        icon: def?.icon,
+        iconPerStack: def?.iconPerStack,
         type: (def?.type ?? 'buff') as 'buff' | 'debuff',
         stacks: inst.stacks,
         remaining: inst.remaining,

@@ -13,8 +13,6 @@ export interface BuffInstance {
   sourceId: string
   remaining: number  // ms remaining, 0 = permanent
   stacks: number
-  /** Remaining shield HP for shield-type buff effects */
-  shieldHp?: number
 }
 
 export interface Entity {

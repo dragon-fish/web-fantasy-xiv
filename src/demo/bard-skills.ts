@@ -1,4 +1,5 @@
 import type { SkillDef, BuffDef } from '@/core/types'
+import { skillEffectIcon } from './icon-paths'
 
 export const BRD_SKILLS: SkillDef[] = [
   // 1: Straight Shot — 10m ranged single-target weaponskill
@@ -94,6 +95,7 @@ export const BRD_BUFFS: Record<string, BuffDef> = {
     id: 'brd_ballad',
     name: '贤者的叙事谣',
     description: '攻击力提高10%。',
+    icon: skillEffectIcon(12612),
     type: 'buff',
     duration: 18000,
     stackable: false,
@@ -104,6 +106,7 @@ export const BRD_BUFFS: Record<string, BuffDef> = {
     id: 'brd_paeon',
     name: '军神的赞美歌',
     description: '自动攻击间隔、战技与魔法的咏唱及复唱时间缩短16%。',
+    icon: skillEffectIcon(12614),
     type: 'buff',
     duration: 18000,
     stackable: false,
@@ -114,6 +117,7 @@ export const BRD_BUFFS: Record<string, BuffDef> = {
     id: 'brd_minuet',
     name: '放浪神的小步舞曲',
     description: '每秒获得1层诗心，最多6层。拥有诗心时可释放完美音调。',
+    icon: skillEffectIcon(12615),
     type: 'buff',
     duration: 18000,
     stackable: false,
@@ -124,6 +128,7 @@ export const BRD_BUFFS: Record<string, BuffDef> = {
     id: 'brd_pitch',
     name: '诗心',
     description: '放浪神的小步舞曲期间每秒获得。消耗所有层数释放完美音调，伤害随层数增加。',
+    icon: skillEffectIcon(12610),
     type: 'buff',
     duration: 3000,
     stackable: true,
