@@ -83,20 +83,13 @@ local_skills:
     requiresTarget: false
     range: 0
     zones:
-      # Full-arena knockback warning (wave ring visual)
+      # Knockback warning: covers whole arena, wave moves LEFT
       - anchor: { type: position, x: 0, y: 0 }
-        direction: { type: none }
-        shape: { type: circle, radius: 15 }
+        direction: { type: fixed, angle: 270 }  # push direction = left
+        shape: { type: rect, length: 21, width: 9 }
         resolveDelay: 3000
         hitEffectDuration: 100
         displacementHint: knockback
-        effects: []
-      # Danger zone: right half (where you'll be pushed FROM)
-      - anchor: { type: position, x: 5.25, y: 0 }
-        direction: { type: fixed, angle: 90 }
-        shape: { type: rect, length: 9, width: 10.5 }
-        resolveDelay: 3000
-        hitEffectDuration: 100
         effects: []
 
   # Second slap cast: no telegraph (player should have learned by now)

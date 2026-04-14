@@ -89,21 +89,37 @@ export class AoeRenderer {
     this.enemyKbMat.alpha = pulse * 0.5
     this.playerTelegraphMat.alpha = pulse
 
-    // Animate displacement wave rings
+    // Animate displacement waves
     for (const entry of this.meshes.values()) {
       if (!entry.waveRing || entry.phase !== 'telegraph') continue
       const hint = entry.zone.def.displacementHint
       if (!hint) continue
+      const shape = entry.zone.def.shape
 
       const cycle = (time * 0.0007) % 1
-      if (hint === 'knockback') {
-        const scale = 0.2 + cycle * 0.8
-        entry.waveRing.scaling.set(scale, 1, scale)
-        ;(entry.waveRing.material as StandardMaterial).alpha = (1 - cycle) * 0.3
+
+      if (shape.type === 'rect') {
+        // Linear wave: translate bar along facing direction
+        const facingRad = (entry.zone.facing * Math.PI) / 180
+        const halfLen = shape.length / 2
+        // knockback: bar moves outward (along facing), pull: bar moves inward
+        const t = hint === 'knockback' ? cycle : 1 - cycle
+        const offset = -halfLen + t * shape.length
+        const cx = entry.zone.center.x + Math.sin(facingRad) * offset
+        const cz = entry.zone.center.y + Math.cos(facingRad) * offset
+        entry.waveRing.position.set(cx, 0.04, cz)
+        ;(entry.waveRing.material as StandardMaterial).alpha = (hint === 'knockback' ? 1 - cycle : cycle) * 0.35
       } else {
-        const scale = 1.0 - cycle * 0.8
-        entry.waveRing.scaling.set(scale, 1, scale)
-        ;(entry.waveRing.material as StandardMaterial).alpha = cycle * 0.3
+        // Circular wave: scale ring in/out
+        if (hint === 'knockback') {
+          const scale = 0.2 + cycle * 0.8
+          entry.waveRing.scaling.set(scale, 1, scale)
+          ;(entry.waveRing.material as StandardMaterial).alpha = (1 - cycle) * 0.3
+        } else {
+          const scale = 1.0 - cycle * 0.8
+          entry.waveRing.scaling.set(scale, 1, scale)
+          ;(entry.waveRing.material as StandardMaterial).alpha = cycle * 0.3
+        }
       }
     }
   }
@@ -190,8 +206,29 @@ export class AoeRenderer {
     this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing, isPlayerZone: isPlayer })
   }
 
+  /** Create wave mesh: torus for circle/ring, plane bar for rect */
   private createWaveRing(zone: ActiveAoeZone): Mesh {
     const shape = zone.def.shape
+    const mat = new StandardMaterial(`wave-mat-${zone.id}`, this.scene)
+    mat.diffuseColor = new Color3(1.0, 0.6, 0.0)
+    mat.emissiveColor = new Color3(0.6, 0.3, 0.0)
+    mat.alpha = 0.3
+
+    if (shape.type === 'rect') {
+      // Linear wave bar: a thin plane perpendicular to the push direction
+      const barWidth = shape.width
+      const wave = MeshBuilder.CreatePlane(`wave-${zone.id}`, {
+        width: barWidth,
+        height: 0.5,
+      }, this.scene)
+      wave.rotation.x = Math.PI / 2 // lay flat
+      wave.rotation.y = (zone.facing * Math.PI) / 180
+      wave.position.set(zone.center.x, 0.04, zone.center.y)
+      wave.material = mat
+      return wave
+    }
+
+    // Circle/ring: torus wave
     let radius = 0
     if (shape.type === 'circle') radius = shape.radius
     else if (shape.type === 'ring') radius = (shape.innerRadius + shape.outerRadius) / 2
@@ -203,13 +240,7 @@ export class AoeRenderer {
       tessellation: 48,
     }, this.scene)
     ring.position.set(zone.center.x, 0.04, zone.center.y)
-
-    const mat = new StandardMaterial(`wave-mat-${zone.id}`, this.scene)
-    mat.diffuseColor = new Color3(1.0, 0.6, 0.0)
-    mat.emissiveColor = new Color3(0.6, 0.3, 0.0)
-    mat.alpha = 0.3
     ring.material = mat
-
     return ring
   }
 
