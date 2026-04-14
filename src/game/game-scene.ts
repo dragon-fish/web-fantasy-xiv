@@ -1,4 +1,5 @@
 // src/game/game-scene.ts
+import { Engine } from '@babylonjs/core'
 import { SceneManager } from '@/renderer/scene-manager'
 import { ArenaRenderer } from '@/renderer/arena-renderer'
 import { EntityRenderer } from '@/renderer/entity-renderer'
@@ -27,7 +28,7 @@ import type { Entity } from '@/entity/entity'
 import type { CreateEntityOptions } from '@/entity/entity'
 
 export interface GameSceneConfig {
-  canvas: HTMLCanvasElement
+  engine: Engine
   uiRoot: HTMLDivElement
   arena: ArenaDef
   playerInputConfig: PlayerInputConfig
@@ -77,7 +78,6 @@ export class GameScene {
   battleOver = false
   player!: Entity
   private lastTime = performance.now()
-  private onResizeHandler: () => void
   private config: GameSceneConfig
 
   /** Recent damage taken by player (for death recap) */
@@ -102,14 +102,14 @@ export class GameScene {
     this.combatResolver = new CombatResolver(this.bus, this.entityMgr, this.buffSystem, this.arena, this.zoneMgr, this.displacer)
 
     // Rendering
-    this.sceneManager = new SceneManager(config.canvas)
+    this.sceneManager = new SceneManager(config.engine)
     new ArenaRenderer(this.sceneManager.scene, config.arena, this.bus)
     this.entityRenderer = new EntityRenderer(this.sceneManager.scene, this.bus)
     this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)
     this.hitEffectRenderer = new HitEffectRenderer(this.sceneManager.scene, this.bus, this.entityRenderer)
 
     // Input + Camera
-    this.input = new InputManager(config.canvas)
+    this.input = new InputManager(config.engine.getRenderingCanvas()!)
     this.camera = new CameraController()
 
     // UI
@@ -148,8 +148,6 @@ export class GameScene {
       }
     })
 
-    this.onResizeHandler = () => this.sceneManager.engine.resize()
-    window.addEventListener('resize', this.onResizeHandler)
   }
 
   /** Create player entity and bind input driver + camera */
@@ -288,7 +286,5 @@ export class GameScene {
   dispose(): void {
     this.sceneManager.dispose()
     this.input.dispose()
-    window.removeEventListener('resize', this.onResizeHandler)
-    while (this.config.uiRoot.firstChild) this.config.uiRoot.removeChild(this.config.uiRoot.firstChild)
   }
 }

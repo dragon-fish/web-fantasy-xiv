@@ -13,8 +13,9 @@ export class SceneManager {
   private rollPhase: 'idle' | 'snap' | 'return' = 'idle'
   private canvas: HTMLCanvasElement
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.engine = new Engine(canvas, true, { preserveDrawingBuffer: true })
+  constructor(engine: Engine) {
+    this.engine = engine
+    const canvas = engine.getRenderingCanvas()!
 
     this.scene = new Scene(this.engine)
     this.scene.clearColor.set(0.12, 0.12, 0.14, 1)
@@ -139,6 +140,6 @@ export class SceneManager {
   }
 
   dispose(): void {
-    this.engine.dispose()
+    this.scene.dispose()
   }
 }

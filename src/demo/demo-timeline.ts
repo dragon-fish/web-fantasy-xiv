@@ -1,3 +1,4 @@
+import { Engine } from '@babylonjs/core'
 import { GameScene } from '@/game/game-scene'
 import { BossBehavior } from '@/ai/boss-behavior'
 import { PhaseScheduler } from '@/timeline/phase-scheduler'
@@ -43,8 +44,11 @@ export async function startTimelineDemo(
 }
 
 function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: EncounterData, encounterUrl: string): void {
+  const engine = Engine.Instances.find(e => e.getRenderingCanvas() === canvas) as Engine | undefined
+  if (!engine) throw new Error('No Engine found for canvas')
+
   scene = new GameScene({
-    canvas, uiRoot, arena: enc.arena,
+    engine, uiRoot, arena: enc.arena,
     skillBarEntries: DEMO_SKILL_BAR,
     playerInputConfig: {
       skills: DEMO_SKILLS,
