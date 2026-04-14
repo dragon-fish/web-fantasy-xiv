@@ -1,5 +1,5 @@
 import type { SkillDef, BuffDef } from '@/core/types'
-import { skillEffectIcon } from './icon-paths'
+import { icon } from './icon-paths'
 
 export const SAMURAI_SKILLS: SkillDef[] = [
   // 1: Setsu (Snow) — melee GCD, grants Snow buff
@@ -101,7 +101,7 @@ export const SAMURAI_BUFFS: Record<string, BuffDef> = {
     id: 'sam_setsu',
     name: '雪',
     description: '集齐雪、月、花后可释放纷乱雪月花。',
-    icon: skillEffectIcon(13310),
+    icon: icon('player_skill_effects',13310),
     type: 'buff',
     duration: 0,
     stackable: false,
@@ -112,7 +112,7 @@ export const SAMURAI_BUFFS: Record<string, BuffDef> = {
     id: 'sam_getsu',
     name: '月',
     description: '集齐雪、月、花后可释放纷乱雪月花。',
-    icon: skillEffectIcon(13301),
+    icon: icon('player_skill_effects',13301),
     type: 'buff',
     duration: 0,
     stackable: false,
@@ -123,7 +123,7 @@ export const SAMURAI_BUFFS: Record<string, BuffDef> = {
     id: 'sam_ka',
     name: '花',
     description: '集齐雪、月、花后可释放纷乱雪月花。',
-    icon: skillEffectIcon(13302),
+    icon: icon('player_skill_effects',13302),
     type: 'buff',
     duration: 0,
     stackable: false,

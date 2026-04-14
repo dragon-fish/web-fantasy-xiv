@@ -1,5 +1,5 @@
 import type { SkillDef, BuffDef } from '@/core/types'
-import { skillEffectIcon } from './icon-paths'
+import { icon } from './icon-paths'
 
 export const DRK_SKILLS: SkillDef[] = [
   // 1: Shadow Bolt — melee, costs HP, high potency
@@ -95,7 +95,7 @@ export const DRK_BUFFS: Record<string, BuffDef> = {
     id: 'drk_dark_mind',
     name: '嗜血',
     description: '噬魂斩消耗MP代替HP。攻击附带20%吸血效果。',
-    icon: skillEffectIcon(13109),
+    icon: icon('player_skill_effects',13109),
     type: 'buff',
     duration: 10000,
     stackable: false,
@@ -108,7 +108,7 @@ export const DRK_BUFFS: Record<string, BuffDef> = {
     id: 'drk_shadow_wall',
     name: '暗影墙',
     description: '受到攻击时回复500MP。',
-    icon: skillEffectIcon(13113),
+    icon: icon('player_skill_effects',13113),
     type: 'buff',
     duration: 8000,
     stackable: false,
@@ -121,7 +121,7 @@ export const DRK_BUFFS: Record<string, BuffDef> = {
     id: 'drk_living_dead',
     name: '行尸走肉',
     description: 'HP不会低于1。噬魂斩的HP消耗转为HP回复。',
-    icon: skillEffectIcon(13115),
+    icon: icon('player_skill_effects',13115),
     type: 'buff',
     duration: 10000,
     stackable: false,
