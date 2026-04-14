@@ -1,3 +1,4 @@
+import { useLocation } from 'preact-iso'
 import { battleResult, damageLog, combatElapsed } from '../state'
 
 interface BattleEndOverlayProps {
@@ -19,10 +20,16 @@ function formatClearTime(ms: number): string {
   return `${m}'${s.toString().padStart(2, '0')}.${frac}''`
 }
 
+const btnBase: Record<string, string | number> = {
+  border: 'none', borderRadius: 4, cursor: 'pointer',
+  letterSpacing: 2, fontWeight: 500,
+}
+
 export function BattleEndOverlay({ onRetry }: BattleEndOverlayProps) {
   const result = battleResult.value
   if (!result) return null
 
+  const { route } = useLocation()
   const log = damageLog.value
   const elapsed = combatElapsed.value
 
@@ -34,9 +41,8 @@ export function BattleEndOverlay({ onRetry }: BattleEndOverlayProps) {
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(0,0,0,0.7)', zIndex: 80,
-        pointerEvents: 'auto', cursor: 'pointer',
+        pointerEvents: 'auto',
       }}
-      onClick={onRetry}
     >
       <h2
         style={{
@@ -86,7 +92,32 @@ export function BattleEndOverlay({ onRetry }: BattleEndOverlayProps) {
         </p>
       )}
 
-      <p style={{ fontSize: 14, color: '#666' }}>Click to retry</p>
+      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+        <button
+          style={{
+            ...btnBase,
+            padding: isWipe ? '10px 32px' : '8px 20px',
+            fontSize: isWipe ? 16 : 13,
+            background: isWipe ? 'rgba(255,68,68,0.25)' : 'rgba(255,255,255,0.08)',
+            color: isWipe ? '#ff6666' : '#888',
+          }}
+          onClick={onRetry}
+        >
+          重试
+        </button>
+        <button
+          style={{
+            ...btnBase,
+            padding: isWipe ? '8px 20px' : '10px 32px',
+            fontSize: isWipe ? 13 : 16,
+            background: isWipe ? 'rgba(255,255,255,0.08)' : 'rgba(68,255,68,0.2)',
+            color: isWipe ? '#888' : '#44ff44',
+          }}
+          onClick={() => route('/')}
+        >
+          返回首页
+        </button>
+      </div>
     </div>
   )
 }

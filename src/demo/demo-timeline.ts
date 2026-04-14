@@ -27,6 +27,7 @@ export async function startTimelineDemo(
   canvas: HTMLCanvasElement,
   uiRoot: HTMLDivElement,
   encounterUrl?: string,
+  jobOverride?: string,
 ): Promise<void> {
   scene?.dispose()
 
@@ -45,18 +46,18 @@ export async function startTimelineDemo(
   try {
     const encounter = await loadEncounter(url)
     loading.remove()
-    initScene(canvas, uiRoot, encounter, url)
+    initScene(canvas, uiRoot, encounter, url, jobOverride)
   } catch (err) {
     loading.textContent = `Failed to load encounter: ${err}`
     loading.style.color = '#ff4444'
   }
 }
 
-function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: EncounterData, encounterUrl: string): void {
+function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: EncounterData, encounterUrl: string, jobOverride?: string): void {
   const engine = Engine.Instances.find(e => e.getRenderingCanvas() === canvas) as Engine | undefined
   if (!engine) throw new Error('No Engine found for canvas')
 
-  const job = getJob(selectedJobId.value)
+  const job = getJob(jobOverride ?? selectedJobId.value)
 
   scene = new GameScene({
     engine, uiRoot, arena: enc.arena,
@@ -69,7 +70,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       passiveBuffs: job.passiveBuffs,
       buffDefs: job.buffMap,
     },
-    restart: () => startTimelineDemo(canvas, uiRoot, encounterUrl),
+    restart: () => startTimelineDemo(canvas, uiRoot, encounterUrl, jobOverride),
   })
 
   const s = scene

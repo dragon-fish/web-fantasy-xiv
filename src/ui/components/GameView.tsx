@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
-import { useRoute } from 'preact-iso'
+import { useEffect, useRef, useState, useCallback } from 'preact/hooks'
+import { useRoute, useLocation } from 'preact-iso'
 import { useEngine } from '../engine-context'
 import { createStateAdapter } from '../state-adapter'
 import { startTimelineDemo, getActiveScene, disposeActiveScene } from '@/demo/demo-timeline'
@@ -48,14 +48,26 @@ export function GameView() {
   const uiRef = useRef<HTMLDivElement>(null)
   const [gameKey, setGameKey] = useState(0)
 
+  const isTutorial = params.id === 'tutorial'
+
   useEffect(() => {
     const uiRoot = uiRef.current!
     const id = params.id
     const base = import.meta.env.BASE_URL
     const encounterUrl = `${base}encounters/${id}.yaml`
 
-    // Set skill bar + buff defs for HUD based on selected job
-    const job = getJob(selectedJobId.value)
+    // Tutorial locks job to Adventurer (temporary, don't change saved selection)
+    // Edge case: if selected job is invalid, save 'default' to localStorage
+    let job = getJob(selectedJobId.value)
+    if (isTutorial) {
+      job = getJob('default')
+    } else if (job.id === 'default' && selectedJobId.value !== 'default') {
+      // Invalid job ID stored — fix it
+      selectedJobId.value = 'default'
+      localStorage.setItem('xiv-selected-job', 'default')
+    }
+
+    // Set skill bar + buff defs for HUD based on resolved job
     skillBarEntriesSignal.value = job.skillBar
     buffDefsSignal.value = job.buffMap as any
     tooltipContext.value = { gcdDuration: job.stats.gcdDuration ?? 2500, haste: 0 }
@@ -63,7 +75,7 @@ export function GameView() {
     let adapter: ReturnType<typeof createStateAdapter> | null = null
     let active = true
 
-    startTimelineDemo(canvas!, uiRoot, encounterUrl).then(() => {
+    startTimelineDemo(canvas!, uiRoot, encounterUrl, isTutorial ? 'default' : undefined).then(() => {
       if (!active) return
       const scene = getActiveScene()
       if (scene) {
@@ -92,6 +104,19 @@ export function GameView() {
   }, [params.id, canvas, gameKey])
 
   const handleRetry = () => setGameKey((k) => k + 1)
+  const { route } = useLocation()
+
+  const handleSkipTutorial = useCallback(() => {
+    localStorage.setItem('xiv-tutorial-seen', '1')
+    route('/')
+  }, [route])
+
+  // Mark tutorial as seen when battle ends (victory)
+  useEffect(() => {
+    if (isTutorial) {
+      localStorage.setItem('xiv-tutorial-seen', '1')
+    }
+  }, [isTutorial])
 
   return (
     <div
@@ -115,6 +140,21 @@ export function GameView() {
       <SidePanel />
       <Tooltip />
       <SkillPanel />
+      {isTutorial && (
+        <div
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            pointerEvents: 'auto', cursor: 'pointer',
+            padding: '6px 16px', fontSize: 13,
+            color: '#aaa', background: 'rgba(0,0,0,0.6)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 4,
+          }}
+          onClick={handleSkipTutorial}
+        >
+          跳过教程 &gt;
+        </div>
+      )}
     </div>
   )
 }

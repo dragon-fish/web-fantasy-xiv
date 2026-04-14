@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
+import { useLocation } from 'preact-iso'
 import { JOBS, getJob, JOB_CATEGORY_LABELS } from '@/demo/player-job'
 import { selectedJobId } from '../state'
 import { buildSkillTooltip } from '../tooltip-builders'
@@ -33,6 +34,15 @@ function BackButton({ href }: { href: string }) {
 // ─── Pages ───────────────────────────────────────────────
 
 export function MainMenu() {
+  const { route } = useLocation()
+
+  // First visit: auto-start tutorial
+  useEffect(() => {
+    if (!localStorage.getItem('xiv-tutorial-seen')) {
+      route('/encounter/tutorial')
+    }
+  }, [route])
+
   const currentJob = getJob(selectedJobId.value)
   return (
     <MenuShell>
