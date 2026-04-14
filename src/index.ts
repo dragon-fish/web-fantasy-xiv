@@ -66,10 +66,8 @@ export { HitEffectRenderer } from './renderer/hit-effect-renderer'
 // Input
 export { InputManager, computeMoveDirection, computeFacingAngle } from './input/input-manager'
 
-// UI
-export { UIManager } from './ui/ui-manager'
-export { MainMenu } from './ui/main-menu'
-export { PauseMenu } from './ui/pause-menu'
+// UI (Preact components — import from ui/components/ or ui/state)
+export type { SkillBarEntry, HpState, CastInfo, BuffSnapshot, DamageEvent, DamageLogEntry } from './ui/state'
 
 // Game (reusable components)
 export { CameraController } from './game/camera-controller'
