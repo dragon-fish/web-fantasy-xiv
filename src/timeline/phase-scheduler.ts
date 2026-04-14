@@ -98,21 +98,31 @@ export class PhaseScheduler {
     }
   }
 
-  /** Flat list of upcoming/recent actions from active phases, with absolute times for display */
+  /** Flat list of upcoming/recent actions from the latest active phase, with absolute times for display */
   getAllActions(): { action: TimelineAction; phaseId: string; absoluteAt: number }[] {
+    // Only show actions from the most recently activated phase
+    const active = this.activePhases[this.activePhases.length - 1]
+    if (!active) return []
+
     const result: { action: TimelineAction; phaseId: string; absoluteAt: number }[] = []
-    for (const active of this.activePhases) {
-      const phaseStart = this.combatElapsed - active.elapsed
-      for (const action of active.def.actions) {
-        // Skip non-skill actions (teleport, enable_ai, etc.)
-        if (action.action !== 'use') continue
-        const absoluteAt = action.at + phaseStart
-        // Only include actions within a reasonable window (not ancient history)
-        if (absoluteAt < this.combatElapsed - 5000) continue
-        result.push({ action, phaseId: active.def.id, absoluteAt })
-      }
+    const phaseStart = this.combatElapsed - active.elapsed
+    for (const action of active.def.actions) {
+      // Skip non-skill actions (teleport, enable_ai, etc.)
+      if (action.action !== 'use') continue
+      const absoluteAt = action.at + phaseStart
+      // Only include actions within a reasonable window (not ancient history)
+      if (absoluteAt < this.combatElapsed - 5000) continue
+      result.push({ action, phaseId: active.def.id, absoluteAt })
     }
     return result
+  }
+
+  /** Get the latest active phase info for UI display */
+  getLatestPhase(): { id: string; name?: string; index: number; total: number } | null {
+    if (this.activePhases.length === 0) return null
+    const latest = this.activePhases[this.activePhases.length - 1]
+    const index = this.phases.indexOf(latest.def)
+    return { id: latest.def.id, name: latest.def.name, index: index + 1, total: this.phases.length }
   }
 
   getPhaseElapsed(phaseId: string): number | null {

@@ -120,7 +120,7 @@ describe('parsePhases', () => {
     expect(phases[2].trigger).toEqual({ type: 'on_hp_below', group: 'boss', percent: 10 })
   })
 
-  it('should default to on_combat_start if trigger is missing', () => {
+  it('should default to manual if trigger is missing, except phase_default', () => {
     const rawPhases = {
       phase_default: { actions: [] },
       some_phase: { actions: [] },
@@ -128,7 +128,7 @@ describe('parsePhases', () => {
     const phases = parsePhases(rawPhases)
     // phase_default always gets on_combat_start
     expect(phases[0].trigger.type).toBe('on_combat_start')
-    // non-default without trigger also defaults to on_combat_start
-    expect(phases[1].trigger.type).toBe('on_combat_start')
+    // non-default without trigger defaults to manual
+    expect(phases[1].trigger.type).toBe('manual')
   })
 })

@@ -44,7 +44,7 @@ export function parsePhases(
       ? ({ type: 'on_combat_start' } as PhaseTrigger)
       : parseTrigger(raw.trigger)
     const actions = flattenTimeline(raw.actions ?? [])
-    phases.push({ id, trigger, actions })
+    phases.push({ id, name: raw.name, trigger, actions })
   }
   return phases
 }
@@ -57,7 +57,7 @@ export function parsePhases(
  *     on_hp_below: { group: boss, percent: 50 }
  */
 function parseTrigger(raw: any): PhaseTrigger {
-  if (!raw) return { type: 'on_combat_start' }
+  if (!raw) return { type: 'manual' }
 
   if (raw.on_all_killed) {
     return { type: 'on_all_killed', group: raw.on_all_killed.group ?? 'mob' }
@@ -69,7 +69,7 @@ function parseTrigger(raw: any): PhaseTrigger {
       percent: raw.on_hp_below.percent ?? 50,
     }
   }
-  return { type: 'on_combat_start' }
+  return { type: 'manual' }
 }
 
 function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void {

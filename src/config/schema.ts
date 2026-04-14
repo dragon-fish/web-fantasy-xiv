@@ -136,9 +136,11 @@ export type PhaseTrigger =
   | { type: 'on_combat_start' }
   | { type: 'on_all_killed'; group: string }
   | { type: 'on_hp_below'; group: string; percent: number }
+  | { type: 'manual' }
 
 export interface PhaseDef {
   id: string
+  name?: string
   trigger: PhaseTrigger
   actions: TimelineAction[]
 }
