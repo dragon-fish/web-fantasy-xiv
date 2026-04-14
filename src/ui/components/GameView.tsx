@@ -15,6 +15,7 @@ import { CombatAnnounce } from './CombatAnnounce'
 import { PauseMenu } from './PauseMenu'
 import { BattleEndOverlay } from './BattleEndOverlay'
 import { DebugInfo } from './DebugInfo'
+import { TimelineDisplay } from './TimelineDisplay'
 
 export function GameView() {
   const { params } = useRoute()
@@ -82,6 +83,7 @@ export function GameView() {
       <PauseMenu onRetry={handleRetry} />
       <BattleEndOverlay onRetry={handleRetry} />
       <DebugInfo />
+      <TimelineDisplay />
     </div>
   )
 }

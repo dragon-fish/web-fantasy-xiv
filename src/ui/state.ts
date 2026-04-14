@@ -67,6 +67,22 @@ export const combatElapsed = signal<number | null>(null)
 export const skillBarEntries = signal<SkillBarEntry[]>([])
 export const buffDefs = signal<Map<string, BuffDef>>(new Map())
 
+// Timeline display
+export interface TimelineEntry {
+  key: string
+  skillName: string
+  state: 'upcoming' | 'casting' | 'flash'
+  /** Time until activation in ms (positive = upcoming, negative = past) */
+  timeUntil: number
+  /** Skill cast time in ms (0 for instant) */
+  castTime: number
+  /** Flash elapsed in ms */
+  flashElapsed: number
+}
+
+export const timelineEntries = signal<TimelineEntry[]>([])
+export const timelineCollapsed = signal(localStorage.getItem('xiv-timeline-collapsed') === 'true')
+
 // Debug
 export const debugFps = signal(0)
 export const debugPlayerPos = signal({ x: 0, y: 0 })
@@ -89,6 +105,7 @@ export function resetState(): void {
   combatElapsed.value = null
   skillBarEntries.value = []
   buffDefs.value = new Map()
+  timelineEntries.value = []
   debugFps.value = 0
   debugPlayerPos.value = { x: 0, y: 0 }
 }

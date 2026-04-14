@@ -2,12 +2,11 @@ import { Engine } from '@babylonjs/core'
 import { GameScene } from '@/game/game-scene'
 import { BossBehavior } from '@/ai/boss-behavior'
 import { PhaseScheduler } from '@/timeline/phase-scheduler'
-import { TimelineDisplay } from '@/ui/timeline-display'
 import { loadEncounter } from '@/game/encounter-loader'
 import { DeathZoneManager } from '@/arena/death-zone-manager'
 import { DEMO_SKILLS, AUTO_ATTACK, SKILL_DASH, SKILL_BACKSTEP } from './demo-skills'
 import { DEMO_BUFFS } from './demo-buffs'
-import { announceText, battleResult, damageLog, combatElapsed as combatElapsedSignal } from '@/ui/state'
+import { announceText, battleResult, damageLog, combatElapsed as combatElapsedSignal, timelineEntries, type TimelineEntry } from '@/ui/state'
 import type { TimelineAction } from '@/config/schema'
 import type { Entity } from '@/entity/entity'
 import type { EncounterData } from '@/game/encounter-loader'
@@ -101,7 +100,6 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
   let combatStarted = false
   const bossAutoSkill = enc.skills.get('boss_auto')
   const scheduler = new PhaseScheduler(s.bus, enc.phases)
-  const timelineDisplay = new TimelineDisplay(uiRoot, scheduler, enc.skills)
   const deathZoneMgr = new DeathZoneManager(s.bus)
   if (enc.arena.deathZones) deathZoneMgr.loadInitial(enc.arena.deathZones)
 
@@ -325,8 +323,57 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       }
     }
 
-    timelineDisplay.update(dt)
+    updateTimelineSignal(dt, scheduler, enc.skills)
   }
 
   s.start()
+}
+
+const TIMELINE_WINDOW_MS = 30000
+const TIMELINE_MAX_ENTRIES = 5
+const TIMELINE_FLASH_DURATION = 1000
+
+function updateTimelineSignal(dt: number, scheduler: PhaseScheduler, skillMap: Map<string, import('@/core/types').SkillDef>): void {
+  const elapsed = scheduler.combatElapsed
+  const allActions = scheduler.getAllActions()
+  const upcoming: TimelineEntry[] = []
+
+  for (const { action, phaseId, absoluteAt } of allActions) {
+    if (action.action !== 'use' || !action.use) continue
+    const skill = skillMap.get(action.use)
+    if (!skill) continue
+
+    const timeUntil = absoluteAt - elapsed
+    if (timeUntil > TIMELINE_WINDOW_MS) continue
+    if (timeUntil < -TIMELINE_FLASH_DURATION - (skill.castTime || 0)) continue
+
+    const key = `${phaseId}_${action.at}_${action.use}_${action.entity ?? ''}`
+    const isInstant = skill.type !== 'spell' || skill.castTime === 0
+
+    let state: 'upcoming' | 'casting' | 'flash' = 'upcoming'
+    let flashElapsed = 0
+
+    if (timeUntil <= 0) {
+      if (isInstant) {
+        state = 'flash'
+      } else if (-timeUntil < skill.castTime) {
+        state = 'casting'
+      } else {
+        state = 'flash'
+      }
+    }
+
+    // Carry over flash elapsed from previous frame
+    const prev = timelineEntries.value.find((e) => e.key === key)
+    if (state === 'flash') {
+      flashElapsed = prev?.state === 'flash' ? prev.flashElapsed + dt : 0
+    }
+
+    if (flashElapsed < TIMELINE_FLASH_DURATION) {
+      upcoming.push({ key, skillName: skill.name, state, timeUntil, castTime: skill.castTime, flashElapsed })
+    }
+  }
+
+  upcoming.sort((a, b) => a.timeUntil - b.timeUntil)
+  timelineEntries.value = upcoming.slice(0, TIMELINE_MAX_ENTRIES)
 }
