@@ -1,38 +1,12 @@
-import { useState } from 'preact/hooks'
 import { skillBarEntries, cooldowns, gcdState, buffDefs } from '../state'
 import { buildSkillTooltip } from '../tooltip-builders'
-
-interface TooltipState {
-  html: string
-  x: number
-  y: number
-}
-
-function TooltipEl({ html, x, y }: TooltipState) {
-  return (
-    <div
-      style={{
-        position: 'fixed', zIndex: 200, pointerEvents: 'none',
-        background: 'rgba(10,10,15,0.95)',
-        border: '1px solid rgba(255,255,255,0.15)',
-        borderRadius: 4, padding: '8px 12px',
-        fontSize: 12, color: '#ccc', lineHeight: 1.6,
-        maxWidth: 260,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-        left: x, top: y,
-        transform: 'translate(-50%, calc(-100% - 8px))',
-      }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  )
-}
+import { showTooltip, hideTooltip } from './Tooltip'
 
 export function SkillBar() {
   const entries = skillBarEntries.value
   const cds = cooldowns.value
   const gcd = gcdState.value
   const defs = buffDefs.value
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
   return (
     <div
@@ -63,13 +37,13 @@ export function SkillBar() {
             }}
             onMouseEnter={(e) => {
               const html = buildSkillTooltip(skill as any, defs.size > 0 ? defs as any : undefined)
-              setTooltip({ html, x: e.clientX, y: e.clientY })
+              showTooltip(html, e.clientX, e.clientY)
             }}
             onMouseMove={(e) => {
               const html = buildSkillTooltip(skill as any, defs.size > 0 ? defs as any : undefined)
-              setTooltip({ html, x: e.clientX, y: e.clientY })
+              showTooltip(html, e.clientX, e.clientY)
             }}
-            onMouseLeave={() => setTooltip(null)}
+            onMouseLeave={hideTooltip}
           >
             <span style={{ position: 'absolute', top: 2, left: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
               {entry.key}
@@ -78,9 +52,8 @@ export function SkillBar() {
             {cdPct > 0 && (
               <div
                 style={{
-                  position: 'absolute', bottom: 0, left: 0,
-                  width: '100%', height: `${cdPct}%`,
-                  background: 'rgba(0,0,0,0.7)', transition: 'height 0.05s',
+                  position: 'absolute', bottom: 0, left: 0, width: '100%',
+                  height: `${cdPct}%`, background: 'rgba(0,0,0,0.7)',
                 }}
               />
             )}
@@ -99,7 +72,6 @@ export function SkillBar() {
           </div>
         )
       })}
-      {tooltip && <TooltipEl {...tooltip} />}
     </div>
   )
 }

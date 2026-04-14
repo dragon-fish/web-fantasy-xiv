@@ -140,6 +140,7 @@ export class SceneManager {
   }
 
   dispose(): void {
+    this.engine.stopRenderLoop()
     this.scene.dispose()
   }
 }

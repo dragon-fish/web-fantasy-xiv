@@ -1,38 +1,9 @@
-import { useState } from 'preact/hooks'
 import { buffs } from '../state'
 import { buildBuffTooltip } from '../tooltip-builders'
+import { showTooltip, hideTooltip } from './Tooltip'
 import type { BuffSnapshot } from '../state'
 
-interface TooltipState {
-  html: string
-  x: number
-  y: number
-}
-
-function TooltipEl({ html, x, y }: TooltipState) {
-  return (
-    <div
-      style={{
-        position: 'fixed', zIndex: 200, pointerEvents: 'none',
-        background: 'rgba(10,10,15,0.95)',
-        border: '1px solid rgba(255,255,255,0.15)',
-        borderRadius: 4, padding: '8px 12px',
-        fontSize: 12, color: '#ccc', lineHeight: 1.6,
-        maxWidth: 260, boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-        left: x, top: y,
-        transform: 'translate(-50%, calc(-100% - 8px))',
-      }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  )
-}
-
-function BuffIcon({ buff, onEnter, onMove, onLeave }: {
-  buff: BuffSnapshot
-  onEnter: (e: MouseEvent) => void
-  onMove: (e: MouseEvent) => void
-  onLeave: () => void
-}) {
+function BuffIcon({ buff }: { buff: BuffSnapshot }) {
   const isDebuff = buff.type === 'debuff'
   const borderColor = isDebuff ? 'rgba(255,80,80,0.4)' : 'rgba(80,255,80,0.4)'
   const arrowColor = isDebuff ? '#ff6666' : '#66ff66'
@@ -49,9 +20,9 @@ function BuffIcon({ buff, onEnter, onMove, onLeave }: {
         fontSize: 10, position: 'relative',
         pointerEvents: 'auto', cursor: 'default',
       }}
-      onMouseEnter={onEnter as any}
-      onMouseMove={onMove as any}
-      onMouseLeave={onLeave}
+      onMouseEnter={(e) => showTooltip(buildBuffTooltip(buff as any), e.clientX, e.clientY)}
+      onMouseMove={(e) => showTooltip(buildBuffTooltip(buff as any), e.clientX, e.clientY)}
+      onMouseLeave={hideTooltip}
     >
       <span style={{ fontSize: 12, lineHeight: 1, color: arrowColor }}>
         {isDebuff ? '▼' : '▲'}
@@ -77,7 +48,6 @@ function BuffIcon({ buff, onEnter, onMove, onLeave }: {
 
 export function BuffBar() {
   const buffList = buffs.value
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
   return (
     <div
@@ -87,15 +57,8 @@ export function BuffBar() {
       }}
     >
       {buffList.map((buff) => (
-        <BuffIcon
-          key={buff.defId}
-          buff={buff}
-          onEnter={(e) => setTooltip({ html: buildBuffTooltip(buff as any), x: e.clientX, y: e.clientY })}
-          onMove={(e) => setTooltip({ html: buildBuffTooltip(buff as any), x: e.clientX, y: e.clientY })}
-          onLeave={() => setTooltip(null)}
-        />
+        <BuffIcon key={buff.defId} buff={buff} />
       ))}
-      {tooltip && <TooltipEl {...tooltip} />}
     </div>
   )
 }
