@@ -112,6 +112,8 @@ export interface TimelineAction {
   // death zone fields
   deathZone?: { id: string; center: { x: number; y: number }; facing?: number; shape: any }
   deathZoneId?: string   // for remove_death_zone
+  // dialog fields
+  dialogText?: string     // for show_dialog
   // spawn_entity fields
   spawnId?: string
   spawnType?: string

@@ -112,6 +112,10 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
     out.push({ at, action: 'remove_death_zone', deathZoneId: entry.deathZoneId })
   } else if (entry.action === 'camera_roll') {
     out.push({ at, action: 'camera_roll', angle: entry.angle, snapMs: entry.snapMs, returnMs: entry.returnMs })
+  } else if (entry.action === 'show_dialog') {
+    out.push({ at, action: 'show_dialog', dialogText: entry.text })
+  } else if (entry.action === 'hide_dialog') {
+    out.push({ at, action: 'hide_dialog' })
   }
 
   if (entry.then) {

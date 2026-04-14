@@ -56,6 +56,7 @@ export const cooldowns = signal<Map<string, number>>(new Map())
 // Discrete event state
 export const damageEvents = signal<DamageEvent[]>([])
 export const announceText = signal<string | null>(null)
+export const dialogText = signal('')
 
 // UI control
 export const paused = signal(false)
@@ -99,6 +100,7 @@ export function resetState(): void {
   cooldowns.value = new Map()
   damageEvents.value = []
   announceText.value = null
+  dialogText.value = ''
   paused.value = false
   battleResult.value = null
   damageLog.value = []

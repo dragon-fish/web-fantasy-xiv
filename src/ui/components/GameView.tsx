@@ -12,6 +12,7 @@ import { SkillBar } from './SkillBar'
 import { BuffBar } from './BuffBar'
 import { DamageFloater } from './DamageFloater'
 import { CombatAnnounce } from './CombatAnnounce'
+import { DialogBox } from './DialogBox'
 import { PauseMenu } from './PauseMenu'
 import { BattleEndOverlay } from './BattleEndOverlay'
 import { DebugInfo } from './DebugInfo'
@@ -81,6 +82,7 @@ export function GameView() {
       <BuffBar />
       <DamageFloater />
       <CombatAnnounce />
+      <DialogBox />
       <PauseMenu onRetry={handleRetry} />
       <BattleEndOverlay onRetry={handleRetry} />
       <DebugInfo />
