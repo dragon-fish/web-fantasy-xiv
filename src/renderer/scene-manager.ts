@@ -78,9 +78,11 @@ export class SceneManager {
     }
 
     // Apply roll via upVector rotation
-    const cos = Math.cos(this.rollAngle)
-    const sin = Math.sin(this.rollAngle)
-    this.camera.upVector.set(sin, cos, 0)
+    if (Number.isFinite(this.rollAngle)) {
+      const cos = Math.cos(this.rollAngle)
+      const sin = Math.sin(this.rollAngle)
+      this.camera.upVector.set(sin, cos, 0)
+    }
   }
 
   startRenderLoop(onBeforeRender: () => void): void {

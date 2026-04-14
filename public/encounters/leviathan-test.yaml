@@ -171,10 +171,11 @@ timeline:
     entity: boss
 
   # Slap: knockback from right pushes LEFT + camera tilts CCW
-  - at: 13000
+  # 100ms after cast completes to avoid same-frame conflict
+  - at: 13100
     use: slap_left
     entity: boss
-  - at: 13000
+  - at: 13100
     action: camera_roll
     angle: -12
     snapMs: 150
@@ -237,10 +238,10 @@ timeline:
     entity: boss
 
   # Slap: knockback from left pushes RIGHT + camera tilts CW
-  - at: 28000
+  - at: 28100
     use: slap_right
     entity: boss
-  - at: 28000
+  - at: 28100
     action: camera_roll
     angle: 12
     snapMs: 150
