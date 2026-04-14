@@ -1,0 +1,302 @@
+# Tutorial Encounter
+# Teaches movement, melee attack, ranged attack, AOE avoidance, and boss fight
+# Driven entirely by a single run_script action
+
+arena:
+  name: 训练场
+  shape: circle
+  radius: 15
+  boundary: wall
+
+entities:
+  boss:
+    type: boss
+    group: boss
+    hp: 45000
+    attack: 500
+    speed: 4
+    size: 1.5
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    visible: false
+    targetable: false
+    autoAttackRange: 5
+    aggroRange: 0
+
+player:
+  hp: 50000
+  attack: 1000
+  speed: 6
+  size: 0.5
+  autoAttackRange: 5
+  position: { x: 0, y: -5, z: 0 }
+
+boss_ai:
+  chaseRange: 3
+  autoAttackRange: 5
+  autoAttackInterval: 3000
+  aggroRange: 0
+  aggroAngle: 360
+
+local_skills:
+  mob_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 5
+    effects: [{ type: damage, potency: 0.5 }]
+
+  steel_aoe:
+    name: 钢铁
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 8 }
+        resolveDelay: 5000
+        telegraphBefore: 5000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 25000 }]
+
+  half_cleave_n:
+    name: 北方斩击
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 0 }
+        shape: { type: fan, radius: 15, angle: 180 }
+        resolveDelay: 3000
+        telegraphBefore: 3000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 25000 }]
+
+  half_cleave_s:
+    name: 南方斩击
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 180 }
+        shape: { type: fan, radius: 15, angle: 180 }
+        resolveDelay: 3000
+        telegraphBefore: 3000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 25000 }]
+
+  half_cleave_e:
+    name: 东方斩击
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 90 }
+        shape: { type: fan, radius: 15, angle: 180 }
+        resolveDelay: 3000
+        telegraphBefore: 3000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 25000 }]
+
+  half_cleave_w:
+    name: 西方斩击
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 270 }
+        shape: { type: fan, radius: 15, angle: 180 }
+        resolveDelay: 3000
+        telegraphBefore: 3000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 25000 }]
+
+  boss_fan:
+    name: 扇形斩
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        shape: { type: fan, radius: 5, angle: 90 }
+        resolveDelay: 5000
+        telegraphBefore: 5000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 12000 }]
+
+  boss_circle:
+    name: 圆形斩
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: target_live }
+        direction: { type: none }
+        shape: { type: circle, radius: 5 }
+        resolveDelay: 5000
+        telegraphBefore: 5000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 12000 }]
+
+  boss_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 5
+    effects: [{ type: damage, potency: 1500 }]
+
+  enrage:
+    name: 时间的尽头
+    type: spell
+    castTime: 10000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 99 }
+        resolveDelay: 10000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 999999999 }]
+
+skills:
+  boss_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 5
+    effects: [{ type: damage, potency: 1500 }]
+
+timeline:
+  - at: 500
+    action: run_script
+    script: |
+      async function main(ctx) {
+        // Phase 1 — Movement
+        ctx.showDialog("使用 WASD 移动角色")
+        await new Promise(r => ctx.once('player:walk', r))
+        ctx.hideDialog()
+        await ctx.wait(500)
+
+        // Phase 2 — Melee Attack
+        ctx.spawnEntity({ id: 'mob1', type: 'mob', group: 'tutorial_mob1', hp: 4000, x: 0, y: 0, size: 0.6 })
+        ctx.showDialog("靠近敌人，按 1 可以使用近战攻击")
+        await new Promise(r => ctx.once('entity:died', (ev) => {
+          if (ev.entity.id === 'mob1') r()
+        }))
+        ctx.hideDialog()
+        await ctx.wait(1000)
+
+        // Phase 3 — Ranged Attack
+        ctx.teleport('player', 0, -10)
+        await ctx.wait(600)
+        ctx.addDeathZone({
+          id: 'wall_barrier',
+          center: { x: 0, y: 0 },
+          facing: 90,
+          shape: { type: 'rect', length: 30, width: 5 },
+          behavior: 'wall',
+        })
+        await ctx.wait(300)
+        ctx.spawnEntity({ id: 'mob2', type: 'mob', group: 'tutorial_mob2', hp: 3000, x: 0, y: 5, size: 0.6 })
+        ctx.showDialog("近战攻击距离不够，使用 2 技能可以远程攻击敌人")
+        await new Promise(r => ctx.once('entity:died', (ev) => {
+          if (ev.entity.id === 'mob2') r()
+        }))
+        ctx.showDialog("无法靠近敌人时，灵活使用远程攻击吧！\n但远程攻击的威力更低，请注意这一点")
+        await ctx.wait(4000)
+        ctx.hideDialog()
+        ctx.removeDeathZone('wall_barrier')
+        await ctx.wait(1000)
+
+        // Phase 4 — AOE Avoidance
+        ctx.spawnEntity({ id: 'mob3', type: 'mob', group: 'tutorial_mob3', hp: 8000, x: 0, y: 0, size: 0.8, targetable: false })
+        ctx.showDialog("小心！橙色区域是攻击预兆，在攻击到来前离开此区域")
+        await ctx.wait(1000)
+        ctx.useSkill('mob3', 'steel_aoe')
+        await ctx.wait(5500)
+        ctx.hideDialog()
+        await ctx.wait(500)
+        ctx.showDialog("注意观察攻击预兆的方向，在安全的区域等待")
+        ctx.useSkill('mob3', 'half_cleave_n')
+        await ctx.wait(3500)
+        ctx.useSkill('mob3', 'half_cleave_s')
+        await ctx.wait(3500)
+        ctx.useSkill('mob3', 'half_cleave_e')
+        await ctx.wait(3500)
+        ctx.useSkill('mob3', 'half_cleave_w')
+        await ctx.wait(4000)
+        ctx.hideDialog()
+        ctx.showDialog("很好！现在消灭这只敌人")
+        ctx.setTargetable('mob3', true)
+        ctx.enableAI('mob3')
+        await new Promise(r => ctx.once('entity:died', (ev) => {
+          if (ev.entity.id === 'mob3') r()
+        }))
+        ctx.hideDialog()
+        await ctx.wait(1500)
+
+        // Phase 5 — Boss Fight
+        ctx.showDialog("最终考验！击败 Boss！")
+        ctx.setVisible('boss', true)
+        ctx.setTargetable('boss', true)
+        ctx.enableAI('boss')
+        await ctx.wait(3000)
+        ctx.hideDialog()
+
+        let bossAlive = true
+        ctx.on('entity:died', (ev) => {
+          if (ev.entity.id === 'boss') bossAlive = false
+        })
+
+        const startTime = Date.now()
+        const ENRAGE_TIME = 60000
+
+        while (bossAlive) {
+          const elapsed = Date.now() - startTime
+          if (elapsed >= ENRAGE_TIME) {
+            ctx.disableAI('boss')
+            ctx.teleport('boss', 0, 0)
+            await ctx.wait(500)
+            ctx.useSkill('boss', 'enrage')
+            break
+          }
+          ctx.useSkill('boss', 'boss_fan')
+          await ctx.wait(5000)
+          if (!bossAlive) break
+          if (Date.now() - startTime >= ENRAGE_TIME) {
+            ctx.disableAI('boss')
+            ctx.teleport('boss', 0, 0)
+            await ctx.wait(500)
+            ctx.useSkill('boss', 'enrage')
+            break
+          }
+          ctx.useSkill('boss', 'boss_circle')
+          await ctx.wait(5000)
+          if (!bossAlive) break
+        }
+      }

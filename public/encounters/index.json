@@ -1,4 +1,5 @@
 [
+  { "label": "Tutorial", "description": "Movement, combat, AOE, boss fight — step-by-step guided", "file": "tutorial.yaml" },
   { "label": "Training Dummy", "description": "Static target, test player skills", "file": "training-dummy.yaml" },
   { "label": "Boss AI Test", "description": "Aggro, tracking, auto-attack", "file": "boss-ai-test.yaml" },
   { "label": "Timeline Test", "description": "AOE mechanics showcase", "file": "timeline-test.yaml" },
