@@ -1,7 +1,8 @@
 # 死区教学
-# 长条矩形场地 10×40，致命边界
-# 玩家出生在最南端，boss 开战后传送到最北
-# 中间分布各种形状死区，玩家需穿越到达 boss 打一下即可通关
+# 长条矩形场地 10×40，致命边界（紫色外圈）
+# 玩家出生在最南端，boss 在最北端（不可选中）
+# 中间分布各种形状死区，玩家需穿越到达 boss
+# 到达后 boss 变为可选中，玩家打一下即可通关
 # 30s 狂暴：boss 释放超远击退，玩家被推出场外即死
 
 arena:
@@ -11,46 +12,39 @@ arena:
   height: 40
   boundary: lethal
   deathZones:
-    # 地图 x: -5~5, y: -20~20, 玩家从 y=-18 到 y=18
-    # 安全路线：中间偏左 → 右侧 → 中间 → 左侧 → 右侧 → 到达boss
+    # 地图 x: -5~5, y: -20~20
+    # 玩家从 y=-18 出发，boss 在 y=18
+    # 每段死区之间留 ≥2m 宽的通路
 
-    # ── 第1关：圆形挡路，从左侧绕过 ──
+    # ── 第1关：圆形挡路，从左侧绕过（左侧留3m口）──
     - id: circle_south
-      center: { x: 0, y: -14 }
-      shape: { type: circle, radius: 2 }
+      center: { x: 1, y: -13 }
+      shape: { type: circle, radius: 2.5 }
 
     # ── 第2关：右半区矩形墙，从左侧通过 ──
-    #    rect 从 center 向 facing(0=北) 延伸 length，±width/2 水平
-    #    覆盖 x:[0,5] y:[-10,-4]
+    #    覆盖 x:[-1,5] y:[-8,-2]，左侧留 4m 通路 x:[-5,-1]
     - id: rect_right_wall
-      center: { x: 2.5, y: -10 }
+      center: { x: 2, y: -8 }
       facing: 0
-      shape: { type: rect, length: 6, width: 5 }
+      shape: { type: rect, length: 6, width: 6 }
 
     # ── 第3关：左半区矩形墙，从右侧通过（迫使变道）──
-    #    覆盖 x:[-5,0] y:[-4,2]
+    #    覆盖 x:[-5,1] y:[0,6]，右侧留 4m 通路 x:[1,5]
     - id: rect_left_wall
-      center: { x: -2.5, y: -4 }
+      center: { x: -2, y: 0 }
       facing: 0
-      shape: { type: rect, length: 6, width: 5 }
+      shape: { type: rect, length: 6, width: 6 }
 
     # ── 第4关：中央大圆，从左右边缘挤过 ──
+    #    圆心 (0,9) 半径 3，左右各留 2m
     - id: circle_mid
-      center: { x: 0, y: 5 }
+      center: { x: 0, y: 9 }
       shape: { type: circle, radius: 3 }
 
-    # ── 第5关：左侧扇形封路，从右侧通过 ──
-    #    扇形从 (-5,10) 朝东(facing=90)，半径6，角度120
-    #    覆盖左半+中间大部分
-    - id: fan_block
-      center: { x: -5, y: 10 }
-      facing: 90
-      shape: { type: fan, radius: 6, angle: 120 }
-
-    # ── 第6关：右侧矩形小墙，左侧留口到达boss ──
-    #    覆盖 x:[0,5] y:[15,17]
+    # ── 第5关：右侧矩形小墙，左侧留口到达boss ──
+    #    覆盖 x:[0,5] y:[14,16]，左侧留 5m 通路
     - id: rect_north_wall
-      center: { x: 2.5, y: 15 }
+      center: { x: 2.5, y: 14 }
       facing: 0
       shape: { type: rect, length: 2, width: 5 }
 
@@ -63,22 +57,23 @@ entities:
     speed: 0
     size: 1
     facing: 180
-    position: { x: 0, y: -10, z: 0 }
+    position: { x: 0, y: 18, z: 0 }
     autoAttackRange: 0
-    aggroRange: 10
+    aggroRange: 0
+    visible: true
+    targetable: false   # 一开始不可选中
 
 player:
   hp: 50000
-  mp: 10000
   attack: 99999
-  speed: 5
+  speed: 6
   size: 0.5
   autoAttackRange: 3
   position: { x: 0, y: -18, z: 0 }
 
 boss_ai:
-  aggroRange: 10
-  aggroAngle: 360
+  aggroRange: 0
+  aggroAngle: 0
 
 local_skills:
   enrage_knockback:
@@ -101,11 +96,13 @@ local_skills:
 skills: {}
 
 timeline:
-  - at: 0
-    action: teleport
-    position: { x: 0, y: 18 }
-  - at: 500
-    action: lock_facing
-    facing: 180
-  - at: 15000
+  # 5s后解锁boss可选中
+  - at: 5000
+    action: set_targetable
+    entity: boss
+    value: true
+
+  # 30s 狂暴
+  - at: 30000
     use: enrage_knockback
+    entity: boss

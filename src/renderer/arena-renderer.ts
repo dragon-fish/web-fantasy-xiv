@@ -17,7 +17,7 @@ export class ArenaRenderer {
     if (arenaDef.shape.type === 'circle') {
       this.createCircleArena(scene, arenaDef)
     } else {
-      this.createRectArena(scene, arenaDef.shape.width, arenaDef.shape.height)
+      this.createRectArena(scene, arenaDef)
     }
 
     this.dzMat = new StandardMaterial('deathzone-mat', scene)
@@ -149,20 +149,36 @@ export class ArenaRenderer {
     }
   }
 
-  private createRectArena(scene: Scene, width: number, height: number): void {
-    const ground = MeshBuilder.CreateGround('arena-ground', {
-      width,
-      height,
-    }, scene)
+  private createRectArena(scene: Scene, arenaDef: ArenaDef): void {
+    const shape = arenaDef.shape as { type: 'rect'; width: number; height: number }
+    const { width, height } = shape
 
+    const ground = MeshBuilder.CreateGround('arena-ground', { width, height }, scene)
     const mat = new StandardMaterial('arena-mat', scene)
-    mat.diffuseColor = new Color3(0.35, 0.35, 0.38)  // gray
+    mat.diffuseColor = new Color3(0.35, 0.35, 0.38)
     mat.specularColor = Color3.Black()
     ground.material = mat
 
-    // Boundary lines (thin white boxes)
-    const thickness = 0.1
-    const lineHeight = 0.2
+    const isLethal = arenaDef.boundary === 'lethal'
+
+    if (isLethal) {
+      // Purple death zone border around the arena
+      const pad = 5
+      const outerGround = MeshBuilder.CreateGround('arena-deathzone-outer', {
+        width: width + pad * 2,
+        height: height + pad * 2,
+      }, scene)
+      outerGround.position.y = -0.01
+      const dzMat = new StandardMaterial('deathzone-outer-mat', scene)
+      dzMat.diffuseColor = DEATH_ZONE_COLOR
+      dzMat.emissiveColor = DEATH_ZONE_EMISSIVE
+      dzMat.specularColor = Color3.Black()
+      outerGround.material = dzMat
+    }
+
+    // Boundary lines
+    const thickness = isLethal ? 0.15 : 0.1
+    const lineHeight = isLethal ? 0.3 : 0.2
     const sides = [
       { name: 'top', w: width, h: thickness, x: 0, z: height / 2 },
       { name: 'bottom', w: width, h: thickness, x: 0, z: -height / 2 },
@@ -171,8 +187,13 @@ export class ArenaRenderer {
     ]
 
     const boundaryMat = new StandardMaterial('boundary-mat', scene)
-    boundaryMat.diffuseColor = new Color3(0.9, 0.9, 0.9)
-    boundaryMat.emissiveColor = new Color3(0.3, 0.3, 0.3)
+    if (isLethal) {
+      boundaryMat.diffuseColor = new Color3(0.5, 0.1, 0.55)
+      boundaryMat.emissiveColor = new Color3(0.25, 0.05, 0.3)
+    } else {
+      boundaryMat.diffuseColor = new Color3(0.9, 0.9, 0.9)
+      boundaryMat.emissiveColor = new Color3(0.3, 0.3, 0.3)
+    }
 
     for (const side of sides) {
       const box = MeshBuilder.CreateBox(`boundary-${side.name}`, {
