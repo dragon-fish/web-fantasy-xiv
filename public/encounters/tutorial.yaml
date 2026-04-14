@@ -21,21 +21,17 @@ entities:
     visible: false
     targetable: false
     autoAttackRange: 5
-    aggroRange: 0
+    aggroRange: 999
 
 player:
-  hp: 50000
-  attack: 1000
   speed: 6
-  size: 0.5
-  autoAttackRange: 5
   position: { x: 0, y: -5, z: 0 }
 
 boss_ai:
   chaseRange: 3
   autoAttackRange: 5
   autoAttackInterval: 3000
-  aggroRange: 0
+  aggroRange: 999
   aggroAngle: 360
 
 local_skills:
@@ -45,7 +41,7 @@ local_skills:
     targetType: single
     requiresTarget: true
     range: 5
-    effects: [{ type: damage, potency: 0.5 }]
+    effects: [{ type: damage, potency: 10 }]
 
   steel_aoe:
     name: 钢铁
@@ -61,7 +57,7 @@ local_skills:
         resolveDelay: 5000
         telegraphBefore: 5000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 25000 }]
+        effects: [{ type: damage, potency: 5000 }]
 
   half_cleave_n:
     name: 北方斩击
@@ -77,7 +73,7 @@ local_skills:
         resolveDelay: 3000
         telegraphBefore: 3000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 25000 }]
+        effects: [{ type: damage, potency: 5000 }]
 
   half_cleave_s:
     name: 南方斩击
@@ -93,7 +89,7 @@ local_skills:
         resolveDelay: 3000
         telegraphBefore: 3000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 25000 }]
+        effects: [{ type: damage, potency: 5000 }]
 
   half_cleave_e:
     name: 东方斩击
@@ -109,7 +105,7 @@ local_skills:
         resolveDelay: 3000
         telegraphBefore: 3000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 25000 }]
+        effects: [{ type: damage, potency: 5000 }]
 
   half_cleave_w:
     name: 西方斩击
@@ -125,7 +121,7 @@ local_skills:
         resolveDelay: 3000
         telegraphBefore: 3000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 25000 }]
+        effects: [{ type: damage, potency: 5000 }]
 
   boss_fan:
     name: 扇形斩
@@ -141,7 +137,7 @@ local_skills:
         resolveDelay: 5000
         telegraphBefore: 5000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 12000 }]
+        effects: [{ type: damage, potency: 2400 }]
 
   boss_circle:
     name: 圆形斩
@@ -157,7 +153,7 @@ local_skills:
         resolveDelay: 5000
         telegraphBefore: 5000
         hitEffectDuration: 500
-        effects: [{ type: damage, potency: 12000 }]
+        effects: [{ type: damage, potency: 2400 }]
 
   boss_auto:
     name: 攻击
@@ -165,7 +161,58 @@ local_skills:
     targetType: single
     requiresTarget: true
     range: 5
-    effects: [{ type: damage, potency: 1500 }]
+    effects: [{ type: damage, potency: 0.6 }]
+
+  # Boss center combo: circle 8m (get out) - reuses steel_aoe shape
+  boss_steel:
+    name: 钢铁
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 8 }
+        resolveDelay: 4000
+        telegraphBefore: 4000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 3000 }]
+
+  # Boss ring AOE: safe zone is close (inner 6m)
+  boss_ring:
+    name: 月环
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: ring, innerRadius: 6, outerRadius: 15 }
+        resolveDelay: 4000
+        telegraphBefore: 4000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 3000 }]
+
+  # Boss half-cleave south (toward player, who likely approaches from south)
+  boss_cleave_s:
+    name: 前方斩击
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 180 }
+        shape: { type: fan, radius: 15, angle: 180 }
+        resolveDelay: 3000
+        telegraphBefore: 3000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 3000 }]
 
   enrage:
     name: 时间的尽头
@@ -189,114 +236,190 @@ skills:
     targetType: single
     requiresTarget: true
     range: 5
-    effects: [{ type: damage, potency: 1500 }]
+    effects: [{ type: damage, potency: 500 }]
 
-timeline:
-  - at: 500
-    action: run_script
-    script: |
-      async function main(ctx) {
-        // Phase 1 — Movement
-        ctx.showDialog("使用 WASD 移动角色")
-        await new Promise(r => ctx.once('player:walk', r))
-        ctx.hideDialog()
-        await ctx.wait(500)
-
-        // Phase 2 — Melee Attack
-        ctx.spawnEntity({ id: 'mob1', type: 'mob', group: 'tutorial_mob1', hp: 4000, x: 0, y: 0, size: 0.6 })
-        ctx.showDialog("靠近敌人，按 1 可以使用近战攻击")
-        await new Promise(r => ctx.once('entity:died', (ev) => {
-          if (ev.entity.id === 'mob1') r()
-        }))
-        ctx.hideDialog()
-        await ctx.wait(1000)
-
-        // Phase 3 — Ranged Attack
-        ctx.teleport('player', 0, -10)
-        await ctx.wait(600)
-        ctx.addDeathZone({
-          id: 'wall_barrier',
-          center: { x: 0, y: 0 },
-          facing: 90,
-          shape: { type: 'rect', length: 30, width: 5 },
-          behavior: 'wall',
-        })
-        await ctx.wait(300)
-        ctx.spawnEntity({ id: 'mob2', type: 'mob', group: 'tutorial_mob2', hp: 3000, x: 0, y: 5, size: 0.6 })
-        ctx.showDialog("近战攻击距离不够，使用 2 技能可以远程攻击敌人")
-        await new Promise(r => ctx.once('entity:died', (ev) => {
-          if (ev.entity.id === 'mob2') r()
-        }))
-        ctx.showDialog("无法靠近敌人时，灵活使用远程攻击吧！\n但远程攻击的威力更低，请注意这一点")
-        await ctx.wait(4000)
-        ctx.hideDialog()
-        ctx.removeDeathZone('wall_barrier')
-        await ctx.wait(1000)
-
-        // Phase 4 — AOE Avoidance
-        ctx.spawnEntity({ id: 'mob3', type: 'mob', group: 'tutorial_mob3', hp: 8000, x: 0, y: 0, size: 0.8, targetable: false })
-        ctx.showDialog("小心！橙色区域是攻击预兆，在攻击到来前离开此区域")
-        await ctx.wait(1000)
-        ctx.useSkill('mob3', 'steel_aoe')
-        await ctx.wait(5500)
-        ctx.hideDialog()
-        await ctx.wait(500)
-        ctx.showDialog("注意观察攻击预兆的方向，在安全的区域等待")
-        ctx.useSkill('mob3', 'half_cleave_n')
-        await ctx.wait(3500)
-        ctx.useSkill('mob3', 'half_cleave_s')
-        await ctx.wait(3500)
-        ctx.useSkill('mob3', 'half_cleave_e')
-        await ctx.wait(3500)
-        ctx.useSkill('mob3', 'half_cleave_w')
-        await ctx.wait(4000)
-        ctx.hideDialog()
-        ctx.showDialog("很好！现在消灭这只敌人")
-        ctx.setTargetable('mob3', true)
-        ctx.enableAI('mob3')
-        await new Promise(r => ctx.once('entity:died', (ev) => {
-          if (ev.entity.id === 'mob3') r()
-        }))
-        ctx.hideDialog()
-        await ctx.wait(1500)
-
-        // Phase 5 — Boss Fight
-        ctx.showDialog("最终考验！击败 Boss！")
-        ctx.setVisible('boss', true)
-        ctx.setTargetable('boss', true)
-        ctx.enableAI('boss')
-        await ctx.wait(3000)
-        ctx.hideDialog()
-
-        let bossAlive = true
-        ctx.on('entity:died', (ev) => {
-          if (ev.entity.id === 'boss') bossAlive = false
-        })
-
-        const startTime = Date.now()
-        const ENRAGE_TIME = 60000
-
-        while (bossAlive) {
-          const elapsed = Date.now() - startTime
-          if (elapsed >= ENRAGE_TIME) {
-            ctx.disableAI('boss')
-            ctx.teleport('boss', 0, 0)
+phases:
+  phase_default:
+    actions:
+      - at: 500
+        action: run_script
+        script: |
+          async function main(ctx) {
+            // Phase 1 — Movement
+            ctx.showDialog("使用 WASD 移动角色")
+            await new Promise(r => ctx.once('player:walk', r))
             await ctx.wait(500)
-            ctx.useSkill('boss', 'enrage')
-            break
-          }
-          ctx.useSkill('boss', 'boss_fan')
-          await ctx.wait(5000)
-          if (!bossAlive) break
-          if (Date.now() - startTime >= ENRAGE_TIME) {
-            ctx.disableAI('boss')
-            ctx.teleport('boss', 0, 0)
+            ctx.hideDialog()
             await ctx.wait(500)
-            ctx.useSkill('boss', 'enrage')
-            break
+
+            // Phase 2 — Melee Attack
+            ctx.spawnEntity({ id: 'mob1', type: 'mob', group: 'tutorial_mob1', hp: 7000, x: 0, y: 0, size: 0.6 })
+            ctx.showDialog("靠近敌人，按 1 可以使用近战攻击")
+            await new Promise(r => ctx.once('entity:died', (ev) => {
+              if (ev.entity.id === 'mob1') r()
+            }))
+            ctx.hideDialog()
+            await ctx.wait(1000)
+
+            // Phase 3 — Ranged Attack
+            ctx.teleport('player', 0, -10)
+            await ctx.wait(1000)
+            ctx.addDeathZone({
+              id: 'wall_barrier',
+              center: { x: -15, y: 0 },
+              facing: 90,
+              shape: { type: 'rect', length: 30, width: 5 },
+              behavior: 'wall',
+            })
+            await ctx.wait(300)
+            ctx.spawnEntity({ id: 'mob2', type: 'mob', group: 'tutorial_mob2', hp: 3000, x: 0, y: 5, size: 0.6 })
+            ctx.showDialog("近战攻击距离不够，使用 2 技能可以远程攻击敌人")
+            await new Promise(r => ctx.once('entity:died', (ev) => {
+              if (ev.entity.id === 'mob2') r()
+            }))
+            ctx.showDialog("无法靠近敌人时，灵活使用远程攻击吧！\n但远程攻击的威力更低，请注意这一点")
+            await ctx.wait(4000)
+            ctx.hideDialog()
+            ctx.removeDeathZone('wall_barrier')
+            await ctx.wait(1000)
+
+            // Phase 4 — AOE Avoidance
+            ctx.spawnEntity({ id: 'mob3', type: 'mob', group: 'tutorial_mob3', hp: 4000, x: 0, y: 0, size: 0.8, targetable: false })
+            ctx.showDialog("小心！橙色区域是攻击预兆，在攻击到来前离开此区域")
+            await ctx.wait(1000)
+            ctx.useSkill('mob3', 'steel_aoe')
+            await ctx.wait(5500)
+            ctx.hideDialog()
+            await ctx.wait(500)
+            ctx.showDialog("注意观察攻击预兆的方向，在安全的区域等待")
+            ctx.useSkill('mob3', 'half_cleave_n')
+            await ctx.wait(3500)
+            ctx.useSkill('mob3', 'half_cleave_s')
+            await ctx.wait(3500)
+            ctx.useSkill('mob3', 'half_cleave_e')
+            await ctx.wait(3500)
+            ctx.useSkill('mob3', 'half_cleave_w')
+            await ctx.wait(4000)
+            ctx.hideDialog()
+            ctx.showDialog("很好！现在消灭这只敌人")
+            ctx.setTargetable('mob3', true)
+            ctx.enableAI('mob3')
+            await new Promise(r => ctx.once('entity:died', (ev) => {
+              if (ev.entity.id === 'mob3') r()
+            }))
+            ctx.hideDialog()
+            await ctx.wait(1500)
+
+            // Phase 5 — Boss Fight: reveal boss, then hand off to phase_boss
+            ctx.showDialog("最终考验！击败 Boss！")
+            ctx.setVisible('boss', true)
+            ctx.setTargetable('boss', true)
+            ctx.enableAI('boss')
+            await ctx.wait(3000)
+            ctx.hideDialog()
+            ctx.activatePhase('phase_boss')
           }
-          ctx.useSkill('boss', 'boss_circle')
-          await ctx.wait(5000)
-          if (!bossAlive) break
-        }
-      }
+
+  # === Boss fight timeline (standard format for timeline UI + cast bars) ===
+  phase_boss:
+    actions:
+      # --- Section A: Warm-up ---
+      - at: 0
+        action: enable_ai
+
+      - at: 5000
+        use: boss_fan
+      - at: 11000
+        use: boss_circle
+
+      # --- Section B: Center combo (steel → ring → cleave) ---
+      - at: 17000
+        action: disable_ai
+      - at: 17000
+        action: teleport
+        position: { x: 0, y: 0 }
+      - at: 17500
+        action: lock_facing
+        facing: 180
+
+      # Steel 8m (get OUT)
+      - at: 18000
+        use: boss_steel
+      # Ring (get IN)
+      - at: 22500
+        use: boss_ring
+      # Half-cleave south (dodge north)
+      - at: 27000
+        use: boss_cleave_s
+
+      - at: 30500
+        action: enable_ai
+
+      # --- Section C: Pressure + adds ---
+      - at: 32000
+        use: boss_fan
+      - at: 38000
+        use: boss_circle
+
+      # Second center combo with adds
+      - at: 44000
+        action: disable_ai
+      - at: 44000
+        action: teleport
+        position: { x: 0, y: 0 }
+      - at: 44500
+        action: lock_facing
+        facing: 180
+      # Spawn adds
+      - at: 44500
+        action: spawn_entity
+        entity: add_e
+        spawnType: mob
+        spawnGroup: boss_adds
+        spawnHp: 2000
+        spawnSize: 0.5
+        spawnSpeed: 4
+        position: { x: 8, y: 0 }
+      - at: 44500
+        action: enable_ai
+        entity: add_e
+      - at: 44500
+        action: spawn_entity
+        entity: add_w
+        spawnType: mob
+        spawnGroup: boss_adds
+        spawnHp: 2000
+        spawnSize: 0.5
+        spawnSpeed: 4
+        position: { x: -8, y: 0 }
+      - at: 44500
+        action: enable_ai
+        entity: add_w
+
+      # Steel while adds chase
+      - at: 45000
+        use: boss_steel
+      # Cleave south
+      - at: 49500
+        use: boss_cleave_s
+
+      - at: 53000
+        action: enable_ai
+
+      # --- Section D: Final attacks ---
+      - at: 54000
+        use: boss_fan
+      - at: 60000
+        use: boss_circle
+
+      # --- Enrage at 70s ---
+      - at: 66000
+        action: disable_ai
+      - at: 66000
+        action: teleport
+        position: { x: 0, y: 0 }
+      - at: 66500
+        action: lock_facing
+        facing: 180
+      - at: 67000
+        use: enrage
