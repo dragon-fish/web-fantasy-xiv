@@ -108,31 +108,31 @@ export class ArenaRenderer {
     ground.material = mat
 
     if (arenaDef.boundary === 'lethal') {
-      // Lethal boundary: purple outer ring instead of white
-      const outerRadius = radius + 5
-      const outerDisc = MeshBuilder.CreateDisc('arena-deathzone-outer', {
-        radius: outerRadius,
-        tessellation: 64,
-      }, scene)
-      outerDisc.rotation.x = Math.PI / 2
-      outerDisc.position.y = -0.01 // slightly below arena
-      const dzMat = new StandardMaterial('deathzone-outer-mat', scene)
-      dzMat.diffuseColor = DEATH_ZONE_COLOR
-      dzMat.emissiveColor = DEATH_ZONE_EMISSIVE
-      dzMat.specularColor = Color3.Black()
-      outerDisc.material = dzMat
-
-      // Boundary ring in purple
-      const boundary = MeshBuilder.CreateTorus('arena-boundary', {
+      // Platform thickness: cylinder underneath the ground disc
+      const platformDepth = 3
+      const platform = MeshBuilder.CreateCylinder('arena-platform', {
+        height: platformDepth,
         diameter: radius * 2,
-        thickness: 0.15,
         tessellation: 64,
       }, scene)
-      boundary.position.y = 0.05
-      const boundaryMat = new StandardMaterial('boundary-mat', scene)
-      boundaryMat.diffuseColor = new Color3(0.5, 0.1, 0.55)
-      boundaryMat.emissiveColor = new Color3(0.25, 0.05, 0.3)
-      boundary.material = boundaryMat
+      platform.position.y = -platformDepth / 2
+      const platformMat = new StandardMaterial('platform-mat', scene)
+      platformMat.diffuseColor = new Color3(0.2, 0.2, 0.22)
+      platformMat.specularColor = Color3.Black()
+      platform.material = platformMat
+
+      // Subtle edge glow ring at ground level
+      const edgeRing = MeshBuilder.CreateTorus('arena-edge-glow', {
+        diameter: radius * 2,
+        thickness: 0.2,
+        tessellation: 64,
+      }, scene)
+      edgeRing.position.y = 0.02
+      const edgeMat = new StandardMaterial('edge-glow-mat', scene)
+      edgeMat.diffuseColor = new Color3(0.5, 0.15, 0.55)
+      edgeMat.emissiveColor = new Color3(0.35, 0.08, 0.4)
+      edgeMat.alpha = 0.8
+      edgeRing.material = edgeMat
     } else {
       // Wall boundary: white torus
       const boundary = MeshBuilder.CreateTorus('arena-boundary', {
@@ -162,18 +162,16 @@ export class ArenaRenderer {
     const isLethal = arenaDef.boundary === 'lethal'
 
     if (isLethal) {
-      // Purple death zone border around the arena
-      const pad = 5
-      const outerGround = MeshBuilder.CreateGround('arena-deathzone-outer', {
-        width: width + pad * 2,
-        height: height + pad * 2,
+      // Platform thickness: box underneath the ground
+      const platformDepth = 3
+      const platform = MeshBuilder.CreateBox('arena-platform', {
+        width, height: platformDepth, depth: height,
       }, scene)
-      outerGround.position.y = -0.01
-      const dzMat = new StandardMaterial('deathzone-outer-mat', scene)
-      dzMat.diffuseColor = DEATH_ZONE_COLOR
-      dzMat.emissiveColor = DEATH_ZONE_EMISSIVE
-      dzMat.specularColor = Color3.Black()
-      outerGround.material = dzMat
+      platform.position.y = -platformDepth / 2
+      const platformMat = new StandardMaterial('platform-mat', scene)
+      platformMat.diffuseColor = new Color3(0.2, 0.2, 0.22)
+      platformMat.specularColor = Color3.Black()
+      platform.material = platformMat
     }
 
     // Boundary lines

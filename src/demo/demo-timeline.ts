@@ -198,9 +198,11 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
 
   s.getCombatElapsed = () => combatStarted ? scheduler.combatElapsed : null
 
-  let deathZoneTimer = 0
-  const DEATH_ZONE_INTERVAL = 500 // tick every 0.5s
   const DEATH_ZONE_DAMAGE = 999999
+  const FALL_DURATION = 600 // ms to fall before dying
+  let falling = false
+  let fallElapsed = 0
+  let fallReason = ''
 
   s.onLogicTick = (dt) => {
     if (!combatStarted) {
@@ -217,21 +219,36 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       scheduler.update(dt)
     }
 
-    // Death zone tick
-    if (s.player.alive) {
-      deathZoneTimer += dt
-      if (deathZoneTimer >= DEATH_ZONE_INTERVAL) {
-        deathZoneTimer -= DEATH_ZONE_INTERVAL
-        const pos = { x: s.player.position.x, y: s.player.position.y }
-        const inLethalBoundary = s.arena.def.boundary === 'lethal' && !s.arena.isInBounds(pos)
-        if (inLethalBoundary || deathZoneMgr.isInAnyZone(pos)) {
-          s.player.hp -= DEATH_ZONE_DAMAGE
-          s.bus.emit('damage:dealt', {
-            source: { id: '场地' } as any, target: s.player,
-            amount: DEATH_ZONE_DAMAGE,
-            skill: { name: inLethalBoundary ? '场外死亡' : '死亡区域' },
-          })
-        }
+    // Falling animation (triggered by death zone / out of bounds)
+    if (falling) {
+      fallElapsed += dt
+      // Accelerating fall: quadratic ease-in
+      const t = Math.min(fallElapsed / FALL_DURATION, 1)
+      ;(s.player as any)._fallOffset = t * t * 8 // fall up to 8 units deep
+
+      if (fallElapsed >= FALL_DURATION) {
+        falling = false
+        s.player.hp -= DEATH_ZONE_DAMAGE
+        s.bus.emit('damage:dealt', {
+          source: { id: '场地' } as any, target: s.player,
+          amount: DEATH_ZONE_DAMAGE,
+          skill: { name: fallReason },
+        })
+      }
+      return // freeze game logic while falling
+    }
+
+    // Death zone / boundary check (each frame)
+    if (s.player.alive && !falling) {
+      const pos = { x: s.player.position.x, y: s.player.position.y }
+      const inLethalBoundary = s.arena.def.boundary === 'lethal' && !s.arena.isInBounds(pos)
+      const inDeathZone = deathZoneMgr.isInAnyZone(pos)
+
+      if (inLethalBoundary || inDeathZone) {
+        falling = true
+        fallElapsed = 0
+        fallReason = inLethalBoundary ? '场外坠落' : '死亡区域'
+        ;(s.player as any)._fallOffset = 0
       }
     }
 

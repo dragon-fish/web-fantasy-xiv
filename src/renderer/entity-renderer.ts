@@ -139,7 +139,9 @@ export class EntityRenderer {
       group.root.setEnabled(entity.visible)
       if (!entity.visible) continue
 
-      group.root.position.set(entity.position.x, 0, entity.position.y)
+      // Fall effect: if entity is out of bounds, Y drops over time
+      const fallY = (entity as any)._fallOffset ?? 0
+      group.root.position.set(entity.position.x, -fallY, entity.position.y)
       group.root.rotation.y = (entity.facing * Math.PI) / 180
 
       // Hide aggro fan once in combat
