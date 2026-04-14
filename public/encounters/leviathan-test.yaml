@@ -84,7 +84,8 @@ local_skills:
     range: 0
     zones:
       # Knockback warning: covers whole arena, wave moves LEFT
-      - anchor: { type: position, x: 0, y: 0 }
+      # anchor offset to compensate rect forward-extend rendering
+      - anchor: { type: position, x: 10.5, y: 0 }
         direction: { type: fixed, angle: 270 }  # push direction = left
         shape: { type: rect, length: 21, width: 9 }
         resolveDelay: 3000
