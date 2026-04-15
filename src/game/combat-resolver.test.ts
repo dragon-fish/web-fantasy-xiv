@@ -554,3 +554,117 @@ describe('CombatResolver — edge cases', () => {
     expect(player.hp).toBe(0)
   })
 })
+
+// ─── potencyWithBuff ───────────────────────────────────
+
+describe('CombatResolver — potencyWithBuff', () => {
+  it('should add damageIncrease when buff stacks exist and consume 1 stack', () => {
+    const { bus, buffSystem, player, boss } = setup({ playerAttack: 900 })
+
+    const buff: BuffDef = {
+      id: 'test_fof', name: 'FoF', type: 'buff',
+      duration: 21000, stackable: true, maxStacks: 4, effects: [],
+    }
+    buffSystem.applyBuff(player, buff, 'player', 3)
+
+    const skill = makeSkill({
+      id: 'test_melee',
+      potencyWithBuff: { buffId: 'test_fof', damageIncrease: 0.25, consumeStack: true },
+      effects: [{ type: 'damage', potency: 2.0 }],
+    })
+
+    const spy = vi.fn()
+    bus.on('damage:dealt', spy)
+    castSkill(bus, player, skill)
+
+    // damage = 900 * 2.0 * (1 + 0.25) = 2250
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy.mock.calls[0][0].amount).toBe(2250)
+    // Consumed 1 stack: 3 → 2
+    expect(buffSystem.getStacks(player, 'test_fof')).toBe(2)
+  })
+
+  it('should not add damageIncrease when no buff stacks', () => {
+    const { bus, player } = setup({ playerAttack: 900 })
+
+    const skill = makeSkill({
+      id: 'test_melee',
+      potencyWithBuff: { buffId: 'test_fof', damageIncrease: 0.25, consumeStack: true },
+      effects: [{ type: 'damage', potency: 2.0 }],
+    })
+
+    const spy = vi.fn()
+    bus.on('damage:dealt', spy)
+    castSkill(bus, player, skill)
+
+    // No buff → no increase: 900 * 2.0 = 1800
+    expect(spy.mock.calls[0][0].amount).toBe(1800)
+  })
+
+  it('should restore MP when restoreMp is set and buff consumed', () => {
+    const { bus, buffSystem, player } = setup({ playerAttack: 900, playerMp: 5000 })
+
+    const buff: BuffDef = {
+      id: 'test_fof', name: 'FoF', type: 'buff',
+      duration: 21000, stackable: true, maxStacks: 4, effects: [],
+    }
+    buffSystem.applyBuff(player, buff, 'player', 2)
+
+    const skill = makeSkill({
+      id: 'test_melee',
+      potencyWithBuff: { buffId: 'test_fof', damageIncrease: 0.25, consumeStack: true, restoreMp: 2000 },
+      effects: [{ type: 'damage', potency: 2.0 }],
+    })
+
+    castSkill(bus, player, skill)
+
+    expect(player.mp).toBe(7000) // 5000 + 2000
+    expect(buffSystem.getStacks(player, 'test_fof')).toBe(1)
+  })
+
+  it('should not restore MP when no buff stacks exist', () => {
+    const { bus, player } = setup({ playerAttack: 900, playerMp: 5000 })
+
+    const skill = makeSkill({
+      id: 'test_melee',
+      potencyWithBuff: { buffId: 'test_fof', damageIncrease: 0.25, consumeStack: true, restoreMp: 2000 },
+      effects: [{ type: 'damage', potency: 2.0 }],
+    })
+
+    castSkill(bus, player, skill)
+
+    expect(player.mp).toBe(5000) // unchanged
+  })
+
+  it('should be additive with other damage_increase buffs', () => {
+    const { bus, buffSystem, player, boss } = setup({ playerAttack: 1000 })
+
+    // Existing damage_increase buff (+20%)
+    const atkBuff: BuffDef = {
+      id: 'atk_up', name: 'ATK Up', type: 'buff',
+      duration: 30000, stackable: false, maxStacks: 1,
+      effects: [{ type: 'damage_increase', value: 0.2 }],
+    }
+    buffSystem.applyBuff(player, atkBuff, 'player')
+
+    // potencyWithBuff (+25%)
+    const fofBuff: BuffDef = {
+      id: 'test_fof', name: 'FoF', type: 'buff',
+      duration: 21000, stackable: true, maxStacks: 4, effects: [],
+    }
+    buffSystem.applyBuff(player, fofBuff, 'player', 1)
+
+    const skill = makeSkill({
+      id: 'test_melee',
+      potencyWithBuff: { buffId: 'test_fof', damageIncrease: 0.25, consumeStack: true },
+      effects: [{ type: 'damage', potency: 2.0 }],
+    })
+
+    const spy = vi.fn()
+    bus.on('damage:dealt', spy)
+    castSkill(bus, player, skill)
+
+    // damage = 1000 * 2.0 * (1 + 0.2 + 0.25) = 2900
+    expect(spy.mock.calls[0][0].amount).toBe(2900)
+  })
+})

@@ -40,7 +40,8 @@ export class CombatResolver {
       const target = caster.target ? this.entityMgr.get(caster.target) : null
 
       const potencyBonus = this.resolvePotencyBonus(caster, skill)
-      this.resolveEffects(skill.effects, caster, target, skill.name, potencyBonus)
+      const potencyWithBuffIncrease = this.resolvePotencyWithBuff(caster, skill)
+      this.resolveEffects(skill.effects, caster, target, skill.name, potencyBonus, [potencyWithBuffIncrease])
     })
 
     // AoE zone resolved effects
@@ -69,12 +70,13 @@ export class CombatResolver {
     target: Entity | null | undefined,
     skillName?: string,
     potencyBonus = 0,
+    extraIncreases: number[] = [],
   ): void {
     for (const effect of effects) {
       switch (effect.type) {
         case 'damage':
           if (!caster || !target) break
-          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType))
+          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType), extraIncreases)
           break
 
         case 'apply_buff': {
@@ -191,7 +193,22 @@ export class CombatResolver {
     return stacks * skill.potencyPerStack.bonus
   }
 
-  private applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = []): void {
+  /** Consume 1 buff stack for additive damage increase + optional MP restore */
+  private resolvePotencyWithBuff(caster: Entity, skill: SkillDef): number {
+    if (!skill.potencyWithBuff) return 0
+    const { buffId, damageIncrease, consumeStack, restoreMp } = skill.potencyWithBuff
+    const stacks = this.buffSystem.getStacks(caster, buffId)
+    if (stacks <= 0) return 0
+    if (consumeStack) {
+      this.buffSystem.removeStacks(caster, buffId, 1)
+    }
+    if (restoreMp && restoreMp > 0) {
+      caster.mp = Math.min(caster.maxMp, caster.mp + restoreMp)
+    }
+    return damageIncrease
+  }
+
+  private applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = []): void {
     let dmg: number
     if (dmgTypes.includes('special')) {
       // Special damage: ignores mitigation, shields, and undying
@@ -202,7 +219,7 @@ export class CombatResolver {
       dmg = calculateDamage({
         attack: caster.attack,
         potency,
-        increases: [...this.buffSystem.getDamageIncreases(caster), vulnerability],
+        increases: [...this.buffSystem.getDamageIncreases(caster), vulnerability, ...extraIncreases],
         mitigations: this.buffSystem.getMitigations(target),
       })
 
