@@ -146,6 +146,9 @@ vite.config.ts.timestamp-*
 .DS_Store
 Thumbs.db
 
+# Local reference assets (not tracked, for dev convenience)
+_local_ref/
+
 # Compiled test artifacts (never commit .test.js alongside .test.ts)
 src/**/*.test.js
 

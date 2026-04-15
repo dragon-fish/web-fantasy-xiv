@@ -1,6 +1,8 @@
+const CDN_BASE = import.meta.env.VITE_CDN_BASE || 'https://r2.epb.wiki/ffxiv/'
+
 /** Build asset path for an icon by folder and numeric ID (zero-padded to 6 digits, _hr1.png suffix) */
 export function icon(folder: string, id: number): string {
-  return `${import.meta.env.BASE_URL}assets/images/${folder}/${String(id).padStart(6, '0')}_hr1.png`
+  return `${CDN_BASE}${folder}/${String(id).padStart(6, '0')}_hr1.png`
 }
 
 /**
