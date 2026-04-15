@@ -128,6 +128,7 @@ export type BuffEffectDef =
   | { type: 'undying' }                     // HP cannot drop below 1
   | { type: 'silence' }
   | { type: 'stun' }
+  | { type: 'invulnerable' }                 // all non-special attacks are fully negated (no damage, no displacement)
 
 export interface BuffDef {
   id: string

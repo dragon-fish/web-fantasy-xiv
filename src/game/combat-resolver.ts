@@ -161,6 +161,7 @@ export class CombatResolver {
 
         case 'knockback': {
           if (!target) break
+          if (this.buffSystem.isInvulnerable(target)) break
           const kbSource = this.resolveDisplacementSource(effect.source, caster)
           if (!kbSource) break
           this.applyDisplacement(target, calcKnockback(
@@ -173,6 +174,7 @@ export class CombatResolver {
 
         case 'pull': {
           if (!target) break
+          if (this.buffSystem.isInvulnerable(target)) break
           const pullSource = this.resolveDisplacementSource(effect.source, caster)
           if (!pullSource) break
           this.applyDisplacement(target, calcPull(
@@ -209,6 +211,12 @@ export class CombatResolver {
   }
 
   private applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = []): void {
+    // Invulnerable: negate all non-special damage entirely
+    if (!dmgTypes.includes('special') && this.buffSystem.isInvulnerable(target)) {
+      this.bus.emit('damage:invulnerable', { source: caster, target, skill: skillName ? { name: skillName } : null })
+      return
+    }
+
     let dmg: number
     if (dmgTypes.includes('special')) {
       // Special damage: ignores mitigation, shields, and undying

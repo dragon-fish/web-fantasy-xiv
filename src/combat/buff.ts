@@ -170,6 +170,11 @@ export class BuffSystem {
     return this.collectEffects(entity).some((e) => e.effect.type === 'undying')
   }
 
+  /** Check if entity has invulnerable buff (all non-special attacks negated) */
+  isInvulnerable(entity: Entity): boolean {
+    return this.collectEffects(entity).some((e) => e.effect.type === 'invulnerable')
+  }
+
   /** Get total lifesteal value (sum of all sources) */
   getLifesteal(entity: Entity): number {
     return this.collectEffects(entity)

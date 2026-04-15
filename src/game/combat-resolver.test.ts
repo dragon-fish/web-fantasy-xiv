@@ -555,6 +555,94 @@ describe('CombatResolver — edge cases', () => {
   })
 })
 
+// ─── Invulnerable ──────────────────────────────────────
+
+describe('CombatResolver — invulnerable', () => {
+  it('should negate non-special damage and emit invulnerable event', () => {
+    const { bus, buffSystem, resolver, boss, player } = setup()
+
+    const invulnBuff: BuffDef = {
+      id: 'invuln', name: 'Invulnerable', type: 'buff',
+      duration: 10000, stackable: false, maxStacks: 1,
+      effects: [{ type: 'invulnerable' }],
+    }
+    resolver.registerBuffs({ invuln: invulnBuff })
+    buffSystem.applyBuff(player, invulnBuff, 'player')
+
+    const skill = makeSkill({
+      id: 'boss_hit',
+      effects: [{ type: 'damage', potency: 999 }],
+    })
+
+    const dmgSpy = vi.fn()
+    const invulnSpy = vi.fn()
+    bus.on('damage:dealt', dmgSpy)
+    bus.on('damage:invulnerable', invulnSpy)
+    castSkill(bus, boss, skill)
+
+    // No damage dealt event for invulnerable
+    expect(dmgSpy).not.toHaveBeenCalled()
+    // Invulnerable event emitted
+    expect(invulnSpy).toHaveBeenCalledTimes(1)
+    expect(invulnSpy.mock.calls[0][0].target).toBe(player)
+    // HP unchanged
+    expect(player.hp).toBe(10000)
+  })
+
+  it('should NOT negate special damage', () => {
+    const { bus, buffSystem, resolver, boss, player } = setup()
+
+    const invulnBuff: BuffDef = {
+      id: 'invuln', name: 'Invulnerable', type: 'buff',
+      duration: 10000, stackable: false, maxStacks: 1,
+      effects: [{ type: 'invulnerable' }],
+    }
+    resolver.registerBuffs({ invuln: invulnBuff })
+    buffSystem.applyBuff(player, invulnBuff, 'player')
+
+    const skill = makeSkill({
+      id: 'enrage',
+      effects: [{ type: 'damage', potency: 999999, dmgType: 'special' }],
+    })
+
+    const dmgSpy = vi.fn()
+    bus.on('damage:dealt', dmgSpy)
+    castSkill(bus, boss, skill)
+
+    expect(dmgSpy).toHaveBeenCalledTimes(1)
+    expect(player.hp).toBe(0)
+  })
+
+  it('should block knockback when invulnerable', () => {
+    const { bus, buffSystem, resolver, boss, player } = setup()
+
+    const invulnBuff: BuffDef = {
+      id: 'invuln', name: 'Invulnerable', type: 'buff',
+      duration: 10000, stackable: false, maxStacks: 1,
+      effects: [{ type: 'invulnerable' }],
+    }
+    resolver.registerBuffs({ invuln: invulnBuff })
+    buffSystem.applyBuff(player, invulnBuff, 'player')
+
+    const originalX = player.position.x
+    const originalY = player.position.y
+
+    const skill = makeSkill({
+      id: 'kb_hit',
+      effects: [
+        { type: 'damage', potency: 1 },
+        { type: 'knockback', distance: 10 },
+      ],
+    })
+
+    castSkill(bus, boss, skill)
+
+    // Position unchanged — knockback blocked
+    expect(player.position.x).toBe(originalX)
+    expect(player.position.y).toBe(originalY)
+  })
+})
+
 // ─── potencyWithBuff ───────────────────────────────────
 
 describe('CombatResolver — potencyWithBuff', () => {
