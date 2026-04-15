@@ -3,7 +3,7 @@ import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
-import type { SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
+import type { DamageType, SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import { EASING, type EasingFn } from './displacement-animator'
@@ -74,7 +74,7 @@ export class CombatResolver {
       switch (effect.type) {
         case 'damage':
           if (!caster || !target) break
-          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName)
+          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType))
           break
 
         case 'apply_buff': {
@@ -191,23 +191,30 @@ export class CombatResolver {
     return stacks * skill.potencyPerStack.bonus
   }
 
-  private applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string): void {
-    const vulnerability = this.buffSystem.getVulnerability(target)
-    let dmg = calculateDamage({
-      attack: caster.attack,
-      potency,
-      increases: [...this.buffSystem.getDamageIncreases(caster), vulnerability],
-      mitigations: this.buffSystem.getMitigations(target),
-    })
-
-    // Shield absorption
-    dmg = this.buffSystem.absorbShield(target, dmg)
-
-    // Apply damage with undying check
-    if (this.buffSystem.isUndying(target)) {
-      target.hp = Math.max(1, target.hp - dmg)
-    } else {
+  private applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = []): void {
+    let dmg: number
+    if (dmgTypes.includes('special')) {
+      // Special damage: ignores mitigation, shields, and undying
+      dmg = Math.floor(caster.attack * potency)
       target.hp = Math.max(0, target.hp - dmg)
+    } else {
+      const vulnerability = this.buffSystem.getVulnerability(target)
+      dmg = calculateDamage({
+        attack: caster.attack,
+        potency,
+        increases: [...this.buffSystem.getDamageIncreases(caster), vulnerability],
+        mitigations: this.buffSystem.getMitigations(target),
+      })
+
+      // Shield absorption
+      dmg = this.buffSystem.absorbShield(target, dmg)
+
+      // Apply damage with undying check
+      if (this.buffSystem.isUndying(target)) {
+        target.hp = Math.max(1, target.hp - dmg)
+      } else {
+        target.hp = Math.max(0, target.hp - dmg)
+      }
     }
 
     // MP on hit: restore MP when taking damage
@@ -260,4 +267,9 @@ export class CombatResolver {
     }
     return null
   }
+}
+
+function normalizeDmgType(raw?: DamageType | DamageType[]): DamageType[] {
+  if (!raw) return []
+  return Array.isArray(raw) ? raw : [raw]
 }

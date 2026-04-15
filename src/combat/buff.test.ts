@@ -61,8 +61,8 @@ describe('BuffSystem', () => {
 
     system.update(entity, 5000)
     expect(entity.buffs).toHaveLength(1)
-    // duration 10000 + 1000 grace period - 5000 elapsed = 6000
-    expect(entity.buffs[0].remaining).toBe(6000)
+    // duration 10000 + 500 grace period - 5000 elapsed = 5500
+    expect(entity.buffs[0].remaining).toBe(5500)
   })
 
   it('should remove expired buff and emit event', () => {

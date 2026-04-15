@@ -185,6 +185,8 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
           attack: opts.attack ?? 100,
           speed: opts.speed ?? 0,
           size: opts.size ?? 0.5,
+          autoAttackRange: opts.autoAttackRange ?? 5,
+          aggroRange: opts.aggroRange ?? 999,
           position: { x: opts.x ?? 0, y: opts.y ?? 0, z: 0 },
           facing: opts.facing ?? 180,
         })
@@ -368,6 +370,8 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
           attack: action.spawnAttack ?? 100,
           speed: action.spawnSpeed ?? 0,
           size: action.spawnSize ?? 0.5,
+          autoAttackRange: action.spawnAutoAttackRange ?? 5,
+          aggroRange: action.spawnAggroRange ?? 999,
           position: { x: action.position?.x ?? 0, y: action.position?.y ?? 0, z: 0 },
           facing: 180,
         })

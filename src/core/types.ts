@@ -39,8 +39,22 @@ export type DisplacementSource =
   | { type: 'caster' }
   | { type: 'position'; x: number; y: number }
 
+export type DamageType =
+  | 'special'    // ignores mitigation, shields, undying
+  | 'physical'   // 物理
+  | 'magical'    // 魔法
+  | 'piercing'   // 穿刺
+  | 'blunt'      // 打击
+  | 'slashing'   // 斩击
+  | 'ice'        // 冰
+  | 'fire'       // 火
+  | 'lightning'  // 雷
+  | 'water'      // 水
+  | 'earth'      // 土
+  | 'wind'       // 风
+
 export type SkillEffectDef =
-  | { type: 'damage'; potency: number }
+  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[] }
   | { type: 'heal'; potency: number }
   | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number }
   | { type: 'consume_buffs'; buffIds: string[] }                         // remove listed buffs from caster on resolve
