@@ -3,6 +3,7 @@ import { useLocation } from 'preact-iso'
 import { JOBS, getJob, JOB_CATEGORY_LABELS } from '@/demo/player-job'
 import { selectedJobId } from '../state'
 import { buildSkillTooltip } from '../tooltip-builders'
+import { classJobIcon } from '@/demo/icon-paths'
 
 const btnClass = 'block min-w-60 px-8 py-3 my-1 text-sm text-gray-400 tracking-wide rounded border border-white/20 transition-all duration-150 hover:bg-white/20 hover:text-white cursor-pointer'
 
@@ -13,8 +14,45 @@ function MenuShell({ children }: { children: any }) {
       class="absolute inset-0 flex flex-col items-center justify-center z-100"
       style={{ background: '#000', pointerEvents: 'auto' }}
     >
-      <h1 class="text-4xl text-gray-200 mb-2 font-light tracking-widest">Web Fantasy XIV</h1>
-      <p class="text-sm text-gray-500 mb-10 tracking-wide">Boss Battle Simulator</p>
+      {/* Title block with background crystal */}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 40 }}>
+        {/* Background crystal */}
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 120, height: 180,
+          opacity: 0.3,
+          filter: 'blur(1px)',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            width: '100%', height: '100%',
+            clipPath: 'polygon(50% 0%, 85% 35%, 50% 100%, 15% 35%)',
+            background: 'linear-gradient(160deg, #a8d8ff 0%, #4a7fff 40%, #2244aa 70%, #1a1a5e 100%)',
+          }} />
+        </div>
+        <h1 style={{
+          position: 'relative',
+          fontFamily: "'Cormorant Garamond', 'Playfair Display', 'Georgia', serif",
+          fontSize: 42, fontWeight: 400, letterSpacing: -1,
+          textTransform: 'uppercase' as const,
+          color: '#d0dce8',
+          textShadow: '0 0 20px rgba(120,160,255,0.4), 0 0 40px rgba(80,120,220,0.2), 0 0 2px rgba(200,220,255,0.5)',
+          margin: 0,
+        }}>
+          Web Fantasy XIV
+        </h1>
+        <p style={{
+          position: 'relative',
+          fontFamily: "'Cormorant Garamond', 'Georgia', serif",
+          fontSize: 14, fontWeight: 400, letterSpacing: 6,
+          textTransform: 'uppercase' as const,
+          color: 'rgba(140,160,190,0.6)',
+          marginTop: 2,
+        }}>
+          最终页游14
+        </p>
+      </div>
       {children}
     </div>
   )
@@ -154,7 +192,7 @@ export function JobPage() {
           <div style={{ flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <img
-                src={`${import.meta.env.BASE_URL}assets/images/class_jobs/class_${job.category}.png`}
+                src={classJobIcon(job.category)}
                 alt={JOB_CATEGORY_LABELS[job.category]}
                 style={{ width: 20, height: 20 }}
               />
@@ -291,7 +329,7 @@ function CompactSkillRow({ keyLabel, skill, buffDefs, gcdDuration }: {
         overflow: 'hidden',
       }}>
         {skill.icon
-          ? <img src={skill.icon} style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          ? <img src={skill.icon} style={{ width: 36, height: 36, objectFit: 'contain' }} key={skill.icon} />
           : <span style={{ fontSize: 10, color: '#888' }}>{skill.name.slice(0, 3)}</span>
         }
         <span style={{
