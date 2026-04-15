@@ -9,6 +9,7 @@ import { SAMURAI_SKILLS, SAMURAI_BUFFS } from './swordsman-skills'
 import { BLM_SKILLS, BLM_LEYLINE_STEP, BLM_BUFFS } from './blm-skills'
 import { BRD_SKILLS, BRD_BUFFS } from './bard-skills'
 import { DRK_SKILLS, DRK_BUFFS } from './drk-skills'
+import { PLD_SKILLS, PLD_BUFFS } from './pld-skills'
 import { DEMO_BUFFS } from './demo-buffs'
 
 /** Job category — matches icon filenames in public/assets/images/class_jobs/ */
@@ -201,8 +202,29 @@ export const DRK_JOB: PlayerJob = {
   buffMap: mergeBuffMap(DRK_BUFFS),
 }
 
+export const PLD_JOB: PlayerJob = {
+  id: 'pld',
+  name: '骑士',
+  description: '以剑与盾为武器的防护职业，同时精通物理近战与魔法远程。通过安魂祈祷与战逃反应的交替循环，在近战与远程之间切换输出节奏。拥有终极防御技能神圣领域。',
+  category: JobCategory.Tank,
+  stats: {
+    hp: 10000,
+    mp: 10000,
+    attack: 900,
+    speed: 5,
+    autoAttackRange: 3.5,
+  },
+  skills: [...PLD_SKILLS, ROLE_SECOND_WIND],
+  extraSkills: new Map([[100, ROLE_DASH], [101, ROLE_BACKSTEP]]),
+  autoAttackSkill: MELEE_AUTO,
+  autoAttackInterval: 3000,
+  skillBar: buildSkillBar([...PLD_SKILLS, ROLE_SECOND_WIND], ROLE_DASH, ROLE_BACKSTEP),
+  buffs: mergeBuffs(PLD_BUFFS),
+  buffMap: mergeBuffMap(PLD_BUFFS),
+}
+
 /** All available jobs */
-export const JOBS: PlayerJob[] = [DEFAULT_JOB, SAMURAI_JOB, BLM_JOB, BRD_JOB, DRK_JOB]
+export const JOBS: PlayerJob[] = [DEFAULT_JOB, SAMURAI_JOB, BLM_JOB, BRD_JOB, DRK_JOB, PLD_JOB]
 
 export function getJob(id: string): PlayerJob {
   return JOBS.find(j => j.id === id) ?? DEFAULT_JOB
