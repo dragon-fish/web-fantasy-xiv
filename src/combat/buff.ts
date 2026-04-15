@@ -19,12 +19,12 @@ export class BuffSystem {
   applyBuff(entity: Entity, def: BuffDef, sourceId: string, addStacks = 1, durationOverride?: number): void {
     this.registerDef(def)
 
-    // Add 1s grace period to all timed buffs.
+    // Add 0.5s grace period to all timed buffs.
     // Without this, a 15s buff with 2.5s GCD requires frame-perfect input
-    // to land the 6th GCD at exactly 15.0s. The extra 1s ensures the last
+    // to land the 6th GCD at exactly 15.0s. The extra 0.5s ensures the last
     // action within the intended window always goes through.
     const baseDuration = durationOverride ?? def.duration
-    const effectiveDuration = baseDuration > 0 ? baseDuration + 1000 : 0
+    const effectiveDuration = baseDuration > 0 ? baseDuration + 500 : 0
 
     const existing = entity.buffs.find((b) => b.defId === def.id)
 
