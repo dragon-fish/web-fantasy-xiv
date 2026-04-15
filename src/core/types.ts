@@ -109,6 +109,8 @@ export interface SkillDef {
   mpCostAbsorbBuff?: string
   /** Bonus potency per stack of a buff (only affects this skill's damage effects) */
   potencyPerStack?: { buffId: string; bonus: number }
+  /** Consume 1 buff stack for additive damage increase + optional MP restore (only affects this skill) */
+  potencyWithBuff?: { buffId: string; damageIncrease: number; consumeStack: boolean; restoreMp?: number }
   zones?: AoeZoneDef[]
   effects?: SkillEffectDef[]
 }
