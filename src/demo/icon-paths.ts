@@ -1,3 +1,5 @@
+import { JobCategory } from './player-job'
+
 const CDN_BASE = import.meta.env.VITE_CDN_BASE || 'https://r2.epb.wiki/ffxiv/'
 
 /** Build asset path for an icon by folder and numeric ID (zero-padded to 6 digits, _hr1.png suffix) */
@@ -16,7 +18,7 @@ export function stackIcons(
   folder: string,
   baseId: number,
   count: number,
-  fallbackId?: number,
+  fallbackId?: number
 ): Record<number, string> {
   const map: Record<number, string> = {}
   if (fallbackId !== undefined) map[0] = icon(folder, fallbackId)
@@ -24,4 +26,8 @@ export function stackIcons(
     map[i] = icon(folder, baseId + i - 1)
   }
   return map
+}
+
+export function classJobIcon(jobId: JobCategory): string {
+  return `${CDN_BASE}class_jobs/class_${jobId}.png`
 }
