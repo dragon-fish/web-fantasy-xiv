@@ -5,6 +5,11 @@ import UnoCSS from 'unocss/vite'
 
 export default defineConfig({
   // base: './',
+  server: {
+    forwardConsole: {
+      logLevels: ['error', 'warn', 'info'],
+    },
+  },
   plugins: [preact(), UnoCSS()],
   resolve: {
     alias: {

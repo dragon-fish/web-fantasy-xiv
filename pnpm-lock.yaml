@@ -29,10 +29,13 @@ importers:
     devDependencies:
       '@preact/preset-vite':
         specifier: ^2.10.5
-        version: 2.10.5(@babel/core@7.29.0)(preact@10.29.1)(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+        version: 2.10.5(@babel/core@7.29.0)(preact@10.29.1)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
       '@types/minimist':
         specifier: ^1.2.5
         version: 1.2.5
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
       '@unocss/preset-wind4':
         specifier: ^66.6.8
         version: 66.6.8
@@ -41,13 +44,13 @@ importers:
         version: 6.0.2
       unocss:
         specifier: ^66.6.8
-        version: 66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+        version: 66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
       vite:
         specifier: ^8.0.8
-        version: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
+        version: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
       vitest:
         specifier: ^4.1.4
-        version: 4.1.4(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+        version: 4.1.4(@types/node@24.12.2)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
 
 packages:
 
@@ -468,6 +471,9 @@ packages:
 
   '@types/minimist@1.2.5':
     resolution: {integrity: sha512-hov8bUuiLiyFPGyFPE1lwWhmzYbirOXQNNo40+y3zow8aFVTeyn3VWL0VFFfdNddA8S4Vf0Tc062rzyNr7Paag==}
+
+  '@types/node@24.12.2':
+    resolution: {integrity: sha512-A1sre26ke7HDIuY/M23nd9gfB+nrmhtYyMINbjI1zHJxYteKR6qSMX56FsmjMcDb3SMcjJg5BiRRgOCC/yBD0g==}
 
   '@unocss/cli@66.6.8':
     resolution: {integrity: sha512-dJ4AmrhCtQwEDJtpFG7AgJ4Qi4GWnNgWWlLWq4DhKBOCcvldr9k98mscdhs3MOwph25DIxU5MdLRAg/OS1JryQ==}
@@ -993,6 +999,9 @@ packages:
   unconfig@7.5.0:
     resolution: {integrity: sha512-oi8Qy2JV4D3UQ0PsopR28CzdQ3S/5A1zwsUwp/rosSbfhJ5z7b90bIyTwi/F7hCLD4SGcZVjDzd4XoUQcEanvA==}
 
+  undici-types@7.16.0:
+    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
+
   unocss@66.6.8:
     resolution: {integrity: sha512-stq9FbxedTDkoWrxnNQNnPQXOaM6L2Lobq8HzjXdR2tMc55gtfqDArqL7TESfnN7qeZsIocNYCHLNA4DXq50YQ==}
     engines: {node: '>=14'}
@@ -1387,19 +1396,19 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@preact/preset-vite@2.10.5(@babel/core@7.29.0)(preact@10.29.1)(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))':
+  '@preact/preset-vite@2.10.5(@babel/core@7.29.0)(preact@10.29.1)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx': 7.28.6(@babel/core@7.29.0)
       '@babel/plugin-transform-react-jsx-development': 7.27.1(@babel/core@7.29.0)
-      '@prefresh/vite': 2.4.12(preact@10.29.1)(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+      '@prefresh/vite': 2.4.12(preact@10.29.1)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
       '@rollup/pluginutils': 5.3.0
       babel-plugin-transform-hook-names: 1.0.2(@babel/core@7.29.0)
       debug: 4.4.3
       magic-string: 0.30.21
       picocolors: 1.1.1
-      vite: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
-      vite-prerender-plugin: 0.5.13(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+      vite: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
+      vite-prerender-plugin: 0.5.13(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
       zimmerframe: 1.1.4
     transitivePeerDependencies:
       - preact
@@ -1421,7 +1430,7 @@ snapshots:
 
   '@prefresh/utils@1.2.1': {}
 
-  '@prefresh/vite@2.4.12(preact@10.29.1)(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))':
+  '@prefresh/vite@2.4.12(preact@10.29.1)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
       '@babel/core': 7.29.0
       '@prefresh/babel-plugin': 0.5.3
@@ -1429,7 +1438,7 @@ snapshots:
       '@prefresh/utils': 1.2.1
       '@rollup/pluginutils': 4.2.1
       preact: 10.29.1
-      vite: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
+      vite: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
     transitivePeerDependencies:
       - supports-color
 
@@ -1516,6 +1525,10 @@ snapshots:
   '@types/estree@1.0.8': {}
 
   '@types/minimist@1.2.5': {}
+
+  '@types/node@24.12.2':
+    dependencies:
+      undici-types: 7.16.0
 
   '@unocss/cli@66.6.8':
     dependencies:
@@ -1636,7 +1649,7 @@ snapshots:
     dependencies:
       '@unocss/core': 66.6.8
 
-  '@unocss/vite@66.6.8(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))':
+  '@unocss/vite@66.6.8(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@unocss/config': 66.6.8
@@ -1647,7 +1660,7 @@ snapshots:
       pathe: 2.0.3
       tinyglobby: 0.2.16
       unplugin-utils: 0.3.1
-      vite: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
+      vite: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
 
   '@vitest/expect@4.1.4':
     dependencies:
@@ -1658,13 +1671,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.4(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.4(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.4
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
+      vite: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
 
   '@vitest/pretty-format@4.1.4':
     dependencies:
@@ -2073,7 +2086,9 @@ snapshots:
       quansync: 1.0.0
       unconfig-core: 7.5.0
 
-  unocss@66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3)):
+  undici-types@7.16.0: {}
+
+  unocss@66.6.8(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)):
     dependencies:
       '@unocss/cli': 66.6.8
       '@unocss/core': 66.6.8
@@ -2091,7 +2106,7 @@ snapshots:
       '@unocss/transformer-compile-class': 66.6.8
       '@unocss/transformer-directives': 66.6.8
       '@unocss/transformer-variant-group': 66.6.8
-      '@unocss/vite': 66.6.8(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+      '@unocss/vite': 66.6.8(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -2115,7 +2130,7 @@ snapshots:
       escalade: 3.2.0
       picocolors: 1.1.1
 
-  vite-prerender-plugin@0.5.13(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3)):
+  vite-prerender-plugin@0.5.13(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)):
     dependencies:
       kolorist: 1.8.0
       magic-string: 0.30.21
@@ -2123,9 +2138,9 @@ snapshots:
       simple-code-frame: 1.3.0
       source-map: 0.7.6
       stack-trace: 1.0.0-pre2
-      vite: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
+      vite: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
 
-  vite@8.0.8(jiti@2.6.1)(yaml@2.8.3):
+  vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -2133,14 +2148,15 @@ snapshots:
       rolldown: 1.0.0-rc.15
       tinyglobby: 0.2.16
     optionalDependencies:
+      '@types/node': 24.12.2
       fsevents: 2.3.3
       jiti: 2.6.1
       yaml: 2.8.3
 
-  vitest@4.1.4(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3)):
+  vitest@4.1.4(@types/node@24.12.2)(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.4
-      '@vitest/mocker': 4.1.4(vite@8.0.8(jiti@2.6.1)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.4(vite@8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3))
       '@vitest/pretty-format': 4.1.4
       '@vitest/runner': 4.1.4
       '@vitest/snapshot': 4.1.4
@@ -2157,8 +2173,10 @@ snapshots:
       tinyexec: 1.1.1
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vite: 8.0.8(jiti@2.6.1)(yaml@2.8.3)
+      vite: 8.0.8(@types/node@24.12.2)(jiti@2.6.1)(yaml@2.8.3)
       why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 24.12.2
     transitivePeerDependencies:
       - msw
 
