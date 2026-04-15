@@ -18,12 +18,12 @@ export function DamageFloater() {
             position: 'absolute',
             left: ev.screenX, top: ev.screenY,
             fontSize: 18, fontWeight: 'bold',
-            color: ev.isHeal ? '#4eff4e' : '#ff4444',
+            color: ev.isInvulnerable ? '#999999' : ev.isHeal ? '#4eff4e' : '#ff4444',
             textShadow: '1px 1px 3px #000',
             pointerEvents: 'none',
           }}
         >
-          {ev.isHeal ? `+${ev.amount}` : `${ev.amount}`}
+          {ev.isInvulnerable ? '无效' : ev.isHeal ? `+${ev.amount}` : `${ev.amount}`}
         </div>
       ))}
     </div>

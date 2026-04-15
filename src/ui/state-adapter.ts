@@ -45,6 +45,29 @@ export function createStateAdapter(deps: StateAdapterDeps) {
     ]
   }
 
+  const onInvulnerable = (payload: { target: Entity }) => {
+    let sx = window.innerWidth / 2
+    let sy = window.innerHeight / 2
+
+    const projected = sceneManager.worldToScreen(
+      payload.target.position.x,
+      payload.target.position.y,
+      2,
+    )
+    if (projected) {
+      sx = projected.x
+      sy = projected.y
+    }
+
+    sx += (Math.random() - 0.5) * 40
+    sy += (Math.random() - 0.5) * 20
+
+    state.damageEvents.value = [
+      ...state.damageEvents.value,
+      { id: ++dmgIdCounter, screenX: sx, screenY: sy, amount: 0, isHeal: false, isInvulnerable: true },
+    ]
+  }
+
   const onCastStart = (payload: { caster: Entity; skill: { name: string } }) => {
     const name = payload.skill?.name ?? 'Casting...'
     if (payload.caster.type === 'player') {
@@ -65,6 +88,7 @@ export function createStateAdapter(deps: StateAdapterDeps) {
   }
 
   bus.on('damage:dealt', onDamage)
+  bus.on('damage:invulnerable', onInvulnerable)
   bus.on('skill:cast_start', onCastStart)
   bus.on('skill:cast_complete', onCastComplete)
   bus.on('skill:cast_interrupted', onCastInterrupted)
@@ -137,6 +161,7 @@ export function createStateAdapter(deps: StateAdapterDeps) {
 
   function dispose(): void {
     bus.off('damage:dealt', onDamage)
+    bus.off('damage:invulnerable', onInvulnerable)
     bus.off('skill:cast_start', onCastStart)
     bus.off('skill:cast_complete', onCastComplete)
     bus.off('skill:cast_interrupted', onCastInterrupted)

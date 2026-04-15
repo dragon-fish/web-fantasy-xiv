@@ -19,6 +19,7 @@ export interface DamageEvent {
   screenY: number
   amount: number
   isHeal: boolean
+  isInvulnerable?: boolean
 }
 
 export interface BuffSnapshot {
