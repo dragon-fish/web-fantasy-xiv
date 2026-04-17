@@ -22,6 +22,7 @@
     "@unocss/preset-wind4": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitejs/plugin-vue-jsx": "^5.1.5",
+    "@vue/test-utils": "^2.4.6",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.2",
     "pug": "^3.0.4",
@@ -35,6 +36,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "^9.2.0",
+    "@vue-flow/core": "^1.48.2",
     "@vueuse/core": "^14.2.1",
     "localspace": "^1.1.2",
     "minimist": "^1.2.8",

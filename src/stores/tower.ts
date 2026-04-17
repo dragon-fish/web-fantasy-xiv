@@ -10,7 +10,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, toRaw, nextTick, type Ref } from 'vue'
 import type { TowerRun, TowerRunPhase, BaseJobId } from '@/tower/types'
+import { TOWER_RUN_SCHEMA_VERSION } from '@/tower/types'
 import { saveTowerRun, loadTowerRun, clearTowerRun } from '@/tower/persistence'
+import { generateTowerGraph } from '@/tower/graph/generator'
 
 /**
  * Generate a run id. Uses crypto.randomUUID when available; falls back to
@@ -40,6 +42,7 @@ function generateSeed(): string {
  */
 function createInitialRun(baseJobId: BaseJobId, seed: string): TowerRun {
   return {
+    schemaVersion: TOWER_RUN_SCHEMA_VERSION,
     runId: generateRunId(),
     seed,
     graphSource: { kind: 'random' },
@@ -67,8 +70,18 @@ export const useTowerStore = defineStore('tower', () => {
   const run = ref<TowerRun | null>(null)
   const savedRunExists = ref(false)
 
-  // Flag to suppress persistence writes triggered by continueLastRun loading
-  // state back from IndexedDB (avoids a redundant write-back cycle).
+  /**
+   * Ephemeral flag; set when loaded run's schemaVersion mismatches the current
+   * constant. Consumed by UI (Task 16) to show a dismissable banner. Not persisted.
+   */
+  const schemaResetNotice = ref(false)
+
+  /**
+   * Flag to suppress persistence writes triggered by continueLastRun loading
+   * state back from IndexedDB. Set before loading to prevent write-back; cleared
+   * after nextTick() to allow persistence for subsequent phase changes. Avoids
+   * redundant save cycles on load.
+   */
   let suppressPersist = false
 
   // ---- derived ----
@@ -81,20 +94,31 @@ export const useTowerStore = defineStore('tower', () => {
     run.value = createInitialRun(baseJobId, seed ?? generateSeed())
     phase.value = 'selecting-job'
     savedRunExists.value = true
+    schemaResetNotice.value = false // 开新局时清掉遗留横条
   }
 
   async function continueLastRun(): Promise<void> {
     const loaded = await loadTowerRun()
     if (!loaded) return
+    if (loaded.schemaVersion !== TOWER_RUN_SCHEMA_VERSION) {
+      // TODO(post-MVP): 金币系统上线后，在此处调 forcedSettlement(loaded)
+      // 按 loaded.crystals / loaded.level / loaded.currentNodeId 给出补偿金币
+      // 参见 spec §3.6 / §12 "强制结算补偿金币"
+      console.warn(
+        `[tower] saved run schemaVersion ${loaded.schemaVersion} ` +
+          `!= current ${TOWER_RUN_SCHEMA_VERSION}, resetting`,
+      )
+      resetRun()
+      schemaResetNotice.value = true
+      return
+    }
     suppressPersist = true
     run.value = loaded
     phase.value = 'in-path'
     savedRunExists.value = true
     // Restore persistence after Vue's flush cycle so the phase watch doesn't
     // fire a spurious save for the load itself. nextTick() waits for all
-    // pending post-flush watchers (including our persistence hook) to run —
-    // a single microtask is not sufficient because `flush: 'post'` callbacks
-    // queue behind Vue's component post-flush queue and may take multiple ticks.
+    // pending post-flush watchers (including our persistence hook) to run.
     await nextTick()
     suppressPersist = false
   }
@@ -109,6 +133,56 @@ export const useTowerStore = defineStore('tower', () => {
 
   function setPhase(next: TowerRunPhase): void {
     phase.value = next
+  }
+
+  function startDescent(): void {
+    if (!run.value) {
+      console.warn('[tower] startDescent called without active run')
+      return
+    }
+    if (phase.value !== 'selecting-job') {
+      console.warn(`[tower] startDescent called in wrong phase: ${phase.value}`)
+      return
+    }
+    const graph = generateTowerGraph(run.value.seed)
+    run.value.towerGraph = graph
+    run.value.currentNodeId = graph.startNodeId
+    phase.value = 'in-path'
+  }
+
+  function advanceTo(nodeId: number): void {
+    if (!run.value) {
+      console.warn('[tower] advanceTo called without active run')
+      return
+    }
+    if (phase.value !== 'in-path') {
+      console.warn(`[tower] advanceTo called in wrong phase: ${phase.value}`)
+      return
+    }
+    const current = run.value.towerGraph.nodes[run.value.currentNodeId]
+    if (!current) {
+      console.warn(
+        `[tower] advanceTo: currentNodeId ${run.value.currentNodeId} not in graph`,
+      )
+      return
+    }
+    if (!current.next.includes(nodeId)) {
+      console.warn(
+        `[tower] advanceTo: illegal move ${run.value.currentNodeId} -> ${nodeId}`,
+      )
+      return
+    }
+    if (!run.value.completedNodes.includes(current.id)) {
+      run.value.completedNodes.push(current.id)
+    }
+    run.value.currentNodeId = nodeId
+    // advanceTo 不改 phase，不会触发 watchPhaseForPersistence；
+    // 手动 fire-and-forget 写盘，失败不回滚
+    void saveTowerRun(toRaw(run.value))
+  }
+
+  function dismissSchemaNotice(): void {
+    schemaResetNotice.value = false
   }
 
   async function hydrate(): Promise<void> {
@@ -147,6 +221,10 @@ export const useTowerStore = defineStore('tower', () => {
     resetRun,
     setPhase,
     hydrate,
+    startDescent, // ← new
+    advanceTo, // ← new
+    schemaResetNotice, // ← new
+    dismissSchemaNotice, // ← new
   }
 })
 

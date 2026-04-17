@@ -153,7 +153,6 @@ _local_ref/
 src/**/*.test.js
 
 # Claude Code skills
-docs/superpowers
 .superpowers
 .worktrees
 

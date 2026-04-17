@@ -113,6 +113,7 @@ export type BattlefieldCondition =
 
 /** 节点类型（spec §2.2 的 6 类） */
 export type TowerNodeKind =
+  | 'start'      // GDD §2.2.1 第 0 节点；非 mob/reward/campfire
   | 'mob'
   | 'elite'
   | 'boss'
@@ -125,6 +126,11 @@ export interface TowerNode {
   id: number
   /** 第几步（0 = 起点 0 号节点，1-12 = 主干，13 = boss） */
   step: number
+  /**
+   * 水平位置索引，[0, K(step))，K 即 `K_SCHEDULE[step]`
+   * （见 `src/tower/graph/k-schedule.ts`）；UI 布局用，算法不感知渲染方向.
+   */
+  slot: number
   kind: TowerNodeKind
   /** 可达的下一层节点 id（有向图） */
   next: number[]
@@ -162,6 +168,18 @@ export type TowerGraphSource =
   | { kind: 'hand-crafted'; id: string }
 
 // ============================================================
+// Schema versioning（spec §3.6）
+// ============================================================
+
+/**
+ * 存档 schema 版本号.
+ * 任何 breaking 变更（新增 TowerNodeKind / 改 K schedule / 改 TowerNode 字段 /
+ * 调整权重 / 重写修复算法 / 改约束集）都必须 bump 此常量.
+ * phase2 首发 = 1.
+ */
+export const TOWER_RUN_SCHEMA_VERSION = 1 as const
+
+// ============================================================
 // TowerRun — 局内持久化状态的根对象
 // ============================================================
 
@@ -174,6 +192,13 @@ export type TowerRunPhase =
   | 'ended'
 
 export interface TowerRun {
+  /**
+   * 存档 schema 版本号；不匹配 `TOWER_RUN_SCHEMA_VERSION` 时 continueLastRun
+   * 会 reset 存档 + 弹提示条（spec §3.6）.
+   * 类型用 `number`（而非 `typeof TOWER_RUN_SCHEMA_VERSION`）：持久化值跨版本
+   * 读取时必须容纳旧版本号，否则 load 时 typecheck 会先炸而无法走到 reset 分支.
+   */
+  schemaVersion: number
   /** UUID，一局一个 */
   runId: string
   /** PRNG seed（spec §7.4 seeded PRNG） */

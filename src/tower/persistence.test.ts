@@ -2,9 +2,11 @@
 import { beforeEach, describe, it, expect } from 'vitest'
 import { saveTowerRun, loadTowerRun, clearTowerRun } from '@/tower/persistence'
 import type { TowerRun } from '@/tower/types'
+import { TOWER_RUN_SCHEMA_VERSION } from '@/tower/types'
 
 function makeRun(overrides: Partial<TowerRun> = {}): TowerRun {
   return {
+    schemaVersion: TOWER_RUN_SCHEMA_VERSION,
     runId: 'test-run-1',
     seed: 'abc',
     graphSource: { kind: 'random' },
