@@ -1,6 +1,10 @@
 import type { SkillDef, BuffDef } from '@/core/types'
-import type { SkillBarEntry } from '@/ui/state'
 import { COMMON_BUFFS } from './commons/buffs'
+
+export interface SkillBarEntry {
+  key: string
+  skill: SkillDef
+}
 
 /** Job category — matches icon filenames in public/assets/images/class_jobs/ */
 export enum JobCategory {

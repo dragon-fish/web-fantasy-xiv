@@ -6,7 +6,7 @@ import { loadEncounter } from '@/game/encounter-loader'
 import { DeathZoneManager } from '@/arena/death-zone-manager'
 import { ScriptRunner } from '@/timeline/script-runner'
 import { getJob } from '@/jobs'
-import { announceText, battleResult, damageLog, combatElapsed as combatElapsedSignal, timelineEntries, dialogText, currentPhaseInfo, selectedJobId, type TimelineEntry } from '@/ui/state'
+import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
 import type { Entity } from '@/entity/entity'
 import type { EncounterData } from '@/game/encounter-loader'
@@ -70,7 +70,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
   const engine = Engine.Instances.find(e => e.getRenderingCanvas() === canvas) as Engine | undefined
   if (!engine) throw new Error('No Engine found for canvas')
 
-  const job = getJob(jobOverride ?? selectedJobId.value)
+  const job = getJob(jobOverride ?? 'default')
 
   scene = new GameScene({
     engine, uiRoot, arena: enc.arena,
@@ -87,6 +87,8 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
   })
 
   const s = scene
+  s.skillBarEntries = job.skillBar
+  s.buffDefs = job.buffMap
 
   s.createPlayer({
     id: 'player', type: 'player',
@@ -151,8 +153,8 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       getEntity: (id: string) => entityMap.get(id) ?? null,
 
       // Game actions
-      showDialog: (text: string) => { dialogText.value = text },
-      hideDialog: () => { dialogText.value = '' },
+      showDialog: (text: string) => { s.setDialog(text) },
+      hideDialog: () => { s.setDialog('') },
       activatePhase: (phaseId: string) => scheduler.activatePhase(phaseId),
       teleport: (entityId: string, x: number, y: number) => {
         const e = entityMap.get(entityId)
@@ -246,7 +248,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
     combatStarted = true
     s.player.inCombat = true
     boss.inCombat = true
-    announceText.value = '战斗开始'
+    s.setAnnounce('战斗开始')
     s.bus.emit('combat:started', { entities: [s.player, boss] })
   }
 
@@ -255,19 +257,17 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
     // Check victory: boss dead
     if (payload.target.id === boss.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
-        s.battleOver = true
         scriptRunner.disposeAll()
         s.bus.emit('combat:ended', { result: 'victory' })
-        battleResult.value = 'victory'
+        s.endBattle('victory')
       }
     }
     // Check player dead
     if (payload.target.id === s.player.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
-        s.battleOver = true
         scriptRunner.disposeAll()
         s.bus.emit('combat:ended', { result: 'wipe' })
-        battleResult.value = 'wipe'
+        s.endBattle('wipe')
       }
     }
     // Mob death: destroy entity when hp reaches 0
@@ -281,8 +281,8 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       const totalMit = mitigations.length > 0
         ? 1 - mitigations.reduce((acc: number, v: number) => acc * (1 - v), 1)
         : 0
-      const log = damageLog.value
-      damageLog.value = [...log.slice(-19), {
+      const log = s.damageLog
+      s.damageLog = [...log.slice(-19), {
         time: elapsed,
         sourceName: payload.source?.id ?? '?',
         skillName: payload.skill?.name ?? '自动攻击',
@@ -373,10 +373,10 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
         }
         break
       case 'show_dialog':
-        if (action.dialogText) dialogText.value = action.dialogText
+        if (action.dialogText) s.setDialog(action.dialogText)
         break
       case 'hide_dialog':
-        dialogText.value = ''
+        s.setDialog('')
         break
       case 'run_script':
         if (action.script) scriptRunner.run(action.script)
@@ -432,9 +432,6 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
         },
       })
       scheduler.update(dt)
-      combatElapsedSignal.value = scheduler.combatElapsed
-    } else {
-      combatElapsedSignal.value = null
     }
 
     // Falling animation (triggered by death zone / out of bounds)
@@ -495,7 +492,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
       }
     }
 
-    updateTimelineSignal(dt, scheduler, enc.skills)
+    updateTimelineSignal(s, dt, scheduler, enc.skills)
   }
 
   s.start()
@@ -505,7 +502,7 @@ const TIMELINE_WINDOW_MS = 30000
 const TIMELINE_MAX_ENTRIES = 5
 const TIMELINE_FLASH_DURATION = 1000
 
-function updateTimelineSignal(dt: number, scheduler: PhaseScheduler, skillMap: Map<string, import('@/core/types').SkillDef>): void {
+function updateTimelineSignal(scene: GameScene, dt: number, scheduler: PhaseScheduler, skillMap: Map<string, import('@/core/types').SkillDef>): void {
   const elapsed = scheduler.combatElapsed
   const allActions = scheduler.getAllActions()
   const upcoming: TimelineEntry[] = []
@@ -536,7 +533,7 @@ function updateTimelineSignal(dt: number, scheduler: PhaseScheduler, skillMap: M
     }
 
     // Carry over flash elapsed from previous frame
-    const prev = timelineEntries.value.find((e) => e.key === key)
+    const prev = scene.timelineEntries.find((e) => e.key === key)
     if (state === 'flash') {
       flashElapsed = prev?.state === 'flash' ? prev.flashElapsed + dt : 0
     }
@@ -547,14 +544,14 @@ function updateTimelineSignal(dt: number, scheduler: PhaseScheduler, skillMap: M
   }
 
   upcoming.sort((a, b) => a.timeUntil - b.timeUntil)
-  timelineEntries.value = upcoming.slice(0, TIMELINE_MAX_ENTRIES)
+  scene.timelineEntries = upcoming.slice(0, TIMELINE_MAX_ENTRIES)
 
   // Update current phase display
   const latestPhase = scheduler.getLatestPhase()
   if (latestPhase && latestPhase.total > 1) {
     const label = latestPhase.name ?? `P${latestPhase.index}`
-    currentPhaseInfo.value = { label, showLabel: true }
+    scene.currentPhaseInfo = { label, showLabel: true }
   } else {
-    currentPhaseInfo.value = null
+    scene.currentPhaseInfo = null
   }
 }

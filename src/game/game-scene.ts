@@ -19,10 +19,12 @@ import { PlayerInputDriver, type PlayerInputConfig } from './player-input-driver
 import { DisplacementAnimator } from './displacement-animator'
 import { DevTerminal } from '@/devtools/dev-terminal'
 import { CommandRegistry } from '@/devtools/commands'
-import { paused as pausedSignal, battleResult } from '@/ui/state'
-import type { ArenaDef } from '@/core/types'
+import type { ArenaDef, BuffDef } from '@/core/types'
 import type { Entity } from '@/entity/entity'
 import type { CreateEntityOptions } from '@/entity/entity'
+import type { TimelineEntry } from '@/timeline/types'
+import type { DamageLogEntry } from '@/game/types'
+import type { SkillBarEntry } from '@/jobs/shared'
 
 export interface GameSceneConfig {
   engine: Engine
@@ -67,6 +69,16 @@ export class GameScene {
   paused = false
   battleOver = false
   player!: Entity
+  // Battle runtime state (migrated from ui/state signals)
+  battleResult: 'victory' | 'wipe' | null = null
+  announceText: string | null = null
+  dialogText = ''
+  timelineEntries: TimelineEntry[] = []
+  currentPhaseInfo: { label: string; showLabel: boolean } | null = null
+  damageLog: DamageLogEntry[] = []
+  practiceMode = false
+  skillBarEntries: SkillBarEntry[] = []
+  buffDefs: Map<string, BuffDef> = new Map()
   private lastTime = performance.now()
   readonly config: GameSceneConfig
 
@@ -119,14 +131,13 @@ export class GameScene {
     return this.player
   }
 
-  /** Watch for player death — sets battleResult signal */
+  /** Watch for player death — ends the battle with 'wipe' result */
   watchPlayerDeath(): void {
     this.bus.on('damage:dealt', (payload: { target: Entity }) => {
       if (payload.target.id === this.player.id && payload.target.hp <= 0) {
         if (this.battleOver) return
-        this.battleOver = true
+        this.endBattle('wipe')
         this.bus.emit('combat:ended', { result: 'wipe' })
-        battleResult.value = 'wipe'
       }
     })
   }
@@ -137,11 +148,8 @@ export class GameScene {
       if (this.paused || this.battleOver) return
       if (this.devTerminal.isVisible()) return
 
-      // Sync pause state from Preact signal
-      if (pausedSignal.value !== this.paused) this.paused = pausedSignal.value
-
       const result = this.playerDriver.update(dt)
-      if (result === 'pause') { this.paused = true; pausedSignal.value = true; return }
+      if (result === 'pause') { this.pause(); return }
 
       this.onLogicTick?.(dt)
 
@@ -169,6 +177,27 @@ export class GameScene {
       this.onRenderTick?.(delta)
     })
   }
+
+  /** Set pause state */
+  pause(): void { this.paused = true }
+
+  /** Clear pause state */
+  resume(): void { this.paused = false }
+
+  /** Toggle pause state */
+  togglePause(): void { this.paused = !this.paused }
+
+  /** Mark battle ended with a result */
+  endBattle(result: 'victory' | 'wipe'): void {
+    this.battleOver = true
+    this.battleResult = result
+  }
+
+  /** Set combat announce text (null clears) */
+  setAnnounce(text: string | null): void { this.announceText = text }
+
+  /** Set dialog text */
+  setDialog(text: string): void { this.dialogText = text }
 
   /** Dispose all resources */
   dispose(): void {

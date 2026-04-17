@@ -155,3 +155,8 @@ src/**/*.test.js
 # Claude Code skills
 docs/superpowers
 .superpowers
+
+# Auto-generated type declaration files
+src/typed-router.d.ts
+src/typed-components.d.ts
+typed-router.d.ts

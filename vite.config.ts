@@ -1,16 +1,34 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'node:path'
-import preact from '@preact/preset-vite'
+import Vue from '@vitejs/plugin-vue'
+import VueJsx from '@vitejs/plugin-vue-jsx'
+import VueRouter from 'vue-router/vite'
+import Components from 'unplugin-vue-components/vite'
 import UnoCSS from 'unocss/vite'
 
 export default defineConfig({
-  // base: './',
   server: {
     forwardConsole: {
       logLevels: ['error', 'warn', 'info'],
     },
   },
-  plugins: [preact(), UnoCSS()],
+  plugins: [
+    VueRouter({
+      routesFolder: 'src/pages',
+      dts: 'src/typed-router.d.ts',
+    }),
+    Vue({
+      template: { preprocessOptions: { pug: {} } },
+    }),
+    VueJsx(),
+    Components({
+      dirs: ['src/components'],
+      directoryAsNamespace: true,
+      collapseSamePrefixes: true,
+      dts: 'src/typed-components.d.ts',
+    }),
+    UnoCSS(),
+  ],
   resolve: {
     alias: {
       '@': resolve(import.meta.dirname, 'src'),

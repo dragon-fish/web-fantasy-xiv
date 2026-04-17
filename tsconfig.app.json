@@ -5,8 +5,13 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["vite/client"]
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "src/typed-router.d.ts",
+    "src/typed-components.d.ts"
+  ],
   "exclude": ["src/**/*.test.ts"]
 }

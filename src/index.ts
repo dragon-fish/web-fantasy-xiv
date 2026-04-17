@@ -66,8 +66,10 @@ export { HitEffectRenderer } from './renderer/hit-effect-renderer'
 // Input
 export { InputManager, computeMoveDirection, computeFacingAngle } from './input/input-manager'
 
-// UI (Preact components — import from ui/components/ or ui/state)
-export type { SkillBarEntry, HpState, CastInfo, BuffSnapshot, DamageEvent, DamageLogEntry } from './ui/state'
+// UI state types (migrated out of deleted src/ui/state)
+export type { SkillBarEntry } from './jobs/shared'
+export type { HpState, CastInfo, BuffSnapshot, DamageEvent } from './stores/battle'
+export type { DamageLogEntry } from './game/types'
 
 // Game (reusable components)
 export { CameraController } from './game/camera-controller'
