@@ -52,11 +52,20 @@ export interface Weapon {
 // 魔晶石 (Materia)
 // ============================================================
 
+/** 魔晶石词条元组：1-3 条（spec §2.9） */
+export type MateriaAffixes =
+  | readonly [Affix]
+  | readonly [Affix, Affix]
+  | readonly [Affix, Affix, Affix]
+
+/** Materia 实例的 UUID 别名，与 `TowerRun.activatedMateria` 元素类型绑定 */
+export type MateriaInstanceId = string
+
 export interface Materia {
   /** UUID，区分同类魔晶石的不同实例 */
-  instanceId: string
+  instanceId: MateriaInstanceId
   /** 1-3 条词条（spec §2.9） */
-  affixes: Affix[]
+  affixes: MateriaAffixes
 }
 
 // ============================================================
@@ -126,7 +135,7 @@ export interface TowerGraph {
   startNodeId: number
   /** Boss 节点 id */
   bossNodeId: number
-  /** 所有节点，key 为 node id */
+  /** 所有节点，key 为 node id（注意：TS `Record<number, T>` 在 runtime 实为字符串键，`Object.keys()` 返回 string[]） */
   nodes: Record<number, TowerNode>
 }
 
@@ -189,15 +198,15 @@ export interface TowerRun {
   crystals: number
   /** 当前装备武器 */
   currentWeapon: Weapon | null
-  /** 当前进阶 job id（切换武器时同步更新） */
+  /** 当前进阶 job id（切换武器时同步更新）；合法值来自 `src/jobs/` 定义 */
   advancedJobId: AdvancedJobId | null
   /** 背包中所有魔晶石 */
   materia: Materia[]
   /** 已激活的魔晶石 instanceId（MVP 上限 5） */
-  activatedMateria: string[]
+  activatedMateria: MateriaInstanceId[]
   /** 持有的策略卡 */
   relics: RelicCard[]
-  /** 已侦察节点信息，key 为 node id */
+  /** 已侦察节点信息，key 为 node id（runtime 字符串化，同 `TowerGraph.nodes`） */
   scoutedNodes: Record<number, ScoutInfo>
   /** 已通过/完成的节点 id（包含放弃低保走完的） */
   completedNodes: number[]
