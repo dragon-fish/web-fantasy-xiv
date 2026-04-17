@@ -206,4 +206,66 @@ describe('SkillResolver', () => {
       expect(resolver.tryUse(player, ability)).toBe(true)
     })
   })
+
+  describe('next_cast_instant buff integration', () => {
+    const SWIFT_BUFF = {
+      id: 'swift', name: 'Swift', type: 'buff' as const,
+      duration: 10000, stackable: false, maxStacks: 1,
+      effects: [{ type: 'next_cast_instant' as const, consumeOnCast: true }],
+    }
+
+    const STONE: SkillDef = {
+      id: 'stone', name: 'Stone', type: 'spell',
+      castTime: 2000, cooldown: 0, gcd: true,
+      targetType: 'single', requiresTarget: true, range: 20,
+      effects: [{ type: 'damage', potency: 2.0 }],
+    }
+
+    const SLASH: SkillDef = {
+      id: 'slash_ncs', name: 'Slash', type: 'weaponskill',
+      castTime: 0, cooldown: 0, gcd: true,
+      targetType: 'single', requiresTarget: true, range: 5,
+      effects: [{ type: 'damage', potency: 1.5 }],
+    }
+
+    it('spell with next_cast_instant buff: cast time reduced to 0 (no cast phase)', () => {
+      const { buffSystem, resolver, player } = setup()
+      buffSystem.applyBuff(player, SWIFT_BUFF, player.id)
+      resolver.tryUse(player, STONE)
+      // cast time 0 → resolveImmediate, no player.casting created
+      expect(player.casting).toBeNull()
+    })
+
+    it('spell consumes the buff on cast (consumeOnCast: true)', () => {
+      const { buffSystem, resolver, player } = setup()
+      buffSystem.applyBuff(player, SWIFT_BUFF, player.id)
+      expect(buffSystem.hasBuff(player, 'swift')).toBe(true)
+      resolver.tryUse(player, STONE)
+      expect(buffSystem.hasBuff(player, 'swift')).toBe(false)
+    })
+
+    it('weaponskill does NOT trigger next_cast_instant consumption', () => {
+      const { buffSystem, resolver, player } = setup()
+      buffSystem.applyBuff(player, SWIFT_BUFF, player.id)
+      resolver.tryUse(player, SLASH)
+      // buff NOT consumed (SLASH is weaponskill, not spell)
+      expect(buffSystem.hasBuff(player, 'swift')).toBe(true)
+    })
+
+    it('castTimeWithBuff hits first, next_cast_instant ignored if both apply', () => {
+      const { buffSystem, resolver, player } = setup()
+      const SPECIAL: SkillDef = {
+        ...STONE,
+        id: 'special',
+        castTimeWithBuff: { buffId: 'swift', castTime: 500, consumeStack: false },
+      }
+      buffSystem.applyBuff(player, SWIFT_BUFF, player.id)
+      resolver.tryUse(player, SPECIAL)
+      // castTimeWithBuff sets castTime=500 → startCast with casting.castTime=500
+      expect(player.casting).not.toBeNull()
+      expect(player.casting!.castTime).toBe(500)
+      // swift buff NOT consumed (consumeStack:false on skill-side branch; next_cast_instant branch not reached)
+      expect(buffSystem.hasBuff(player, 'swift')).toBe(true)
+    })
+  })
 })

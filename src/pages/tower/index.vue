@@ -1,10 +1,26 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTimeAgo } from '@vueuse/core'
 import { useTowerStore } from '@/stores/tower'
+import type { BaseJobId } from '@/tower/types'
+import { getJob, type PlayerJob } from '@/jobs'
 
 const router = useRouter()
 const tower = useTowerStore()
+
+const showAbandonDialog = ref(false)
+
+const displayJobName = computed(() => {
+  if (!tower.run) return ''
+  const id = tower.run.advancedJobId ?? tower.run.baseJobId
+  return getJob(id).name
+})
+
+const startedAtText = computed(() => {
+  if (!tower.run) return ''
+  return useTimeAgo(tower.run.startedAt).value
+})
 
 onMounted(async () => {
   await tower.hydrate()
@@ -14,10 +30,8 @@ function goHome() {
   router.push('/')
 }
 
-function onNewGame() {
-  // Phase 3 将在这里接"真正的职业选择流程".
-  // P2 的临时桥：硬编码 'swordsman'，让流程跑通到 selecting-job.
-  tower.startNewRun('swordsman')
+function onJobPick(job: PlayerJob): void {
+  tower.startNewRun(job.id as BaseJobId)
 }
 
 function onContinue() {
@@ -25,12 +39,16 @@ function onContinue() {
   void tower.continueLastRun()
 }
 
-function onTutorial() {
-  // Phase 7 将在这里装载教程塔 hand-crafted graph.
-}
-
 function onStartDescent() {
   tower.startDescent()
+}
+
+function onAbandon(): void {
+  // TODO(phase 6): hook up settlement system per GDD §2.16 —
+  // compute gold reward from run.level / run.crystals / run.materia,
+  // and show a settlement screen. For phase 3 we just clear the save.
+  tower.resetRun()
+  showAbandonDialog.value = false
 }
 </script>
 
@@ -41,26 +59,56 @@ MenuShell
     span.notice-text 本迷宫版本已更新，之前的下潜已关闭
     button.notice-dismiss(type="button" @click="tower.dismissSchemaNotice()") 知道了
 
-  //- ───────────────────────── no-run ─────────────────────────
-  .tower-panel(v-if="tower.phase === 'no-run'")
+  //- ───────────────── no-run no save ─────────────────
+  .tower-panel(v-if="tower.phase === 'no-run' && !tower.savedRunExists")
     .tower-title 爬塔模式
     .tower-subtitle 选择一个入口开始你的攀登
     .tower-actions
-      button.tower-btn.primary(type="button" @click="onNewGame") 新游戏
-      button.tower-btn.secondary(
-        type="button"
-        :disabled="!tower.savedRunExists"
-        @click="onContinue"
-      ) 继续
-      button.tower-btn.secondary(
-        type="button"
-        disabled
-        @click="onTutorial"
-      ) 教程
+      button.tower-btn.primary(type="button" @click="tower.enterJobPicker()") 新游戏
+      button.tower-btn.secondary(type="button" disabled) 教程
       button.tower-btn.tertiary(type="button" @click="goHome") 返回主菜单
 
-  //- ───────────────────── selecting-job ─────────────────────
-  .tower-panel(v-else-if="tower.phase === 'selecting-job' && tower.run")
+  //- ───────────────── no-run with save ─────────────────
+  .tower-panel(v-else-if="tower.phase === 'no-run' && tower.savedRunExists && tower.run")
+    .tower-title 爬塔模式
+    .tower-subtitle 进行中的下潜
+    .run-summary
+      .summary-row
+        span.label 职业
+        span.value {{ displayJobName }}
+      .summary-row
+        span.label 等级
+        span.value {{ tower.run.level }}
+      .summary-row
+        span.label 水晶
+        span.value {{ tower.run.crystals }}
+      .summary-row
+        span.label 开始于
+        span.value {{ startedAtText }}
+    .tower-actions
+      button.tower-btn.primary(type="button" @click="onContinue") 继续
+      button.tower-btn.secondary(type="button" @click="showAbandonDialog = true") 放弃并结算
+      button.tower-btn.tertiary(type="button" @click="goHome") 返回主菜单
+    CommonConfirmDialog(
+      v-if="showAbandonDialog"
+      title="确定放弃这次攀登吗？"
+      message="所有进度将丢失。"
+      confirm-text="放弃"
+      cancel-text="取消"
+      variant="danger"
+      @confirm="onAbandon"
+      @cancel="showAbandonDialog = false"
+    )
+
+  //- ─────────────────── selecting-job (phase 3 new: job picker) ───────────────────
+  TowerJobPicker(
+    v-else-if="tower.phase === 'selecting-job'"
+    @pick="onJobPick"
+    @back="tower.setPhase('no-run')"
+  )
+
+  //- ─────────────────── ready-to-descend ───────────────────
+  .tower-panel(v-else-if="tower.phase === 'ready-to-descend' && tower.run")
     .tower-title 准备下潜
     .tower-subtitle 确认你的装备后点击开始
     .tower-preview
@@ -195,6 +243,27 @@ MenuShell
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
+}
+
+.run-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  margin-bottom: 12px;
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+
+    .label { color: #888; }
+    .value { color: #ddd; }
   }
 }
 

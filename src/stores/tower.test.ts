@@ -4,7 +4,35 @@ import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { useTowerStore } from '@/stores/tower'
 import * as persistence from '@/tower/persistence'
+import { saveTowerRun, clearTowerRun } from '@/tower/persistence'
+import type { TowerRun } from '@/tower/types'
 import { TOWER_RUN_SCHEMA_VERSION } from '@/tower/types'
+
+async function injectSavedRun(partial: Partial<TowerRun> = {}): Promise<void> {
+  const run: TowerRun = {
+    schemaVersion: TOWER_RUN_SCHEMA_VERSION,
+    runId: 'test-run',
+    seed: 'test-seed',
+    graphSource: { kind: 'random' },
+    startedAt: Date.now(),
+    baseJobId: 'swordsman',
+    towerGraph: { startNodeId: 0, bossNodeId: 13, nodes: {} },
+    currentNodeId: 0,
+    determination: 5,
+    maxDetermination: 5,
+    level: 1,
+    crystals: 0,
+    currentWeapon: null,
+    advancedJobId: null,
+    materia: [],
+    activatedMateria: [],
+    relics: [],
+    scoutedNodes: {},
+    completedNodes: [],
+    ...partial,
+  }
+  await saveTowerRun(run)
+}
 
 describe('useTowerStore', () => {
   beforeEach(async () => {
@@ -15,6 +43,13 @@ describe('useTowerStore', () => {
 
   afterEach(async () => {
     await persistence.clearTowerRun()
+  })
+
+  it('startNewRun sets phase to ready-to-descend (not selecting-job)', () => {
+    const tower = useTowerStore()
+    tower.startNewRun('swordsman', 'test-seed')
+    expect(tower.phase).toBe('ready-to-descend')
+    expect(tower.run?.baseJobId).toBe('swordsman')
   })
 
   it('initial phase is "no-run"', () => {
@@ -28,10 +63,10 @@ describe('useTowerStore', () => {
     expect(store.savedRunExists).toBe(false)
   })
 
-  it('startNewRun mutates phase to "selecting-job" and creates a run', () => {
+  it('startNewRun mutates phase to "ready-to-descend" and creates a run', () => {
     const store = useTowerStore()
     store.startNewRun('swordsman', 'seed-xyz')
-    expect(store.phase).toBe('selecting-job')
+    expect(store.phase).toBe('ready-to-descend')
     expect(store.run).not.toBeNull()
     expect(store.run?.baseJobId).toBe('swordsman')
     expect(store.run?.seed).toBe('seed-xyz')
@@ -85,7 +120,7 @@ describe('useTowerStore', () => {
   })
 
   it('continueLastRun loads persisted run and sets phase to "in-path"', async () => {
-    // Seed IndexedDB with a run
+    // Seed IndexedDB with a run that has a populated graph (nodes non-empty → in-path)
     await persistence.saveTowerRun({
       schemaVersion: TOWER_RUN_SCHEMA_VERSION,
       runId: 'persisted-run',
@@ -93,7 +128,14 @@ describe('useTowerStore', () => {
       graphSource: { kind: 'random' },
       startedAt: 1_700_000_000_000,
       baseJobId: 'archer',
-      towerGraph: { startNodeId: 0, bossNodeId: 13, nodes: {} },
+      towerGraph: {
+        startNodeId: 0,
+        bossNodeId: 13,
+        nodes: {
+          0: { id: 0, step: 0, slot: 0, kind: 'start', next: [1] },
+          1: { id: 1, step: 1, slot: 0, kind: 'mob', next: [] },
+        },
+      },
       currentNodeId: 3,
       determination: 4,
       maxDetermination: 5,
@@ -186,10 +228,10 @@ describe('useTowerStore', () => {
   // Phase 2: startDescent
   // ------------------------------------------------------------
   describe('startDescent', () => {
-    it('generates graph and transitions to in-path when in selecting-job', () => {
+    it('generates graph and transitions to in-path when in ready-to-descend', () => {
       const store = useTowerStore()
       store.startNewRun('swordsman', 'descent-seed-1')
-      expect(store.phase).toBe('selecting-job')
+      expect(store.phase).toBe('ready-to-descend')
       store.startDescent()
       expect(store.phase).toBe('in-path')
       expect(Object.keys(store.run!.towerGraph.nodes).length).toBeGreaterThan(0)
@@ -267,7 +309,7 @@ describe('useTowerStore', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const store = useTowerStore()
       store.startNewRun('swordsman')
-      // phase 此时 = 'selecting-job'
+      // phase 此时 = 'ready-to-descend'
       store.advanceTo(0)
       expect(warn).toHaveBeenCalled()
     })
@@ -322,6 +364,7 @@ describe('useTowerStore', () => {
     })
 
     it('continueLastRun hydrates normally when schemaVersion matches', async () => {
+      // nodes is empty → phase inferred as ready-to-descend
       await persistence.saveTowerRun({
         schemaVersion: TOWER_RUN_SCHEMA_VERSION,
         runId: 'current-run',
@@ -345,7 +388,7 @@ describe('useTowerStore', () => {
       })
       const store = useTowerStore()
       await store.continueLastRun()
-      expect(store.phase).toBe('in-path')
+      expect(store.phase).toBe('ready-to-descend')
       expect(store.run?.runId).toBe('current-run')
       expect(store.schemaResetNotice).toBe(false)
     })
@@ -371,5 +414,75 @@ describe('useTowerStore', () => {
       store.startNewRun('swordsman')
       expect(store.schemaResetNotice).toBe(false)
     })
+  })
+
+  // ------------------------------------------------------------
+  // Phase 3: enterJobPicker
+  // ------------------------------------------------------------
+  it('enterJobPicker sets phase to selecting-job without creating a run', () => {
+    const tower = useTowerStore()
+    tower.enterJobPicker()
+    expect(tower.phase).toBe('selecting-job')
+    expect(tower.run).toBeNull()
+    expect(tower.savedRunExists).toBe(false)
+  })
+})
+
+describe('useTowerStore.hydrate', () => {
+  beforeEach(async () => {
+    setActivePinia(createPinia())
+    await clearTowerRun()
+  })
+
+  it('hydrate loads run data into run.value when schema matches, phase stays no-run', async () => {
+    await injectSavedRun({ level: 4, crystals: 127 })
+    const tower = useTowerStore()
+    await tower.hydrate()
+    expect(tower.phase).toBe('no-run')
+    expect(tower.savedRunExists).toBe(true)
+    expect(tower.run?.level).toBe(4)
+    expect(tower.run?.crystals).toBe(127)
+  })
+
+  it('hydrate leaves run null when no save exists', async () => {
+    const tower = useTowerStore()
+    await tower.hydrate()
+    expect(tower.savedRunExists).toBe(false)
+    expect(tower.run).toBeNull()
+  })
+
+  it('continueLastRun infers ready-to-descend when graph.nodes is empty', async () => {
+    await injectSavedRun({ towerGraph: { startNodeId: 0, bossNodeId: 13, nodes: {} } })
+    const tower = useTowerStore()
+    await tower.hydrate()
+    await tower.continueLastRun()
+    expect(tower.phase).toBe('ready-to-descend')
+  })
+
+  it('continueLastRun infers in-path when graph.nodes is populated', async () => {
+    await injectSavedRun({
+      towerGraph: {
+        startNodeId: 0,
+        bossNodeId: 13,
+        nodes: {
+          0: { id: 0, step: 0, slot: 0, kind: 'start', next: [1] },
+          1: { id: 1, step: 1, slot: 0, kind: 'mob', next: [] },
+        },
+      },
+    })
+    const tower = useTowerStore()
+    await tower.hydrate()
+    await tower.continueLastRun()
+    expect(tower.phase).toBe('in-path')
+  })
+
+  it('hydrate resets phase to no-run even when a prior in-path phase exists in session', async () => {
+    await injectSavedRun({ towerGraph: { startNodeId: 0, bossNodeId: 13, nodes: { 0: { id: 0, step: 0, slot: 0, kind: 'start', next: [1] } } } })
+    const tower = useTowerStore()
+    // Simulate session-state where phase advanced earlier
+    tower.setPhase('in-path')
+    expect(tower.phase).toBe('in-path')
+    await tower.hydrate()
+    expect(tower.phase).toBe('no-run')
   })
 })

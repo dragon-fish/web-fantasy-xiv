@@ -76,6 +76,16 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     maxStacks: 1,
     effects: [{ type: 'damage_immunity' }],
   },
+  lucid_dreaming: {
+    id: 'lucid_dreaming',
+    name: '醒梦',
+    description: '持续恢复 MP。',
+    type: 'buff',
+    duration: 21000,
+    stackable: false,
+    maxStacks: 1,
+    effects: [{ type: 'mp_regen', potency: 0.05, interval: 3000 }],
+  },
 }
 
 // Map version for tooltip lookups

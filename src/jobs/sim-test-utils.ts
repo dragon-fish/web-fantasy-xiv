@@ -8,10 +8,10 @@
 import { EventBus } from '@/core/event-bus'
 import { EntityManager } from '@/entity/entity-manager'
 import { BuffSystem } from '@/combat/buff'
+import { tickPeriodicBuffs } from '@/combat/buff-periodic'
 import { Arena } from '@/arena/arena'
 import { CombatResolver } from '@/game/combat-resolver'
 import type { SkillDef } from '@/core/types'
-import type { Entity } from '@/entity/entity'
 import type { PlayerJob } from '@/jobs'
 
 // ─── Types ──────────────────────────────────────────
@@ -58,7 +58,14 @@ export function simulate(job: PlayerJob, rotation: Rotation, duration = SIM_DURA
   const entityMgr = new EntityManager(bus)
   const buffSystem = new BuffSystem(bus)
   const arena = new Arena({ name: 'test', shape: { type: 'circle', radius: 50 }, boundary: 'wall' })
-  const resolver = new CombatResolver(bus, entityMgr, buffSystem, arena)
+  // Track sim-local game time so CombatResolver can schedule periodic ticks.
+  // Updated each frame below as `simTime = t + TICK` (end-of-frame, matching tickPeriodicBuffs).
+  let simTime = 0
+  const resolver = new CombatResolver(
+    bus, entityMgr, buffSystem, arena,
+    undefined, undefined,
+    () => simTime,
+  )
 
   const boss = entityMgr.create({ id: 'boss', type: 'boss', attack: 1, hp: 9999999, maxHp: 9999999 })
   const player = entityMgr.create({
@@ -73,12 +80,9 @@ export function simulate(job: PlayerJob, rotation: Rotation, duration = SIM_DURA
 
   resolver.registerBuffs(job.buffs)
 
-  let totalDamage = 0
-  bus.on('damage:dealt', (payload: { amount: number; target: Entity }) => {
-    if (payload.target.id === 'boss' && payload.amount > 0) {
-      totalDamage += payload.amount
-    }
-  })
+  // Track boss damage by HP delta so DoT / periodic effects (which mutate hp
+  // directly without emitting damage:dealt) are accounted for alongside direct hits.
+  const bossStartHp = boss.hp
 
   // ─── State ────────────────────────────────
   const baseGcd = job.stats.gcdDuration ?? 2500
@@ -143,7 +147,16 @@ export function simulate(job: PlayerJob, rotation: Rotation, duration = SIM_DURA
   const TICK = 100
 
   for (let t = 0; t < duration; t += TICK) {
-    buffSystem.update(player, TICK)
+    // Advance sim time to end-of-frame — CombatResolver reads this via getter
+    // when scheduling periodic buff nextTickAt, matching tickPeriodicBuffs below.
+    simTime = t + TICK
+    // Tick buffs on all alive entities (not just player)
+    const alive = entityMgr.getAlive()
+    for (const e of alive) {
+      buffSystem.update(e, TICK)
+    }
+    // Tick periodic effects using elapsed game time (t + TICK = end of this frame)
+    tickPeriodicBuffs(alive, t + TICK, buffSystem)
 
     // Passive buffs
     for (const pb of passiveBuffs) {
@@ -223,6 +236,7 @@ export function simulate(job: PlayerJob, rotation: Rotation, duration = SIM_DURA
     }
   }
 
+  const totalDamage = bossStartHp - boss.hp
   const dps = totalDamage / (duration / 1000)
   return { totalDamage, dps }
 }

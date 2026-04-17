@@ -183,10 +183,25 @@ export const TOWER_RUN_SCHEMA_VERSION = 1 as const
 // TowerRun — 局内持久化状态的根对象
 // ============================================================
 
-/** 运行阶段（状态机 discriminator；spec §7.4） */
+/**
+ * 运行阶段（状态机 discriminator；spec §7.4 / phase 3 §3.4）.
+ *
+ * Semantics:
+ * - 'no-run': No run instance; UI chooses no-save vs save-summary view based on savedRunExists
+ * - 'selecting-job': Player on job picker screen; no run created yet
+ * - 'ready-to-descend': Run created and persisted; player in pre-descent lobby awaiting "Start Descent"
+ * - 'in-path': On tower map, advancing through nodes
+ * - 'in-combat': In battle (phase 4/5 feature)
+ * - 'ended': Run ended (victory or determination exhausted)
+ *
+ * NOTE: Before phase 3, 'selecting-job' held the "pre-descent lobby" semantics;
+ * phase 3 split that into 'selecting-job' (real job pick) + 'ready-to-descend'
+ * (pre-descent lobby). See spec §3.4 for rationale.
+ */
 export type TowerRunPhase =
   | 'no-run'
   | 'selecting-job'
+  | 'ready-to-descend'
   | 'in-path'
   | 'in-combat'
   | 'ended'

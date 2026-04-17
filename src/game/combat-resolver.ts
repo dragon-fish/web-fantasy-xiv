@@ -5,6 +5,7 @@ import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
 import type { DamageType, SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
+import { applyPeriodicBuff, isPeriodicEffect } from '@/combat/buff-periodic'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import { EASING, type EasingFn } from './displacement-animator'
 import type { AoeZoneManager } from '@/skill/aoe-zone'
@@ -28,6 +29,7 @@ export class CombatResolver {
     private arena: Arena,
     private zoneMgr?: AoeZoneManager,
     private displacer?: DisplacementAnimator,
+    private gameTimeGetter: () => number = () => 0,
   ) {
     // Single-target skill effects
     bus.on('skill:cast_complete', (payload: { caster: Entity; skill: SkillDef | any }) => {
@@ -80,14 +82,30 @@ export class CombatResolver {
           break
 
         case 'apply_buff': {
-          // Self-buff: apply to caster; AoE debuff: apply to target
           const buffDef = this.buffDefs.get(effect.buffId)
-          if (!buffDef) break
-          // Debuffs apply to target, buffs apply to caster (self)
-          const buffTarget = buffDef.type === 'debuff' ? target : (caster ?? target)
+          if (!buffDef) {
+            console.warn(`[combat] apply_buff: unknown buff def '${effect.buffId}'`)
+            break
+          }
+          // Explicit target routing takes priority; otherwise fall back to
+          // type-based inference (debuff → target, buff → caster).
+          let buffTarget: Entity | null | undefined
+          if (effect.target === 'target') {
+            buffTarget = target
+          } else if (effect.target === 'caster') {
+            buffTarget = caster
+          } else {
+            buffTarget = buffDef.type === 'debuff' ? target : (caster ?? target)
+          }
           if (!buffTarget) break
-          const stacks = effect.stacks ?? 1
-          this.buffSystem.applyBuff(buffTarget, buffDef, (caster ?? buffTarget).id, stacks, effect.duration)
+          const sourceCaster = caster ?? buffTarget
+          const hasPeriodic = buffDef.effects.some(isPeriodicEffect)
+          if (hasPeriodic) {
+            applyPeriodicBuff(buffTarget, buffDef, sourceCaster, this.gameTimeGetter(), this.buffSystem)
+          } else {
+            const stacks = effect.stacks ?? 1
+            this.buffSystem.applyBuff(buffTarget, buffDef, sourceCaster.id, stacks, effect.duration)
+          }
           break
         }
 

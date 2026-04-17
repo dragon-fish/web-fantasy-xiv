@@ -8,6 +8,11 @@ export class BuffSystem {
 
   constructor(private bus: EventBus) {}
 
+  /** Access the event bus for external modules needing to emit buff-related events. */
+  get eventBus(): EventBus {
+    return this.bus
+  }
+
   registerDef(def: BuffDef): void {
     this.defs.set(def.id, def)
   }

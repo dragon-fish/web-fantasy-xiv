@@ -56,7 +56,7 @@ export type DamageType =
 export type SkillEffectDef =
   | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[] }
   | { type: 'heal'; potency: number }
-  | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number }
+  | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number; target?: 'caster' | 'target' }
   | { type: 'consume_buffs'; buffIds: string[] }                         // remove listed buffs from caster on resolve
   | { type: 'consume_all_buff_stacks'; buffId: string }                  // remove all stacks of a buff
   | { type: 'consume_buff_stacks'; buffId: string; stacks: number }      // remove N stacks from a buff
@@ -130,6 +130,8 @@ export type BuffEffectDef =
   | { type: 'stun' }
   | { type: 'invulnerable' }                 // all non-special attacks are fully negated (no damage, no displacement)
   | { type: 'damage_immunity' }              // all non-special damage negated, but displacement still applies
+  | { type: 'mp_regen'; potency: number; interval: number }
+  | { type: 'next_cast_instant'; consumeOnCast: boolean }
 
 export interface BuffDef {
   id: string
@@ -151,6 +153,18 @@ export interface BuffDef {
   /** Shield buff: stacks = shield HP, absorbs damage before HP.
    *  Re-application only replaces if new shield has both more stacks AND longer duration. */
   shield?: boolean
+  /**
+   * If true, this buff survives entity death and remains on the entity.
+   * Default false (buff is cleared on death, matching FF14 Raise semantics).
+   * Use true for battlefield mechanics (The Echo), tank stances, or "weakness"-style
+   * debuffs that intentionally persist across death/revive.
+   *
+   * NOTE: The actual "clear on death" runtime handler is phase 4/5 work;
+   * in phase 3 this flag has no runtime consumer. All buffs currently persist
+   * across death regardless of this flag. Adding the flag now so phase 3 buff
+   * definitions can declare their intent without requiring later migration.
+   */
+  preserveOnDeath?: boolean
   effects: BuffEffectDef[]
 }
 

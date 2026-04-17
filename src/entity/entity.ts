@@ -1,5 +1,5 @@
 // src/entity/entity.ts
-import type { EntityType, Vec3 } from '@/core/types'
+import type { EntityType, Vec3, DamageType } from '@/core/types'
 
 export interface CastState {
   skillId: string
@@ -8,11 +8,38 @@ export interface CastState {
   castTime: number   // ms total
 }
 
+/** Periodic effect scheduling and snapshot; undefined for non-periodic buff instances */
+export interface PeriodicState {
+  /** Next tick's in-game timestamp (ms, aligned with GameLoop.logicTime) */
+  nextTickAt: number
+  /** Tick period (ms), copied from buff effect.interval at apply time */
+  interval: number
+  /** Current periodic effect type; determines tick behavior */
+  effectType: 'dot' | 'hot' | 'mp_regen'
+  /** Caster-side snapshot; target-side (mitigation/vulnerability) is read live at tick time */
+  snapshot: {
+    /** caster.attack at apply time (used by dot/hot; placeholder 0 for mp_regen) */
+    attack: number
+    /** All damage_increase buff values on caster at apply (part of the additive pool); used by dot/hot */
+    casterIncreases: number[]
+    /** Potency of this periodic effect, copied from buff effect.potency for tick-time access */
+    potency: number
+    /** mp_regen only: target.maxMp at apply (mp_regen amount = targetMaxMp × potency) */
+    targetMaxMp?: number
+  }
+  /** dot only: damage type; omitted for hot/mp_regen */
+  damageType?: DamageType | DamageType[]
+  /** Caster entity id; caster death does not stop ticks, used for tracing / UI attribution */
+  sourceCasterId: string
+}
+
 export interface BuffInstance {
   defId: string
   sourceId: string
   remaining: number  // ms remaining, 0 = permanent
   stacks: number
+  /** Periodic effect scheduling; undefined for non-periodic buffs */
+  periodic?: PeriodicState
 }
 
 export interface Entity {

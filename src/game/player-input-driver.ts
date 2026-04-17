@@ -85,7 +85,6 @@ export class PlayerInputDriver {
     if (this.displacer?.isAnimating(p.id)) {
       this.input.consumeSkillPress() // discard pending skill press
       this.skillResolver.updateAll(dt)
-      this.buffSystem.update(p, dt)
       this.tickRegen(p, dt)
       return null
     }
@@ -171,8 +170,8 @@ export class PlayerInputDriver {
     }
 
     // Tick ALL entities' GCD / casting / cooldowns
+    // NOTE: buff duration tick is centralized in GameScene (covers all alive entities)
     this.skillResolver.updateAll(dt)
-    this.buffSystem.update(p, dt)
 
     this.tickLeyLines(p, dt)
     this.tickRegen(p, dt)

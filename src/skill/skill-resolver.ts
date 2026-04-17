@@ -103,12 +103,34 @@ export class SkillResolver {
 
     // Resolve actual cast time (may be overridden by buff, then reduced by haste)
     let actualCastTime = skill.castTime
+    // Cached next_cast_instant buff id to consume after the instant cast resolves.
+    // Deferred consumption ensures an interrupted/failed apply keeps the buff.
+    let consumeSwiftBuffId: string | null = null
+
     if (skill.castTimeWithBuff && this.buffSystem.hasBuff(caster, skill.castTimeWithBuff.buffId)) {
       actualCastTime = skill.castTimeWithBuff.castTime
       if (skill.castTimeWithBuff.consumeStack) {
         this.buffSystem.removeStacks(caster, skill.castTimeWithBuff.buffId, 1)
       }
+    } else if (skill.type === 'spell') {
+      // next_cast_instant: scan caster buffs for the effect (priority below castTimeWithBuff)
+      const swiftInst = caster.buffs.find((b) => {
+        const def = this.buffSystem.getDef(b.defId)
+        return def?.effects.some((e) => e.type === 'next_cast_instant')
+      })
+      if (swiftInst) {
+        const def = this.buffSystem.getDef(swiftInst.defId)!
+        const effect = def.effects.find((e) => e.type === 'next_cast_instant') as {
+          type: 'next_cast_instant'
+          consumeOnCast: boolean
+        }
+        actualCastTime = 0
+        if (effect.consumeOnCast) {
+          consumeSwiftBuffId = swiftInst.defId
+        }
+      }
     }
+
     const haste = this.buffSystem.getHaste(caster)
     if (haste > 0 && actualCastTime > 0) {
       actualCastTime = Math.round(actualCastTime * (1 - haste))
@@ -117,6 +139,10 @@ export class SkillResolver {
     // Execute
     if (skill.type === 'spell' && actualCastTime > 0) {
       return this.startCast(caster, skill, actualCastTime)
+    }
+    // Instant path: consume next_cast_instant buff right before resolveImmediate
+    if (consumeSwiftBuffId) {
+      this.buffSystem.removeBuff(caster, consumeSwiftBuffId, 'consumed')
     }
     return this.resolveImmediate(caster, skill)
   }

@@ -92,7 +92,7 @@ export const useTowerStore = defineStore('tower', () => {
   // ---- actions ----
   function startNewRun(baseJobId: BaseJobId, seed?: string): void {
     run.value = createInitialRun(baseJobId, seed ?? generateSeed())
-    phase.value = 'selecting-job'
+    phase.value = 'ready-to-descend'
     savedRunExists.value = true
     schemaResetNotice.value = false // 开新局时清掉遗留横条
   }
@@ -114,7 +114,9 @@ export const useTowerStore = defineStore('tower', () => {
     }
     suppressPersist = true
     run.value = loaded
-    phase.value = 'in-path'
+    // Infer phase from run state: empty graph.nodes → ready-to-descend; otherwise in-path
+    const nodesCount = Object.keys(loaded.towerGraph.nodes).length
+    phase.value = nodesCount === 0 ? 'ready-to-descend' : 'in-path'
     savedRunExists.value = true
     // Restore persistence after Vue's flush cycle so the phase watch doesn't
     // fire a spurious save for the load itself. nextTick() waits for all
@@ -140,7 +142,7 @@ export const useTowerStore = defineStore('tower', () => {
       console.warn('[tower] startDescent called without active run')
       return
     }
-    if (phase.value !== 'selecting-job') {
+    if (phase.value !== 'ready-to-descend') {
       console.warn(`[tower] startDescent called in wrong phase: ${phase.value}`)
       return
     }
@@ -181,13 +183,31 @@ export const useTowerStore = defineStore('tower', () => {
     void saveTowerRun(toRaw(run.value))
   }
 
+  function enterJobPicker(): void {
+    if (run.value !== null) {
+      console.warn('[tower] enterJobPicker called while run exists; ignoring')
+      return
+    }
+    phase.value = 'selecting-job'
+  }
+
   function dismissSchemaNotice(): void {
     schemaResetNotice.value = false
   }
 
   async function hydrate(): Promise<void> {
+    suppressPersist = true
     const loaded = await loadTowerRun()
     savedRunExists.value = loaded !== null
+    // Always land on the no-run UI when entering /tower — the save-aware branch
+    // will show the save summary if one exists. Resetting here prevents stale
+    // in-path phase from a prior session bypassing the summary screen.
+    phase.value = 'no-run'
+    if (loaded && loaded.schemaVersion === TOWER_RUN_SCHEMA_VERSION) {
+      run.value = loaded
+    }
+    await nextTick()
+    suppressPersist = false
   }
 
   // ---- persistence hook ----
@@ -221,10 +241,11 @@ export const useTowerStore = defineStore('tower', () => {
     resetRun,
     setPhase,
     hydrate,
-    startDescent, // ← new
-    advanceTo, // ← new
-    schemaResetNotice, // ← new
-    dismissSchemaNotice, // ← new
+    startDescent,
+    advanceTo,
+    enterJobPicker,
+    schemaResetNotice,
+    dismissSchemaNotice,
   }
 })
 

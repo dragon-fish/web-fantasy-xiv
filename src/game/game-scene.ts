@@ -10,6 +10,7 @@ import { EntityManager } from '@/entity/entity-manager'
 import { GameLoop } from '@/core/game-loop'
 import { SkillResolver } from '@/skill/skill-resolver'
 import { BuffSystem } from '@/combat/buff'
+import { tickPeriodicBuffs } from '@/combat/buff-periodic'
 import { AoeZoneManager } from '@/skill/aoe-zone'
 import { Arena } from '@/arena/arena'
 import { InputManager } from '@/input/input-manager'
@@ -101,7 +102,11 @@ export class GameScene {
     this.displacer = new DisplacementAnimator(this.arena)
     this.zoneMgr = new AoeZoneManager(this.bus, this.entityMgr)
     this.skillResolver = new SkillResolver(this.bus, this.entityMgr, this.buffSystem, this.zoneMgr)
-    this.combatResolver = new CombatResolver(this.bus, this.entityMgr, this.buffSystem, this.arena, this.zoneMgr, this.displacer)
+    this.combatResolver = new CombatResolver(
+      this.bus, this.entityMgr, this.buffSystem, this.arena,
+      this.zoneMgr, this.displacer,
+      () => this.gameLoop.logicTime,
+    )
 
     // Rendering
     this.sceneManager = new SceneManager(config.engine)
@@ -150,6 +155,13 @@ export class GameScene {
 
       const result = this.playerDriver.update(dt)
       if (result === 'pause') { this.pause(); return }
+
+      // Tick all alive entities' buff durations + periodic effects in one pass
+      const alive = this.entityMgr.getAlive()
+      for (const e of alive) {
+        this.buffSystem.update(e, dt)
+      }
+      tickPeriodicBuffs(alive, this.gameLoop.logicTime, this.buffSystem)
 
       this.onLogicTick?.(dt)
 

@@ -87,3 +87,18 @@ export const ROLE_SECOND_WIND: SkillDef = {
   range: 0, mpCost: 0,
   effects: [{ type: 'heal', potency: 3.5 }],
 }
+
+/** Caster role skill: MP regen over time (21s / 3s interval = 7 ticks × 5% = 35% max MP) */
+export const ROLE_LUCID_DREAMING: SkillDef = {
+  id: 'role_lucid_dreaming',
+  name: '醒梦',
+  type: 'ability',
+  castTime: 0,
+  cooldown: 60000,
+  gcd: false,
+  targetType: 'single',
+  requiresTarget: false,
+  range: 0,
+  mpCost: 0,
+  effects: [{ type: 'apply_buff', buffId: 'lucid_dreaming' }],
+}
