@@ -20,6 +20,7 @@ import { PlayerInputDriver, type PlayerInputConfig } from './player-input-driver
 import { DisplacementAnimator } from './displacement-animator'
 import { DevTerminal } from '@/devtools/dev-terminal'
 import { CommandRegistry } from '@/devtools/commands'
+import { COMMON_BUFFS } from '@/jobs/commons/buffs'
 import type { ArenaDef, BuffDef } from '@/core/types'
 import type { Entity } from '@/entity/entity'
 import type { CreateEntityOptions } from '@/entity/entity'
@@ -116,11 +117,16 @@ export class GameScene {
     this.hitEffectRenderer = new HitEffectRenderer(this.sceneManager.scene, this.bus, this.entityRenderer)
 
     // Input + Camera
-    this.input = new InputManager(config.engine.getRenderingCanvas()!)
+    this.input = new InputManager(
+      config.engine.getRenderingCanvas()!,
+      () => this.devTerminal?.isVisible() ?? false,
+    )
     this.camera = new CameraController()
 
     // DevTerminal (only remaining vanilla UI)
-    this.devTerminal = new DevTerminal(this.bus, new CommandRegistry())
+    const registry = new CommandRegistry()
+    if (import.meta.env.DEV) this.registerDevCommands(registry)
+    this.devTerminal = new DevTerminal(this.bus, registry)
     this.devTerminal.mount(config.uiRoot)
   }
 
@@ -215,5 +221,16 @@ export class GameScene {
   dispose(): void {
     this.sceneManager.dispose()
     this.input.dispose()
+  }
+
+  /** Register dev-mode-only debug commands. Gated by import.meta.env.DEV at caller. */
+  private registerDevCommands(registry: CommandRegistry): void {
+    registry.register('opm', '[dev] Apply 一拳超人 buff (+999% damage) to player', () => {
+      if (!this.player) return 'Player not spawned yet.'
+      const buff = COMMON_BUFFS.one_punch_man
+      this.combatResolver.registerBuffs({ one_punch_man: buff })
+      this.buffSystem.applyBuff(this.player, buff, 'devtools')
+      return `Applied ${buff.name}: ${buff.description}`
+    })
   }
 }

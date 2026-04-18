@@ -1,0 +1,51 @@
+# public/encounters/tower/mob-fallback.yaml
+#
+# Defensive fallback encounter for tower mode.
+# 当 resolveEncounter 找不到目标 id 时（Registry 契约被违反，通常是策划误删 YAML），
+# 引擎 fallback 到这个 encounter，保证战斗可以进行而非白屏。
+#
+# 不进 Active Pool（manifest deprecated = 'never-in-pool'）；玩家正常运营永远不会打到这个。
+
+arena:
+  name: 未知区域
+  shape: circle
+  radius: 15
+  boundary: wall
+
+entities:
+  boss:
+    type: mob
+    group: boss
+    hp: 20000
+    attack: 150
+    speed: 2
+    size: 1.2
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 4
+    aggroRange: 8
+
+player:
+  position: { x: 0, y: -12, z: 0 }
+
+boss_ai:
+  chaseRange: 4
+  autoAttackRange: 4
+  autoAttackInterval: 3000
+  aggroRange: 8
+
+local_skills:
+  boss_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 4
+    effects: [{ type: damage, potency: 1 }]
+
+skills: {}
+
+phases:
+  phase_default:
+    actions:
+      - { at: 0, action: enable_ai }

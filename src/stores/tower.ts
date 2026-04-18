@@ -11,8 +11,10 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch, toRaw, nextTick, type Ref } from 'vue'
 import type { TowerRun, TowerRunPhase, BaseJobId } from '@/tower/types'
 import { TOWER_RUN_SCHEMA_VERSION } from '@/tower/types'
+import { TOWER_BLUEPRINT_CURRENT, TOWER_BLUEPRINT_MIN_SUPPORTED } from '@/tower/blueprint/version'
 import { saveTowerRun, loadTowerRun, clearTowerRun } from '@/tower/persistence'
 import { generateTowerGraph } from '@/tower/graph/generator'
+import { pickEncounterIdFromActivePool, resolveEncounter } from '@/tower/pools/encounter-pool'
 
 /**
  * Generate a run id. Uses crypto.randomUUID when available; falls back to
@@ -43,6 +45,7 @@ function generateSeed(): string {
 function createInitialRun(baseJobId: BaseJobId, seed: string): TowerRun {
   return {
     schemaVersion: TOWER_RUN_SCHEMA_VERSION,
+    blueprintVersion: TOWER_BLUEPRINT_CURRENT,
     runId: generateRunId(),
     seed,
     graphSource: { kind: 'random' },
@@ -61,6 +64,7 @@ function createInitialRun(baseJobId: BaseJobId, seed: string): TowerRun {
     relics: [],
     scoutedNodes: {},
     completedNodes: [],
+    pendingCombatNodeId: null,
   }
 }
 
@@ -112,6 +116,25 @@ export const useTowerStore = defineStore('tower', () => {
       schemaResetNotice.value = true
       return
     }
+    // Phase 4: blueprint version gate — after schemaVersion passes, before loading run state
+    if (loaded.blueprintVersion === undefined || loaded.blueprintVersion < TOWER_BLUEPRINT_MIN_SUPPORTED) {
+      console.warn(
+        `[tower] saved run blueprintVersion ${loaded.blueprintVersion} ` +
+          `< MIN_SUPPORTED ${TOWER_BLUEPRINT_MIN_SUPPORTED}, resetting`,
+      )
+      resetRun()
+      schemaResetNotice.value = true
+      return
+    }
+    if (loaded.blueprintVersion > TOWER_BLUEPRINT_CURRENT) {
+      console.error(
+        `[tower] saved run blueprintVersion ${loaded.blueprintVersion} ` +
+          `> CURRENT ${TOWER_BLUEPRINT_CURRENT} (impossible rollback?), resetting`,
+      )
+      resetRun()
+      schemaResetNotice.value = true
+      return
+    }
     suppressPersist = true
     run.value = loaded
     // Infer phase from run state: empty graph.nodes → ready-to-descend; otherwise in-path
@@ -137,7 +160,7 @@ export const useTowerStore = defineStore('tower', () => {
     phase.value = next
   }
 
-  function startDescent(): void {
+  async function startDescent(): Promise<void> {
     if (!run.value) {
       console.warn('[tower] startDescent called without active run')
       return
@@ -147,6 +170,24 @@ export const useTowerStore = defineStore('tower', () => {
       return
     }
     const graph = generateTowerGraph(run.value.seed)
+    // Crystallize encounterId for each battle node (phase 4: mob only; elite/boss
+    // kind assignment supported but empty pool in phase 4 — encounterId stays
+    // undefined for those kinds, UI will disable their [进入] button).
+    const battleKinds: ReadonlyArray<'mob' | 'elite' | 'boss'> = ['mob', 'elite', 'boss']
+    for (const node of Object.values(graph.nodes)) {
+      if (battleKinds.includes(node.kind as any)) {
+        try {
+          node.encounterId = await pickEncounterIdFromActivePool(
+            run.value.seed,
+            node.id,
+            node.kind as 'mob' | 'elite' | 'boss',
+          )
+        } catch (err) {
+          // Empty pool for elite / boss in phase 4 is expected — leave encounterId undefined
+          console.warn(`[tower] no active pool for kind='${node.kind}' (nodeId=${node.id}):`, err)
+        }
+      }
+    }
     run.value.towerGraph = graph
     run.value.currentNodeId = graph.startNodeId
     phase.value = 'in-path'
@@ -181,6 +222,88 @@ export const useTowerStore = defineStore('tower', () => {
     // advanceTo 不改 phase，不会触发 watchPhaseForPersistence；
     // 手动 fire-and-forget 写盘，失败不回滚
     void saveTowerRun(toRaw(run.value))
+  }
+
+  async function scoutNode(nodeId: number): Promise<boolean> {
+    if (!run.value) return false
+    if (run.value.scoutedNodes[nodeId]) return true // idempotent — already scouted
+    if (run.value.crystals < 1) return false
+    const node = run.value.towerGraph.nodes[nodeId]
+    if (!node) return false
+    run.value.crystals -= 1
+    // Resolve encounter meta for scoutSummary (battle nodes only)
+    let enemySummary: string | null = null
+    if (node.encounterId) {
+      const entry = await resolveEncounter(node.encounterId)
+      enemySummary = entry.scoutSummary
+    }
+    run.value.scoutedNodes[nodeId] = {
+      scoutedAt: Date.now(),
+      conditions: [], // phase 5: battlefield conditions
+      enemySummary,
+    }
+    void saveTowerRun(toRaw(run.value))
+    return true
+  }
+
+  function enterCombat(nodeId: number): void {
+    if (!run.value) return
+    if (phase.value !== 'in-path') {
+      console.warn(`[tower] enterCombat called in wrong phase: ${phase.value}`)
+      return
+    }
+    const node = run.value.towerGraph.nodes[nodeId]
+    if (!node) return
+    // Phase 4: only mob kind enters combat; elite/boss are phase 5 stubs
+    if (node.kind !== 'mob') {
+      console.warn(`[tower] enterCombat on kind='${node.kind}' is not supported in phase 4`)
+      return
+    }
+    if (!node.encounterId) {
+      console.error(`[tower] enterCombat: mob node ${nodeId} has no encounterId (startDescent bug?)`)
+      return
+    }
+    // Do NOT advance currentNodeId here — the token stays on the previous node
+    // until the battle resolves (victory or abandon). This prevents browser
+    // refresh during combat from letting the player skip the fight.
+    // GDD §2.4: lock the route choice so browser refresh can't bypass it.
+    run.value.pendingCombatNodeId = nodeId
+    phase.value = 'in-combat'
+  }
+
+  function resolveVictory(nodeId: number, crystalsReward: number): void {
+    if (!run.value) return
+    if (!run.value.completedNodes.includes(nodeId)) {
+      run.value.completedNodes.push(nodeId)
+    }
+    run.value.crystals += crystalsReward
+    run.value.pendingCombatNodeId = null
+    phase.value = 'in-path'
+    void saveTowerRun(toRaw(run.value))
+  }
+
+  function deductDeterminationOnWipe(amount: number): void {
+    if (!run.value) return
+    run.value.determination = Math.max(0, run.value.determination - amount)
+    void saveTowerRun(toRaw(run.value))
+  }
+
+  function abandonCurrentCombat(nodeId: number, crystalsRewardFull: number): void {
+    if (!run.value) return
+    if (!run.value.completedNodes.includes(nodeId)) {
+      run.value.completedNodes.push(nodeId)
+    }
+    run.value.crystals += Math.floor(crystalsRewardFull / 2)
+    run.value.pendingCombatNodeId = null
+    phase.value = 'in-path'
+    void saveTowerRun(toRaw(run.value))
+  }
+
+  function checkEndedCondition(): void {
+    if (!run.value) return
+    if (run.value.determination <= 0 && phase.value !== 'ended' && phase.value !== 'no-run') {
+      phase.value = 'ended'
+    }
   }
 
   function enterJobPicker(): void {
@@ -243,6 +366,12 @@ export const useTowerStore = defineStore('tower', () => {
     hydrate,
     startDescent,
     advanceTo,
+    scoutNode,
+    enterCombat,
+    resolveVictory,
+    deductDeterminationOnWipe,
+    abandonCurrentCombat,
+    checkEndedCondition,
     enterJobPicker,
     schemaResetNotice,
     dismissSchemaNotice,

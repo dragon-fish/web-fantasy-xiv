@@ -2,7 +2,7 @@
 import { parse as parseYaml } from 'yaml'
 import { parseArenaConfig, parseSkillConfig } from '@/config/schema'
 import { flattenTimeline, parsePhases } from '@/timeline/timeline-parser'
-import type { ArenaDef, SkillDef } from '@/core/types'
+import type { ArenaDef, BuffDef, SkillDef } from '@/core/types'
 import type { PhaseDef, TimelineAction } from '@/config/schema'
 import type { BossBehaviorConfig } from '@/ai/boss-behavior'
 import type { CreateEntityOptions } from '@/entity/entity'
@@ -17,6 +17,8 @@ export interface EncounterData {
   player: Partial<CreateEntityOptions>
   bossAI: Partial<BossBehaviorConfig>
   skills: Map<string, SkillDef>
+  /** Buff definitions local to this encounter; registered into combatResolver at scene init. */
+  localBuffs: Record<string, BuffDef>
   /** Flat timeline (backward compat — equals phase_default actions) */
   timeline: TimelineAction[]
   /** Phase definitions (always has at least phase_default) */
@@ -107,11 +109,29 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
     }
   }
 
+  // Local buffs (defined inline in encounter YAML)
+  const localBuffs: Record<string, BuffDef> = {}
+  if (raw.local_buffs) {
+    for (const [id, def] of Object.entries(raw.local_buffs as Record<string, any>)) {
+      localBuffs[id] = {
+        id,
+        name: def.name ?? id,
+        type: def.type ?? 'buff',
+        duration: def.duration ?? 0,
+        stackable: def.stackable ?? false,
+        maxStacks: def.maxStacks ?? 1,
+        effects: def.effects ?? [],
+        ...(def.icon != null ? { icon: def.icon } : {}),
+        ...(def.preserveOnDeath != null ? { preserveOnDeath: def.preserveOnDeath } : {}),
+      }
+    }
+  }
+
   // Timeline & Phases
   const phases = parsePhases(raw.phases, raw.timeline)
   const timeline = phases.find((p) => p.id === 'phase_default')?.actions ?? []
 
-  return { arena, entities, boss, player, bossAI, skills, timeline, phases }
+  return { arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs }
 }
 
 /** Parse a single entity definition from YAML into CreateEntityOptions */

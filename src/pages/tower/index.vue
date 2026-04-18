@@ -1,15 +1,49 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTimeAgo } from '@vueuse/core'
 import { useTowerStore } from '@/stores/tower'
-import type { BaseJobId } from '@/tower/types'
+import type { BaseJobId, TowerNode } from '@/tower/types'
 import { getJob, type PlayerJob } from '@/jobs'
+import { resolveEncounter } from '@/tower/pools/encounter-pool'
 
 const router = useRouter()
 const tower = useTowerStore()
 
 const showAbandonDialog = ref(false)
+
+// ───────── in-path node selection ─────────
+const selectedNodeId = ref<number | null>(null)
+
+const selectedNode = computed<TowerNode | null>(() => {
+  if (selectedNodeId.value === null) return null
+  if (!tower.run) return null
+  return tower.run.towerGraph.nodes[selectedNodeId.value] ?? null
+})
+
+// ───────── in-combat state ─────────
+// The mob node being fought is tracked by the store via run.pendingCombatNodeId
+// (GDD §2.4 route-lock: persistent so browser refresh cannot bypass the commit).
+// The store's currentNodeId stays on the PREVIOUS node until victory/abandon.
+const currentEncounterUrl = ref<string | null>(null)
+const currentRewardCrystals = ref(0)
+const combatInstanceKey = ref(0)
+const showResultOverlay = ref(false)
+const lastCombatResult = ref<'victory' | 'wipe'>('victory')
+
+const runJobId = computed<string>(() => {
+  return tower.run?.advancedJobId ?? tower.run?.baseJobId ?? 'default'
+})
+
+const showStatusBar = computed<boolean>(() => {
+  if (!tower.run) return false
+  // Excluded from in-combat: would collide with boss HP bar / cast bar in HUD.
+  return (
+    tower.phase === 'ready-to-descend' ||
+    tower.phase === 'in-path' ||
+    tower.phase === 'ended'
+  )
+})
 
 const displayJobName = computed(() => {
   if (!tower.run) return ''
@@ -39,8 +73,8 @@ function onContinue() {
   void tower.continueLastRun()
 }
 
-function onStartDescent() {
-  tower.startDescent()
+async function onStartDescent() {
+  await tower.startDescent()
 }
 
 function onAbandon(): void {
@@ -50,93 +84,256 @@ function onAbandon(): void {
   tower.resetRun()
   showAbandonDialog.value = false
 }
+
+// ───────────── in-path flow ─────────────
+function onMapNodeClick(nodeId: number): void {
+  if (!tower.run) return
+  // GDD §2.4: if locked to a pending battle, only accept the pending node click
+  if (tower.run.pendingCombatNodeId != null) {
+    if (nodeId === tower.run.pendingCombatNodeId) {
+      selectedNodeId.value = nodeId
+    }
+    return
+  }
+  const current = tower.run.towerGraph.nodes[tower.run.currentNodeId]
+  if (!current) return
+  // Only allow selecting nodes reachable from current (in current.next)
+  if (!current.next.includes(nodeId)) return
+  selectedNodeId.value = nodeId
+}
+
+async function onScout() {
+  if (selectedNodeId.value === null) return
+  await tower.scoutNode(selectedNodeId.value)
+}
+
+function onCancelConfirm() {
+  selectedNodeId.value = null
+}
+
+function onEnter() {
+  if (selectedNodeId.value === null) return
+  if (!tower.run) return
+  const nodeId = selectedNodeId.value
+  const node = tower.run.towerGraph.nodes[nodeId]
+  if (!node) return
+  if (node.kind === 'reward' || node.kind === 'campfire' || node.kind === 'event' || node.kind === 'start') {
+    tower.advanceTo(nodeId)
+    selectedNodeId.value = null
+    return
+  }
+  if (node.kind === 'mob') {
+    tower.enterCombat(nodeId)
+    selectedNodeId.value = null
+    return
+  }
+  // elite / boss: panel disables the button; nothing to do here.
+}
+
+// ───────────── in-combat flow ─────────────
+async function prepareCombat() {
+  if (!tower.run || tower.phase !== 'in-combat') return
+  const nodeId = tower.run.pendingCombatNodeId
+  if (nodeId === null || nodeId === undefined) return
+  const node = tower.run.towerGraph.nodes[nodeId]
+  if (!node || !node.encounterId) {
+    console.error('[tower/index] prepareCombat: node or encounterId missing', { nodeId })
+    return
+  }
+  const entry = await resolveEncounter(node.encounterId)
+  currentEncounterUrl.value = `${import.meta.env.BASE_URL}${entry.yamlPath}`
+  currentRewardCrystals.value = entry.rewards.crystals
+  combatInstanceKey.value++
+  showResultOverlay.value = false
+}
+
+watch(
+  () => tower.phase,
+  (p, prev) => {
+    if (p === 'in-combat' && prev !== 'in-combat') {
+      void prepareCombat()
+    }
+  },
+)
+
+// GDD §2.4 resume UX: if a run has a committed pending battle, auto-open the
+// confirm panel pre-selected to that node so the player immediately sees
+// where they committed to.
+watch(
+  () => [tower.phase, tower.run?.pendingCombatNodeId] as const,
+  ([p, pending]) => {
+    if (p === 'in-path' && typeof pending === 'number') {
+      selectedNodeId.value = pending
+    }
+  },
+  { immediate: true },
+)
+
+function onCombatEnded(payload: { result: 'victory' | 'wipe'; elapsed: number }) {
+  lastCombatResult.value = payload.result
+  if (payload.result === 'wipe') {
+    tower.deductDeterminationOnWipe(1)
+  }
+  showResultOverlay.value = true
+}
+
+function onRetryCombat() {
+  if (!tower.run) return
+  if (tower.run.determination <= 0) return
+  showResultOverlay.value = false
+  combatInstanceKey.value++ // remount runner → fresh battle
+}
+
+function onAbandonCombat() {
+  if (!tower.run) return
+  const nodeId = tower.run.pendingCombatNodeId
+  if (nodeId === null || nodeId === undefined) return
+  // abandonCurrentCombat flips phase in-combat → in-path and clears pendingCombatNodeId.
+  // Read nodeId BEFORE the store clears it.
+  tower.abandonCurrentCombat(nodeId, currentRewardCrystals.value)
+  tower.advanceTo(nodeId)
+  showResultOverlay.value = false
+  tower.checkEndedCondition()
+}
+
+function onContinueAfterVictory() {
+  if (!tower.run) return
+  const nodeId = tower.run.pendingCombatNodeId
+  if (nodeId === null || nodeId === undefined) return
+  // resolveVictory flips phase in-combat → in-path and clears pendingCombatNodeId.
+  // Read nodeId BEFORE the store clears it.
+  tower.resolveVictory(nodeId, currentRewardCrystals.value)
+  tower.advanceTo(nodeId)
+  showResultOverlay.value = false
+}
+
+function onExitEnded() {
+  tower.resetRun()
+  router.push('/')
+}
 </script>
 
 <template lang="pug">
-MenuShell
-  MenuBackButton(to="/")
-  .schema-reset-notice(v-if="tower.schemaResetNotice")
-    span.notice-text 本迷宫版本已更新，之前的下潜已关闭
-    button.notice-dismiss(type="button" @click="tower.dismissSchemaNotice()") 知道了
-
-  //- ───────────────── no-run no save ─────────────────
-  .tower-panel(v-if="tower.phase === 'no-run' && !tower.savedRunExists")
-    .tower-title 爬塔模式
-    .tower-subtitle 选择一个入口开始你的攀登
-    .tower-actions
-      button.tower-btn.primary(type="button" @click="tower.enterJobPicker()") 新游戏
-      button.tower-btn.secondary(type="button" disabled) 教程
-      button.tower-btn.tertiary(type="button" @click="goHome") 返回主菜单
-
-  //- ───────────────── no-run with save ─────────────────
-  .tower-panel(v-else-if="tower.phase === 'no-run' && tower.savedRunExists && tower.run")
-    .tower-title 爬塔模式
-    .tower-subtitle 进行中的下潜
-    .run-summary
-      .summary-row
-        span.label 职业
-        span.value {{ displayJobName }}
-      .summary-row
-        span.label 等级
-        span.value {{ tower.run.level }}
-      .summary-row
-        span.label 水晶
-        span.value {{ tower.run.crystals }}
-      .summary-row
-        span.label 开始于
-        span.value {{ startedAtText }}
-    .tower-actions
-      button.tower-btn.primary(type="button" @click="onContinue") 继续
-      button.tower-btn.secondary(type="button" @click="showAbandonDialog = true") 放弃并结算
-      button.tower-btn.tertiary(type="button" @click="goHome") 返回主菜单
-    CommonConfirmDialog(
-      v-if="showAbandonDialog"
-      title="确定放弃这次攀登吗？"
-      message="所有进度将丢失。"
-      confirm-text="放弃"
-      cancel-text="取消"
-      variant="danger"
-      @confirm="onAbandon"
-      @cancel="showAbandonDialog = false"
-    )
-
-  //- ─────────────────── selecting-job (phase 3 new: job picker) ───────────────────
-  TowerJobPicker(
-    v-else-if="tower.phase === 'selecting-job'"
-    @pick="onJobPick"
-    @back="tower.setPhase('no-run')"
+//- In-combat: render OUTSIDE MenuShell so the canvas is not obscured by
+//- MenuShell's full-screen black background. Status bar omitted here —
+//- it would collide with boss HP / cast bar HUD components.
+template(v-if="tower.phase === 'in-combat' && tower.run && currentEncounterUrl")
+  TowerEncounterRunner(
+    :encounter-url="currentEncounterUrl"
+    :job-id="runJobId"
+    :key="combatInstanceKey"
+    @combat-ended="onCombatEnded"
+  )
+  TowerBattleResultOverlay(
+    v-if="showResultOverlay"
+    :result="lastCombatResult"
+    :encounter-reward-crystals="currentRewardCrystals"
+    :current-determination="tower.run.determination"
+    @retry="onRetryCombat"
+    @abandon="onAbandonCombat"
+    @continue="onContinueAfterVictory"
   )
 
-  //- ─────────────────── ready-to-descend ───────────────────
-  .tower-panel(v-else-if="tower.phase === 'ready-to-descend' && tower.run")
-    .tower-title 准备下潜
-    .tower-subtitle 确认你的装备后点击开始
-    .tower-preview
-      .preview-row
-        span.label 基础职业
-        span.value {{ tower.run.baseJobId }}
-      .preview-row
-        span.label 种子
-        span.value.seed {{ tower.run.seed }}
-    .tower-actions
-      button.tower-btn.primary(type="button" @click="onStartDescent") 开始下潜
-      button.tower-btn.tertiary(type="button" @click="tower.resetRun()") 重置
+//- All other phases: inside MenuShell (hide the brand title when a run is active).
+template(v-else)
+  MenuShell(:hide-title="showStatusBar")
+    MenuBackButton(to="/")
+    .schema-reset-notice(v-if="tower.schemaResetNotice")
+      span.notice-text 本迷宫版本已更新，之前的下潜已关闭
+      button.notice-dismiss(type="button" @click="tower.dismissSchemaNotice()") 知道了
 
-  //- ───────────────────────── in-path ────────────────────────
-  .tower-inpath(v-else-if="tower.phase === 'in-path' && tower.run")
-    .tower-subtitle 点击可达节点前进
-    TowerMap
-    .tower-actions-inline
-      button.tower-btn.tertiary(type="button" @click="tower.resetRun()") 放弃本局
+    TowerRunStatusBar(v-if="showStatusBar")
 
-  //- ─────────────────────── fallback ─────────────────────────
-  .tower-panel(v-else)
-    .tower-title 爬塔模式
-    .tower-placeholder
-      | Phase: {{ tower.phase }}
-    .tower-placeholder
-      | TODO: implemented in later phases
-    button.tower-btn.tertiary(type="button" @click="tower.resetRun()") 重置并返回
+    //- ───────────────── no-run no save ─────────────────
+    .tower-panel(v-if="tower.phase === 'no-run' && !tower.savedRunExists")
+      .tower-title 爬塔模式
+      .tower-subtitle 选择一个入口开始你的攀登
+      .tower-actions
+        button.tower-btn.primary(type="button" @click="tower.enterJobPicker()") 新游戏
+        button.tower-btn.secondary(type="button" disabled) 教程
+        button.tower-btn.tertiary(type="button" @click="goHome") 返回主菜单
+
+    //- ───────────────── no-run with save ─────────────────
+    .tower-panel(v-else-if="tower.phase === 'no-run' && tower.savedRunExists && tower.run")
+      .tower-title 爬塔模式
+      .tower-subtitle 进行中的下潜
+      .run-summary
+        .summary-row
+          span.label 职业
+          span.value {{ displayJobName }}
+        .summary-row
+          span.label 等级
+          span.value {{ tower.run.level }}
+        .summary-row
+          span.label 水晶
+          span.value {{ tower.run.crystals }}
+        .summary-row
+          span.label 开始于
+          span.value {{ startedAtText }}
+      .tower-actions
+        button.tower-btn.primary(type="button" @click="onContinue") 继续
+        button.tower-btn.secondary(type="button" @click="showAbandonDialog = true") 放弃并结算
+        button.tower-btn.tertiary(type="button" @click="goHome") 返回主菜单
+      CommonConfirmDialog(
+        v-if="showAbandonDialog"
+        title="确定放弃这次攀登吗？"
+        message="所有进度将丢失。"
+        confirm-text="放弃"
+        cancel-text="取消"
+        variant="danger"
+        @confirm="onAbandon"
+        @cancel="showAbandonDialog = false"
+      )
+
+    //- ─────────────────── selecting-job ───────────────────
+    TowerJobPicker(
+      v-else-if="tower.phase === 'selecting-job'"
+      @pick="onJobPick"
+      @back="tower.setPhase('no-run')"
+    )
+
+    //- ─────────────────── ready-to-descend ───────────────────
+    .tower-panel(v-else-if="tower.phase === 'ready-to-descend' && tower.run")
+      .tower-subtitle 准备下潜 — 确认你的装备后点击开始
+      .tower-preview
+        .preview-row
+          span.label 基础职业
+          span.value {{ tower.run.baseJobId }}
+        .preview-row
+          span.label 种子
+          span.value.seed {{ tower.run.seed }}
+      .tower-actions
+        button.tower-btn.primary(type="button" @click="onStartDescent") 开始下潜
+        button.tower-btn.tertiary(type="button" @click="tower.resetRun()") 重置
+
+    //- ───────────────────────── in-path ────────────────────────
+    .tower-inpath(v-else-if="tower.phase === 'in-path' && tower.run")
+      .tower-subtitle 点击可达节点前进
+      TowerMap(@node-click="onMapNodeClick")
+      .tower-actions-inline
+        button.tower-btn.tertiary(type="button" @click="tower.resetRun()") 放弃本局
+      TowerNodeConfirmPanel(
+        v-if="selectedNode"
+        :node="selectedNode"
+        @scout="onScout"
+        @enter="onEnter"
+        @cancel="onCancelConfirm"
+      )
+
+    //- ───────────────────────── ended ────────────────────────
+    TowerEndedScreen(
+      v-else-if="tower.phase === 'ended'"
+      @exit="onExitEnded"
+    )
+
+    //- ─────────────────────── fallback ─────────────────────────
+    .tower-panel(v-else)
+      .tower-title 爬塔模式
+      .tower-placeholder
+        | Phase: {{ tower.phase }}
+      .tower-placeholder
+        | TODO: implemented in later phases
+      button.tower-btn.tertiary(type="button" @click="tower.resetRun()") 重置并返回
 </template>
 
 <style lang="scss" scoped>

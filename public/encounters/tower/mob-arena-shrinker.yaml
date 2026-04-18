@@ -1,0 +1,95 @@
+# 场地收缩小怪 — 外圈死区分 3 段收缩（effective radius 10 → 7 → 5）。
+# 90s 后叠愤怒 + 移除 3 死区 + 循环回 30s 重演。
+
+arena:
+  name: 坍缩空间
+  shape: circle
+  radius: 15
+  boundary: lethal
+
+entities:
+  boss:
+    type: mob
+    group: boss
+    hp: 40000
+    attack: 180
+    speed: 3
+    size: 1.2
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 4
+    aggroRange: 8
+
+player:
+  position: { x: 0, y: -12, z: 0 }
+
+boss_ai:
+  chaseRange: 4
+  autoAttackRange: 4
+  autoAttackInterval: 3000
+  aggroRange: 8
+
+local_buffs:
+  mob_enrage:
+    name: 愤怒
+    type: buff
+    stackable: true
+    maxStacks: 20
+    duration: 999999
+    effects:
+      - { type: damage_increase, value: 0.15 }
+
+local_skills:
+  boss_auto:
+    name: 重击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 4
+    effects: [{ type: damage, potency: 1 }]
+  mob_enrage_stack:
+    name: 愤怒叠层
+    type: ability
+    targetType: single
+    requiresTarget: false
+    range: 0
+    effects:
+      - { type: apply_buff, buffId: mob_enrage, target: caster }
+
+skills: {}
+
+phases:
+  phase_default:
+    actions:
+      - { at: 0, action: enable_ai }
+      - at: 30000
+        action: add_death_zone
+        deathZone:
+          id: shrink_ring_1
+          center: { x: 0, y: 0 }
+          facing: 0
+          shape: { type: ring, innerRadius: 10, outerRadius: 15 }
+          behavior: lethal
+      - at: 60000
+        action: add_death_zone
+        deathZone:
+          id: shrink_ring_2
+          center: { x: 0, y: 0 }
+          facing: 0
+          shape: { type: ring, innerRadius: 7, outerRadius: 15 }
+          behavior: lethal
+      - at: 75000
+        action: add_death_zone
+        deathZone:
+          id: shrink_ring_3
+          center: { x: 0, y: 0 }
+          facing: 0
+          shape: { type: ring, innerRadius: 5, outerRadius: 15 }
+          behavior: lethal
+      - at: 90000
+        action: use
+        use: mob_enrage_stack
+      - { at: 90001, action: remove_death_zone, deathZoneId: shrink_ring_1 }
+      - { at: 90002, action: remove_death_zone, deathZoneId: shrink_ring_2 }
+      - { at: 90003, action: remove_death_zone, deathZoneId: shrink_ring_3 }
+      - { at: 90004, action: loop, loop: 0 }

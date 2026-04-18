@@ -128,6 +128,13 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
   const boss = entityMap.get('boss')!
   s.combatResolver.registerBuffs(job.buffs)
 
+  // Register encounter-local buffs (from YAML local_buffs section)
+  if (enc.localBuffs && Object.keys(enc.localBuffs).length > 0) {
+    s.combatResolver.registerBuffs(enc.localBuffs)
+    // Merge into s.buffDefs so HUD tooltip can lookup
+    s.buffDefs = { ...s.buffDefs, ...enc.localBuffs }
+  }
+
   // Init callback: apply practice mode buffs, echo, etc.
   if (onInit) {
     onInit({
@@ -258,7 +265,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
     if (payload.target.id === boss.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
         scriptRunner.disposeAll()
-        s.bus.emit('combat:ended', { result: 'victory' })
+        s.bus.emit('combat:ended', { result: 'victory', elapsed: scheduler.combatElapsed })
         s.endBattle('victory')
       }
     }
@@ -266,7 +273,7 @@ function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc: Encou
     if (payload.target.id === s.player.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
         scriptRunner.disposeAll()
-        s.bus.emit('combat:ended', { result: 'wipe' })
+        s.bus.emit('combat:ended', { result: 'wipe', elapsed: scheduler.combatElapsed })
         s.endBattle('wipe')
       }
     }

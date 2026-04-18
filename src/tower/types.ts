@@ -134,6 +134,11 @@ export interface TowerNode {
   kind: TowerNodeKind
   /** 可达的下一层节点 id（有向图） */
   next: number[]
+  /**
+   * 战斗节点（kind === 'mob' | 'elite' | 'boss'）开局固化的 encounter id；
+   * 非战斗节点 undefined。新开局在 startDescent 时按 seed 从 Active Pool 抽取。
+   */
+  encounterId?: string
 }
 
 export interface TowerGraph {
@@ -176,8 +181,9 @@ export type TowerGraphSource =
  * 任何 breaking 变更（新增 TowerNodeKind / 改 K schedule / 改 TowerNode 字段 /
  * 调整权重 / 重写修复算法 / 改约束集）都必须 bump 此常量.
  * phase2 首发 = 1.
+ * phase 4 bump = 2（TowerRun.blueprintVersion + TowerNode.encounterId 字段加入）.
  */
-export const TOWER_RUN_SCHEMA_VERSION = 1 as const
+export const TOWER_RUN_SCHEMA_VERSION = 2 as const
 
 // ============================================================
 // TowerRun — 局内持久化状态的根对象
@@ -214,6 +220,12 @@ export interface TowerRun {
    * 读取时必须容纳旧版本号，否则 load 时 typecheck 会先炸而无法走到 reset 分支.
    */
   schemaVersion: number
+  /**
+   * 塔蓝图版本号；开局 = TOWER_BLUEPRINT_CURRENT。
+   * 加载时校验顺序：schemaVersion → blueprintVersion (<MIN_SUPPORTED → reset; >CURRENT → defensive reset)。
+   * 详见 docs/tower-engineering-principles.md §1。
+   */
+  blueprintVersion: number
   /** UUID，一局一个 */
   runId: string
   /** PRNG seed（spec §7.4 seeded PRNG） */
@@ -250,4 +262,11 @@ export interface TowerRun {
   scoutedNodes: Record<number, ScoutInfo>
   /** 已通过/完成的节点 id（包含放弃低保走完的） */
   completedNodes: number[]
+  /**
+   * 玩家已确认进入但尚未解决的战斗节点（GDD §2.4 路线锁定）.
+   * enterCombat 时写入；resolveVictory/abandonCurrentCombat 时清为 null.
+   * 非空时 TowerMap 只允许该节点被点击，强制 "committed choice" 语义.
+   * 刷新后若该字段非空，玩家只能选择继续该战斗，不能重新选路线.
+   */
+  pendingCombatNodeId?: number | null
 }

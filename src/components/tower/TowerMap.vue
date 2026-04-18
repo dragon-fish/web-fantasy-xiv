@@ -23,6 +23,11 @@ function computeState(node: TowerNode): NodeState {
   if (!run) return 'unreachable'
   if (node.id === run.currentNodeId) return 'current'
   if (run.completedNodes.includes(node.id)) return 'completed'
+  // Phase 4: if there's a pending committed battle, only that node is reachable
+  if (run.pendingCombatNodeId != null) {
+    if (node.id === run.pendingCombatNodeId) return 'reachable'
+    return 'unreachable'
+  }
   const current = run.towerGraph.nodes[run.currentNodeId]
   if (current?.next.includes(node.id)) return 'reachable'
   return 'unreachable'
@@ -99,8 +104,12 @@ const translateExtent: [[number, number], [number, number]] = [
   [maxX, maxY],
 ]
 
+const emit = defineEmits<{
+  'node-click': [nodeId: number]
+}>()
+
 function onNodeClick({ node }: NodeMouseEvent) {
-  tower.advanceTo(Number(node.id))
+  emit('node-click', Number(node.id))
 }
 </script>
 

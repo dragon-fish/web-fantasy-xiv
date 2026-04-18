@@ -1,8 +1,13 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+interface Props {
+  hideTitle?: boolean
+}
+withDefaults(defineProps<Props>(), { hideTitle: false })
+</script>
 
 <template lang="pug">
 .menu-shell
-  .menu-title-block
+  .menu-title-block(v-if="!hideTitle")
     .menu-crystal-bg
       .menu-crystal
     h1.menu-title Web Fantasy XIV

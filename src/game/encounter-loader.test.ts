@@ -144,3 +144,43 @@ timeline: []
     expect(mob.position).toEqual({ x: 5, y: 0 })
   })
 })
+
+describe('encounter-loader local_buffs', () => {
+  it('parses local_buffs section into localBuffs map', () => {
+    const yaml = `
+arena: { name: test, shape: circle, radius: 15, boundary: wall }
+entities: {}
+player: {}
+boss_ai: {}
+skills: {}
+local_buffs:
+  test_enrage:
+    name: 测试愤怒
+    type: buff
+    stackable: true
+    maxStacks: 20
+    duration: 999999
+    effects:
+      - { type: damage_increase, value: 0.15 }
+`
+    const data = parseEncounterYaml(yaml)
+    expect(data.localBuffs).toBeDefined()
+    expect(data.localBuffs!.test_enrage).toBeDefined()
+    expect(data.localBuffs!.test_enrage.stackable).toBe(true)
+    expect(data.localBuffs!.test_enrage.maxStacks).toBe(20)
+    expect(data.localBuffs!.test_enrage.effects).toEqual([{ type: 'damage_increase', value: 0.15 }])
+  })
+
+  it('returns empty localBuffs when section missing', () => {
+    const yaml = `
+arena: { name: test, shape: circle, radius: 15, boundary: wall }
+entities: {}
+player: {}
+boss_ai: {}
+skills: {}
+`
+    const data = parseEncounterYaml(yaml)
+    expect(data.localBuffs).toBeDefined()
+    expect(Object.keys(data.localBuffs!).length).toBe(0)
+  })
+})

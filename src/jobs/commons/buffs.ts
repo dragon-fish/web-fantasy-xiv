@@ -86,6 +86,17 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     maxStacks: 1,
     effects: [{ type: 'mp_regen', potency: 0.05, interval: 3000 }],
   },
+  one_punch_man: {
+    id: 'one_punch_man',
+    name: '一拳超人',
+    description: '攻击力提升 999%。仅限开发模式调试使用。',
+    type: 'buff',
+    duration: 0,
+    stackable: false,
+    maxStacks: 1,
+    preserveOnDeath: true,
+    effects: [{ type: 'damage_increase', value: 9.99 }],
+  },
 }
 
 // Map version for tooltip lookups

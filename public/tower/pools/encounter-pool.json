@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "entries": [
+    {
+      "id": "mob-frost-sprite",
+      "yamlPath": "encounters/tower/mob-frost-sprite.yaml",
+      "kind": "mob",
+      "scoutSummary": "冰属性小精灵，会发动范围冰冻减速",
+      "rewards": { "crystals": 10 }
+    },
+    {
+      "id": "mob-fire-elemental",
+      "yamlPath": "encounters/tower/mob-fire-elemental.yaml",
+      "kind": "mob",
+      "scoutSummary": "火属性元素，扇形与十字 AOE 交替",
+      "rewards": { "crystals": 10 }
+    },
+    {
+      "id": "mob-chain-marker",
+      "yamlPath": "encounters/tower/mob-chain-marker.yaml",
+      "kind": "mob",
+      "scoutSummary": "星象点名，持续移动躲避落地 AOE",
+      "rewards": { "crystals": 10 }
+    },
+    {
+      "id": "mob-arena-shrinker",
+      "yamlPath": "encounters/tower/mob-arena-shrinker.yaml",
+      "kind": "mob",
+      "scoutSummary": "坍缩空间，外圈死区分段压缩",
+      "rewards": { "crystals": 10 }
+    },
+    {
+      "id": "mob-fallback",
+      "yamlPath": "encounters/tower/mob-fallback.yaml",
+      "kind": "mob",
+      "scoutSummary": "通用敌人",
+      "rewards": { "crystals": 10 },
+      "deprecated": "never-in-pool"
+    }
+  ]
+}

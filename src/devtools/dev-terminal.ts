@@ -45,6 +45,13 @@ export class DevTerminal {
     `
     this.inputEl.placeholder = '> Type a command...'
     this.inputEl.addEventListener('keydown', (e) => {
+      // Allow Esc to close terminal from within input; ~ stays insertable.
+      if (e.code === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        this.toggle()
+        return
+      }
       if (e.key === 'Enter') {
         const input = this.inputEl!.value.trim()
         if (input) {

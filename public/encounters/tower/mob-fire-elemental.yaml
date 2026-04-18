@@ -1,0 +1,121 @@
+# 火主题小怪 — 扇形 AOE + 十字 AOE 交替（十字 = 2 个 rect zone 同时解析）。
+# 90s 软超时同冰怪模式。
+
+arena:
+  name: 岩浆祭坛
+  shape: circle
+  radius: 15
+  boundary: wall
+
+entities:
+  boss:
+    type: mob
+    group: boss
+    hp: 45000
+    attack: 180
+    speed: 3
+    size: 1.2
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 4
+    aggroRange: 8
+
+player:
+  position: { x: 0, y: -12, z: 0 }
+
+boss_ai:
+  chaseRange: 4
+  autoAttackRange: 4
+  autoAttackInterval: 3000
+  aggroRange: 8
+
+local_buffs:
+  mob_enrage:
+    name: 愤怒
+    type: buff
+    stackable: true
+    maxStacks: 20
+    duration: 999999
+    effects:
+      - { type: damage_increase, value: 0.15 }
+
+local_skills:
+  boss_auto:
+    name: 火拳
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 4
+    effects: [{ type: damage, potency: 1 }]
+  fire_cleave:
+    name: 烈焰扇击
+    type: spell
+    castTime: 2000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: caster_facing }
+        shape: { type: fan, radius: 10, angle: 180 }
+        resolveDelay: 2000
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 3.0 }
+  fire_cross:
+    name: 十字火焰
+    type: spell
+    castTime: 2500
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 0 }
+        shape: { type: rect, length: 20, width: 4 }
+        resolveDelay: 2500
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 2.8 }
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 90 }
+        shape: { type: rect, length: 20, width: 4 }
+        resolveDelay: 2500
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 2.8 }
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 180 }
+        shape: { type: rect, length: 20, width: 4 }
+        resolveDelay: 2500
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 2.8 }
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 270 }
+        shape: { type: rect, length: 20, width: 4 }
+        resolveDelay: 2500
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 2.8 }
+  mob_enrage_stack:
+    name: 愤怒叠层
+    type: ability
+    targetType: single
+    requiresTarget: false
+    range: 0
+    effects:
+      - { type: apply_buff, buffId: mob_enrage, target: caster }
+
+skills: {}
+
+phases:
+  phase_default:
+    actions:
+      - { at: 0, action: enable_ai }
+      - { at: 12000, action: use, use: fire_cleave }
+      - { at: 30000, action: use, use: fire_cross }
+      - { at: 55000, action: use, use: fire_cleave }
+      - { at: 78000, action: use, use: fire_cross }
+      - { at: 90000, action: use, use: mob_enrage_stack }
+      - { at: 90001, action: loop, loop: 6000 }

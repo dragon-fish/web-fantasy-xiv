@@ -1,0 +1,87 @@
+# 点名主题小怪 — 每 15s 周期点名（anchor: target 落在玩家 cast 开始时位置）。
+# 强制玩家持续移动。90s 软超时同其他小怪。
+
+arena:
+  name: 星象观测所
+  shape: circle
+  radius: 15
+  boundary: wall
+
+entities:
+  boss:
+    type: mob
+    group: boss
+    hp: 45000
+    attack: 180
+    speed: 2.5
+    size: 1.2
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 4
+    aggroRange: 8
+
+player:
+  position: { x: 0, y: -12, z: 0 }
+
+boss_ai:
+  chaseRange: 4
+  autoAttackRange: 4
+  autoAttackInterval: 3000
+  aggroRange: 8
+
+local_buffs:
+  mob_enrage:
+    name: 愤怒
+    type: buff
+    stackable: true
+    maxStacks: 20
+    duration: 999999
+    effects:
+      - { type: damage_increase, value: 0.15 }
+
+local_skills:
+  boss_auto:
+    name: 星流拳
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 4
+    effects: [{ type: damage, potency: 1 }]
+  star_marker:
+    name: 星之点名
+    type: spell
+    castTime: 2000
+    targetType: aoe
+    requiresTarget: false
+    range: 0
+    zones:
+      - anchor: { type: target }
+        direction: { type: none }
+        shape: { type: circle, radius: 4 }
+        resolveDelay: 2000
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 2.5 }
+  mob_enrage_stack:
+    name: 愤怒叠层
+    type: ability
+    targetType: single
+    requiresTarget: false
+    range: 0
+    effects:
+      - { type: apply_buff, buffId: mob_enrage, target: caster }
+
+skills: {}
+
+phases:
+  phase_default:
+    actions:
+      - { at: 0, action: enable_ai }
+      - { at: 10000, action: use, use: star_marker }
+      - { at: 25000, action: use, use: star_marker }
+      - { at: 40000, action: use, use: star_marker }
+      - { at: 55000, action: use, use: star_marker }
+      - { at: 70000, action: use, use: star_marker }
+      - { at: 85000, action: use, use: star_marker }
+      - { at: 90000, action: use, use: mob_enrage_stack }
+      - { at: 90001, action: loop, loop: 5000 }

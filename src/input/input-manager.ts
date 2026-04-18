@@ -44,7 +44,11 @@ export class InputManager {
   private pendingSkill: number | null = null
   private escPressed = false
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    /** Optional predicate; when returns true, window key events are ignored (e.g. dev terminal open). */
+    private shouldBlockInput?: () => boolean,
+  ) {
     this.bindEvents()
   }
 
@@ -64,6 +68,7 @@ export class InputManager {
 
   private bindEvents(): void {
     window.addEventListener('keydown', (e) => {
+      if (this.shouldBlockInput?.()) return
       switch (e.code) {
         case 'KeyW': this.keys.w = true; break
         case 'KeyA': this.keys.a = true; break
@@ -82,6 +87,7 @@ export class InputManager {
     })
 
     window.addEventListener('keyup', (e) => {
+      if (this.shouldBlockInput?.()) return
       switch (e.code) {
         case 'KeyW': this.keys.w = false; break
         case 'KeyA': this.keys.a = false; break
