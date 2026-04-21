@@ -195,6 +195,23 @@ export class PlayerInputDriver {
     return null
   }
 
+  /** Public entry point for UI-triggered skill usage (e.g. clicking the skill bar) */
+  useSkillByIndex(skillIdx: number): void {
+    const p = this.entity
+    if (!p.alive) return
+    if (this.buffSystem.isStunned(p)) return
+    if (this.displacer?.isAnimating(p.id)) return
+
+    const skill = skillIdx < this.config.skills.length
+      ? this.config.skills[skillIdx]
+      : this.config.extraSkills?.get(skillIdx) ?? null
+
+    if (skill) {
+      if (skill.requiresTarget && !p.target) this.autoLockNearest()
+      this.tryUseOrQueue(skill)
+    }
+  }
+
   private tryUseOrQueue(skill: SkillDef): void {
     const p = this.entity
 

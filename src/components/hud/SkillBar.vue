@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject, type Ref } from 'vue'
 import { useBattleStore } from '@/stores/battle'
 import { useTooltip } from '@/composables/use-tooltip'
 import { buildSkillTooltip } from '@/components/hud/tooltip-builders'
+import { SKILL_TRIGGER_KEY } from '@/components/hud/skill-trigger-key'
 
 const battle = useBattleStore()
 const tooltip = useTooltip()
+const triggerSkill = inject<Ref<(idx: number) => void>>(SKILL_TRIGGER_KEY)
 
 const activeBuffIds = computed(() => new Set(battle.buffs.map((b) => b.defId)))
 
@@ -48,6 +50,19 @@ function onEnter(e: MouseEvent, entry: { skill: any }) {
 function onLeave() {
   tooltip.hide()
 }
+
+function keyToIndex(key: string): number {
+  if (key === 'Q') return 100
+  if (key === 'E') return 101
+  const n = parseInt(key)
+  return Number.isNaN(n) ? -1 : n - 1
+}
+
+function onClick(entry: { key: string }) {
+  const idx = keyToIndex(entry.key)
+  if (idx < 0) return
+  triggerSkill?.value(idx)
+}
 </script>
 
 <template lang="pug">
@@ -56,6 +71,7 @@ function onLeave() {
     v-for="entry in battle.skillBarEntries"
     :key="entry.key"
     :class="{ locked: isLocked(entry) }"
+    @click="() => onClick(entry)"
     @mouseenter="(e) => onEnter(e, entry)"
     @mousemove="(e) => onEnter(e, entry)"
     @mouseleave="onLeave"
@@ -76,6 +92,7 @@ function onLeave() {
   display: flex;
   gap: 6px;
   pointer-events: auto;
+  user-select: none;
 }
 
 .skill-slot {
@@ -89,7 +106,7 @@ function onLeave() {
   justify-content: center;
   position: relative;
   font-size: 12px;
-  cursor: default;
+  cursor: pointer;
 
   &.locked {
     border-color: rgba(255, 50, 50, 0.4);

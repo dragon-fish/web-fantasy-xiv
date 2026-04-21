@@ -217,6 +217,12 @@ export class GameScene {
   /** Set dialog text */
   setDialog(text: string): void { this.dialogText = text }
 
+  /** Trigger a skill by its bar index (0-5 for main bar, 100 for Q, 101 for E).
+   *  Public entry point for UI click events on the skill bar. */
+  triggerSkill(skillIdx: number): void {
+    this.playerDriver.useSkillByIndex(skillIdx)
+  }
+
   /** Dispose all resources */
   dispose(): void {
     this.sceneManager.dispose()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, useTemplateRef, watch, provide } from 'vue'
+import { SKILL_TRIGGER_KEY } from '@/components/hud/skill-trigger-key'
 import { useEngine } from '@/composables/use-engine'
 import { useStateAdapter } from '@/composables/use-state-adapter'
 import { useDebugStore } from '@/stores/debug'
@@ -38,6 +39,10 @@ let combatEndedHandler: ((p: any) => void) | null = null
 // Reactive scene reference — template uses this to mount scene-bus-dependent
 // overlays (e.g. HudDeathWindowVignette) only after booting completes.
 const sceneRef = ref<GameScene | null>(null)
+
+// Provide skill trigger function to HUD components (e.g. SkillBar click)
+const triggerSkill = ref<(idx: number) => void>(() => {})
+provide(SKILL_TRIGGER_KEY, triggerSkill)
 
 /**
  * Compose the caller-provided `onInit` with battlefield-condition activation
@@ -87,6 +92,7 @@ async function bootBattle() {
   const scene = getActiveScene()
   if (!scene) return
   sceneRef.value = scene
+  triggerSkill.value = (idx: number) => scene.triggerSkill(idx)
 
   adapter = useStateAdapter(scene)
 
