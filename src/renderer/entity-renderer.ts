@@ -7,6 +7,13 @@ import {
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 
+/** Shortest signed angular distance from `from` to `to` in degrees. Positive = clockwise. */
+function angleDelta(from: number, to: number): number {
+  let d = ((to - from) % 360 + 360) % 360
+  if (d > 180) d -= 360
+  return d
+}
+
 interface EntityMeshGroup {
   root: TransformNode
   body: any          // capsule body
@@ -18,7 +25,9 @@ interface EntityMeshGroup {
 }
 
 export class EntityRenderer {
+  private static readonly ROTATION_SPEED = 720 // degrees per second
   private meshes = new Map<string, EntityMeshGroup>()
+  private displayFacing = new Map<string, number>()
 
   constructor(private scene: Scene, private bus: EventBus) {
     bus.on('entity:created', (payload: { entity: Entity }) => {
@@ -161,10 +170,11 @@ export class EntityRenderer {
     }
 
     this.meshes.set(entity.id, { root, body, hitPoint, facingArrow, rangeRing, aggroFan, baseEmissive: bodyMat.emissiveColor.clone() })
+    this.displayFacing.set(entity.id, entity.facing)
   }
 
   /** Call each render frame to sync positions */
-  updateAll(entities: Entity[], lockedTargetId?: string | null): void {
+  updateAll(entities: Entity[], dt: number, lockedTargetId?: string | null): void {
     for (const entity of entities) {
       const group = this.meshes.get(entity.id)
       if (!group) continue
@@ -176,7 +186,14 @@ export class EntityRenderer {
       // Fall effect: if entity is out of bounds, Y drops over time
       const fallY = (entity as any)._fallOffset ?? 0
       group.root.position.set(entity.position.x, -fallY, entity.position.y)
-      group.root.rotation.y = (entity.facing * Math.PI) / 180
+      // Smooth rotation toward logical facing
+      const current = this.displayFacing.get(entity.id) ?? entity.facing
+      const delta = angleDelta(current, entity.facing)
+      const maxStep = EntityRenderer.ROTATION_SPEED * (dt / 1000)
+      const step = Math.sign(delta) * Math.min(Math.abs(delta), maxStep)
+      const newDisplay = ((current + step) % 360 + 360) % 360
+      this.displayFacing.set(entity.id, newDisplay)
+      group.root.rotation.y = (newDisplay * Math.PI) / 180
 
       // Hide aggro fan once in combat
       if (group.aggroFan) {
@@ -205,6 +222,7 @@ export class EntityRenderer {
     if (!group) return
     group.root.dispose()
     this.meshes.delete(entityId)
+    this.displayFacing.delete(entityId)
   }
 
   /** Flash entity bright for 100ms on hit */

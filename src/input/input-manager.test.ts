@@ -1,6 +1,6 @@
 // src/input/input-manager.test.ts
 import { describe, it, expect } from 'vitest'
-import { InputState, computeMoveDirection, computeFacingAngle } from '@/input/input-manager'
+import { InputState, computeMoveDirection, computeDirectionAngle } from '@/input/input-manager'
 
 describe('computeMoveDirection', () => {
   it('should return (0,1) for W only', () => {
@@ -29,18 +29,25 @@ describe('computeMoveDirection', () => {
     expect(dir.y).toBe(0)
   })
 })
-
-describe('computeFacingAngle', () => {
-  it('should compute angle from entity to mouse in game coords', () => {
-    // Entity at origin, mouse directly north (+y in screen = +y in game)
-    // But screen Y is inverted: mouse above entity means smaller screenY
-    // We pass world-space mouse position, so mouse at (0, 5) = north
-    const angle = computeFacingAngle({ x: 0, y: 0 }, { x: 0, y: 5 })
-    expect(angle).toBeCloseTo(0, 0) // 0° = north
+describe('computeDirectionAngle', () => {
+  it('should return 0° for north (+Y)', () => {
+    expect(computeDirectionAngle({ x: 0, y: 1 })).toBeCloseTo(0, 0)
   })
 
-  it('should compute 90° for mouse to the east', () => {
-    const angle = computeFacingAngle({ x: 0, y: 0 }, { x: 5, y: 0 })
-    expect(angle).toBeCloseTo(90, 0)
+  it('should return 90° for east (+X)', () => {
+    expect(computeDirectionAngle({ x: 1, y: 0 })).toBeCloseTo(90, 0)
+  })
+
+  it('should return 180° for south (-Y)', () => {
+    expect(computeDirectionAngle({ x: 0, y: -1 })).toBeCloseTo(180, 0)
+  })
+
+  it('should return 270° for west (-X)', () => {
+    expect(computeDirectionAngle({ x: -1, y: 0 })).toBeCloseTo(270, 0)
+  })
+
+  it('should return correct angle for diagonal (NE)', () => {
+    const angle = computeDirectionAngle({ x: 1, y: 1 })
+    expect(angle).toBeCloseTo(45, 0)
   })
 })

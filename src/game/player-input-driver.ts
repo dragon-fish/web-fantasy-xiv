@@ -8,7 +8,7 @@ import type { EventBus } from '@/core/event-bus'
 import type { Arena } from '@/arena/arena'
 import type { BuffDef } from '@/core/types'
 import type { DisplacementAnimator } from './displacement-animator'
-import { computeMoveDirection, computeFacingAngle } from '@/input/input-manager'
+import { computeMoveDirection, computeDirectionAngle } from '@/input/input-manager'
 
 const SKILL_QUEUE_WINDOW = 500
 const SLIDECAST_WINDOW = 300
@@ -101,9 +101,11 @@ export class PlayerInputDriver {
       return null
     }
 
+    // Movement direction (used by both movement and facing)
+    const dir = computeMoveDirection(this.input.keys)
+
     // Movement (blocked while stunned)
     if (!this.buffSystem.isStunned(p)) {
-      const dir = computeMoveDirection(this.input.keys)
       if (dir.x !== 0 || dir.y !== 0) {
         // Slidecast: movement only interrupts casting if remaining > SLIDECAST_WINDOW
         if (p.casting) {
@@ -130,11 +132,13 @@ export class PlayerInputDriver {
       }
     }
 
-    // Facing follows mouse
-    p.facing = computeFacingAngle(
-      { x: p.position.x, y: p.position.y },
-      this.input.mouse.worldPos,
-    )
+    // Facing follows movement direction; during cast, skip (let skill auto-face persist)
+    if (!p.casting) {
+      if (dir.x !== 0 || dir.y !== 0) {
+        p.facing = computeDirectionAngle(dir)
+      }
+      // else: keep last facing when stationary
+    }
 
     // Right click: lock nearest enemy
     if (this.input.mouse.rightDown) {

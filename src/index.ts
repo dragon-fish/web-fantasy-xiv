@@ -64,7 +64,7 @@ export { ArenaRenderer } from './renderer/arena-renderer'
 export { HitEffectRenderer } from './renderer/hit-effect-renderer'
 
 // Input
-export { InputManager, computeMoveDirection, computeFacingAngle } from './input/input-manager'
+export { InputManager, computeMoveDirection, computeDirectionAngle } from './input/input-manager'
 
 // UI state types (migrated out of deleted src/ui/state)
 export type { SkillBarEntry } from './jobs/shared'

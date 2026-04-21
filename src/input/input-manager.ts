@@ -28,12 +28,9 @@ export function computeMoveDirection(keys: InputState): Vec2 {
   const len = Math.sqrt(x * x + y * y)
   return { x: x / len, y: y / len }
 }
-
-export function computeFacingAngle(entityPos: Vec2, mouseWorldPos: Vec2): number {
-  const dx = mouseWorldPos.x - entityPos.x
-  const dy = mouseWorldPos.y - entityPos.y
-  if (dx === 0 && dy === 0) return 0
-  return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+/** Convert a normalized direction vector to a facing angle in degrees. 0 = +Y, clockwise. */
+export function computeDirectionAngle(dir: Vec2): number {
+  return ((Math.atan2(dir.x, dir.y) * 180) / Math.PI + 360) % 360
 }
 
 export class InputManager {
