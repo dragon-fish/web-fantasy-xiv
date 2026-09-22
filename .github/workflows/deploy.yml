@@ -33,6 +33,10 @@ jobs:
 
       - run: pnpm build
 
+      # Pages serves this entry for direct History API routes such as /survivors.
+      - name: Add SPA route entry
+        run: cp dist/index.html dist/404.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
