@@ -775,3 +775,51 @@ describe('CombatResolver — attack_modifier integration', () => {
     expect(boss.hp).toBe(999999 - 3000)
   })
 })
+
+describe('CombatResolver — fractional lifesteal', () => {
+  const onePercent: BuffDef = { ...lifestealBuff, effects: [{ type: 'lifesteal', value: 0.01 }] }
+
+  it('accumulates sub-one-HP heals across different skills and emits only real healing', () => {
+    const { bus, resolver, buffSystem, player, boss } = setup({ playerHp: 5000, playerAttack: 32 })
+    buffSystem.applyBuff(player, onePercent, player.id)
+    const heals: number[] = []
+    bus.on('damage:dealt', e => { if (e.target === player) heals.push(e.amount) })
+    for (let i = 0; i < 10; i++) resolver.applyDamage(player, boss, 1, `skill-${i % 2}`)
+    expect(player.hp).toBe(5003)
+    expect(heals).toEqual([-1, -1, -1])
+  })
+
+  it('does not lose a heal at a floating-point integer boundary', () => {
+    const { resolver, buffSystem, player, boss } = setup({ playerHp: 5000, playerAttack: 10 })
+    buffSystem.applyBuff(player, onePercent, player.id)
+    for (let i = 0; i < 10; i++) resolver.applyDamage(player, boss, 1)
+    expect(player.hp).toBe(5001)
+  })
+
+  it('keeps fractional healing separate for each caster', () => {
+    const { resolver, buffSystem, entityMgr, player, boss } = setup({ playerHp: 5000, playerAttack: 60 })
+    const other = entityMgr.create({ id: 'other', type: 'player', hp: 5000, maxHp: 10000, attack: 60 })
+    for (const caster of [player, other]) {
+      buffSystem.applyBuff(caster, onePercent, caster.id)
+      resolver.applyDamage(caster, boss, 1)
+    }
+    expect(other.hp).toBe(5000)
+    resolver.applyDamage(player, boss, 1)
+    expect(player.hp).toBe(5001)
+    expect(other.hp).toBe(5000)
+  })
+
+  it('discards overhealing instead of banking it for future damage', () => {
+    const { bus, resolver, buffSystem, player, boss } = setup({ playerHp: 9999, playerAttack: 180 })
+    buffSystem.applyBuff(player, onePercent, player.id)
+    const heals: number[] = []
+    bus.on('damage:dealt', e => { if (e.target === player) heals.push(e.amount) })
+    resolver.applyDamage(player, boss, 1)
+    expect(player.hp).toBe(10000)
+    resolver.applyDamage(player, boss, 1)
+    expect(heals).toEqual([-1])
+    player.hp = 9000
+    resolver.applyDamage(player, boss, 1 / 3)
+    expect(player.hp).toBe(9000)
+  })
+})

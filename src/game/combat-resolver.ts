@@ -21,6 +21,7 @@ export class CombatResolver {
   private buffDefs = new Map<string, BuffDef>()
   private skillNames = new Map<string, string>()
   private skillDefsMap = new Map<string, SkillDef>()
+  private lifestealRemainders = new WeakMap<Entity, number>()
 
   constructor(
     private bus: EventBus,
@@ -277,9 +278,17 @@ export class CombatResolver {
     // Lifesteal: heal caster for % of damage dealt
     const lifesteal = this.buffSystem.getLifesteal(caster)
     if (lifesteal > 0 && dmg > 0) {
-      const heal = Math.floor(dmg * lifesteal)
-      caster.hp = Math.min(caster.maxHp, caster.hp + heal)
-      this.bus.emit('damage:dealt', { source: caster, target: caster, amount: -heal, skill: null })
+      if (caster.hp >= caster.maxHp) {
+        this.lifestealRemainders.delete(caster)
+        return
+      }
+      // Carry sub-HP healing across hits; normalize floating-point sums before flooring.
+      const total = Math.round(((this.lifestealRemainders.get(caster) ?? 0) + dmg * lifesteal) * 1e9) / 1e9
+      const whole = Math.floor(total)
+      const heal = Math.min(whole, caster.maxHp - caster.hp)
+      caster.hp += heal
+      this.lifestealRemainders.set(caster, caster.hp >= caster.maxHp ? 0 : total - whole)
+      if (heal > 0) this.bus.emit('damage:dealt', { source: caster, target: caster, amount: -heal, skill: null })
     }
   }
 
