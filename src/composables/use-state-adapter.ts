@@ -79,12 +79,13 @@ export function useStateAdapter(scene: GameScene) {
       buffDefs: scene.buffDefs,
       combatElapsed: elapsed,
       playerHp: {
+        feedback: scene.entityFeedback.healthState(player),
         current: player.hp,
         max: scene.buffSystem.getMaxHp(player),
         shield: shield > 0 ? shield : undefined,
       },
       playerMp: player.maxMp > 0 ? { current: player.mp, max: player.maxMp } : battle.playerMp,
-      bossHp: { current: boss.hp, max: scene.buffSystem.getMaxHp(boss) },
+      bossHp: { current: boss.hp, max: scene.buffSystem.getMaxHp(boss), feedback: scene.entityFeedback.healthState(boss) },
       gcdState: { remaining: player.gcdTimer, total: player.gcdDuration },
       playerCast: player.casting
         ? {

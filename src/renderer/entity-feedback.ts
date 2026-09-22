@@ -1,5 +1,6 @@
 import { Sprite, SpriteManager, Color4, Vector3, Texture, type Scene } from '@babylonjs/core'
 import type { Entity } from '@/entity/entity'
+import { HealthBarMotion, type HealthBarSnapshot } from './health-bar-motion'
 import type { EventBus } from '@/core/event-bus'
 
 interface DamageFeedback {
@@ -9,7 +10,8 @@ interface DamageFeedback {
   isCritical?: boolean
 }
 interface NumberGroup { target: Entity; sprites: Sprite[]; age: number; lane: number; critical: boolean }
-interface HealthBar { background: Sprite; fill: Sprite }
+interface HealthBar { background: Sprite; trail: Sprite; fill: Sprite; heal: Sprite; edge: Sprite; castBackground: Sprite; castFill: Sprite }
+export interface EntityCast { elapsed: number; total: number }
 const GLYPHS = '0123456789+!无效'
 const MAX_NUMBERS = 80
 const MAX_HEALTH_BARS = 24
@@ -25,10 +27,13 @@ export class EntityFeedback {
   private numbers: NumberGroup[] = []
   private bars = new Map<Entity, HealthBar>()
   private pool: Sprite[] = []
+  private health = new WeakMap<Entity, HealthBarMotion>()
   private serial = 0
   private orderDirty = false
   private onDamage = (event: DamageFeedback) => {
     if (!Number.isFinite(event.amount) || event.amount === 0) return
+    if (!this.health.has(event.target)) this.health.set(event.target, new HealthBarMotion(Math.min(event.target.maxHp, event.target.hp + event.amount), event.target.maxHp))
+    this.health.get(event.target)!.update(event.target.hp, event.target.maxHp, 0)
     const heal = event.amount < 0
     const critical = !heal && !!event.isCritical
     const color = heal ? COLORS.heal : event.target.type === 'player' ? COLORS.incoming
@@ -69,29 +74,70 @@ export class EntityFeedback {
     const sprites = [...text].map(char => this.acquire(`combat-number:${id}`, GLYPHS.indexOf(char), color))
     this.numbers.push({ target, sprites, age: 0, lane: id % 3 - 1, critical })
   }
-  update(entities: Entity[], player: Entity, mainBossId: string | null, dt: number) {
+  private motion(entity: Entity) {
+    let motion = this.health.get(entity)
+    if (!motion) { motion = new HealthBarMotion(entity.hp, entity.maxHp); this.health.set(entity, motion) }
+    return motion
+  }
+  healthState(entity: Entity): HealthBarSnapshot {
+    const motion = this.motion(entity)
+    motion.update(entity.hp, entity.maxHp, 0)
+    return motion.snapshot
+  }
+  update(entities: Entity[], player: Entity, mainBossId: string | null, dt: number, bossCast: EntityCast | null = null) {
+    for (const entity of entities) this.motion(entity).update(entity.hp, entity.maxHp, dt)
     const right = this.scene.activeCamera?.getDirection(Vector3.Right()).normalize() ?? Vector3.Right()
     const towardCamera = this.scene.activeCamera?.getDirection(Vector3.Forward()).negate() ?? Vector3.Backward()
     const injured = entities.filter(e => (e.type === 'mob' || e.type === 'boss') && e.id !== mainBossId && e.alive && e.visible && e.hp > 0 && e.hp < e.maxHp)
     const distanceSquared = (e: Entity) => (e.position.x - player.position.x) ** 2 + (e.position.y - player.position.y) ** 2
     injured.sort((a, b) => distanceSquared(a) - distanceSquared(b))
     const selected = new Set(injured.slice(0, MAX_HEALTH_BARS))
+    const boss = entities.find(e => e.id === mainBossId && e.alive && e.visible && e.hp > 0)
+    if (boss) selected.add(boss)
     for (const [entity, bar] of this.bars) {
       if (selected.has(entity)) continue
-      this.release(bar.background); this.release(bar.fill)
+      for (const sprite of Object.values(bar)) this.release(sprite)
       this.bars.delete(entity)
     }
     for (const entity of selected) {
       let bar = this.bars.get(entity)
       if (!bar) {
-        bar = { background: this.acquire(`hp-background:${entity.id}`, 14, new Color4(0.08, 0.06, 0.05, 0.9)), fill: this.acquire(`hp-fill:${entity.id}`, 14, new Color4(0.95, 0.31, 0.18, 1)) }
+        bar = {
+          background: this.acquire(`hp-background:${entity.id}`, 14, new Color4(0.08, 0.06, 0.05, 0.9)),
+          trail: this.acquire(`hp-trail:${entity.id}`, 14, new Color4(0.36, 0.12, 0.11, 1)),
+          fill: this.acquire(`hp-fill:${entity.id}`, 14, new Color4(0.95, 0.31, 0.18, 1)),
+          heal: this.acquire(`hp-heal:${entity.id}`, 14, new Color4(0.55, 1, 0.65, 1)),
+          edge: this.acquire(`hp-edge:${entity.id}`, 14, new Color4(1, 0.8, 0.45, 1)),
+          castBackground: this.acquire(`cast-background:${entity.id}`, 14, new Color4(0.08, 0.06, 0.05, 0.9)),
+          castFill: this.acquire(`cast-fill:${entity.id}`, 14, new Color4(1, 0.69, 0.2, 1)),
+        }
         this.bars.set(entity, bar)
       }
-      const width = 1.5, fill = 1.42 * Math.max(0, Math.min(1, entity.hp / entity.maxHp))
+      const motion = this.healthState(entity)
+      const width = entity.type === 'boss' ? 2.6 : 1.5
+      const inner = width - 0.08
+      const pct = Math.max(0, Math.min(1, entity.hp / entity.maxHp))
       bar.background.width = width; bar.background.height = 0.16
       bar.background.position.set(entity.position.x, this.heightFor(entity) + 0.3, entity.position.y)
-      bar.fill.width = fill; bar.fill.height = 0.095
-      bar.fill.position.copyFrom(bar.background.position).addInPlace(right.scale((fill - 1.42) / 2)).addInPlace(towardCamera.scale(0.01))
+      bar.background.position.addInPlace(right.scale(motion.shake * 0.045))
+      const segment = (sprite: Sprite, start: number, end: number, height = 0.095, vertical = 0) => {
+        sprite.isVisible = end > start
+        sprite.width = Math.max(0, end - start) * inner; sprite.height = height
+        sprite.position.copyFrom(bar.background.position).addInPlace(right.scale(((start + end) / 2 - 0.5) * inner)).addInPlace(towardCamera.scale(0.01))
+        sprite.position.y += vertical
+      }
+      segment(bar.trail, pct, motion.damageEnd)
+      segment(bar.fill, 0, pct)
+      segment(bar.heal, motion.healStart, pct)
+      segment(bar.edge, Math.max(0, pct - 0.015), Math.min(1, pct + 0.015), 0.21)
+      bar.edge.color.copyFrom(motion.kind === 'heal' ? COLORS.heal : COLORS.outgoing)
+      bar.edge.color.a = motion.pulse
+      bar.edge.isVisible = motion.pulse > 0
+      const cast = entity.id === mainBossId && bossCast ? bossCast
+        : entity.casting ? { elapsed: entity.casting.elapsed, total: entity.casting.castTime } : null
+      const casting = entity.type === 'boss' && cast && cast.total > 0
+      segment(bar.castBackground, 0, casting ? 1 : 0, 0.12, -0.25)
+      segment(bar.castFill, 0, casting ? Math.min(1, cast.elapsed / cast.total) : 0, 0.07, -0.25)
     }
     for (const group of this.numbers) {
       group.age += dt
@@ -111,7 +157,7 @@ export class EntityFeedback {
     this.numbers = this.numbers.filter(group => group.age < LIFETIME)
     if (this.orderDirty) {
       // Sprite draw order must survive pool reuse: backgrounds, fills, then text.
-      const layer = (sprite: Sprite) => sprite.name.startsWith('hp-background:') ? 0 : sprite.name.startsWith('hp-fill:') ? 1 : 2
+      const layer = (sprite: Sprite) => sprite.name.startsWith('hp-background:') || sprite.name.startsWith('cast-background:') ? 0 : sprite.name.startsWith('hp-trail:') ? 1 : sprite.name.startsWith('hp-fill:') || sprite.name.startsWith('cast-fill:') ? 2 : sprite.name.startsWith('hp-heal:') || sprite.name.startsWith('hp-edge:') ? 3 : 4
       this.manager.sprites.sort((a, b) => layer(a) - layer(b))
       this.orderDirty = false
     }

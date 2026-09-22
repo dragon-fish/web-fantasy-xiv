@@ -6,7 +6,7 @@ import { EntityRenderer, type EntityVisuals } from '@/renderer/entity-renderer'
 import type { Scene } from '@babylonjs/core'
 import { AoeRenderer } from '@/renderer/aoe-renderer'
 import { HitEffectRenderer } from '@/renderer/hit-effect-renderer'
-import { EntityFeedback } from '@/renderer/entity-feedback'
+import { EntityFeedback, type EntityCast } from '@/renderer/entity-feedback'
 import { EventBus } from '@/core/event-bus'
 import { EntityManager } from '@/entity/entity-manager'
 import { GameLoop } from '@/core/game-loop'
@@ -99,6 +99,7 @@ export class GameScene {
 
   /** Reference entity for boss HP bar */
   bossEntity: Entity | null = null
+  getBossCast: () => EntityCast | null = () => null
 
   constructor(config: GameSceneConfig) {
     this.config = config
@@ -197,7 +198,7 @@ export class GameScene {
       this.sceneManager.updateRoll(delta)
       this.entityRenderer.updateAll(this.entityMgr.getAlive(), delta, this.player?.target)
       this.entityFeedback.update(this.entityMgr.getAlive(), this.player, this.bossEntity?.id ?? null,
-        this.paused || this.devTerminal.isVisible() ? 0 : delta)
+        this.paused || this.devTerminal.isVisible() ? 0 : delta, this.getBossCast())
       this.aoeRenderer.update(now)
       this.hitEffectRenderer.update(delta, (id) => this.entityMgr.get(id))
 

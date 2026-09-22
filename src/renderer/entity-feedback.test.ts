@@ -45,7 +45,7 @@ it('distinguishes incoming damage from healing and ignores zero heals', () => {
   dispose()
 })
 
-it('only shows nearest injured enemies, excluding full health, hidden and main boss entities', () => {
+it('only shows nearest injured enemies, excluding full health and hidden mobs while retaining the main boss', () => {
   const { feedback, entities, player, mob, scene, dispose } = setup()
   const far = entities.create({ id: 'far', type: 'mob', hp: 50, maxHp: 100, position: { x: 80, y: 0, z: 0 } })
   for (let i = 0; i < 30; i++) entities.create({ id: `near-${i}`, type: 'mob', hp: 50, maxHp: 100, position: { x: i, y: 0, z: 0 } })
@@ -55,7 +55,8 @@ it('only shows nearest injured enemies, excluding full health, hidden and main b
   const bars = scene.spriteManagers![0]!.sprites.filter(s => s.name.startsWith('hp-background:') && s.isVisible)
   expect(bars.length).toBeGreaterThan(0)
   expect(bars.length).toBeLessThan(30)
-  for (const e of [mob, far, boss, hidden]) expect(bars.some(s => s.name === `hp-background:${e.id}`)).toBe(false)
+  for (const e of [mob, far, hidden]) expect(bars.some(s => s.name === `hp-background:${e.id}`)).toBe(false)
+  expect(bars.some(s => s.name === 'hp-background:boss')).toBe(true)
   const near = entities.get('near-0')!
   near.hp = near.maxHp
   feedback.update(entities.getAlive(), player, boss.id, 16)
@@ -75,5 +76,31 @@ it('keeps recycled health bar backgrounds behind their fills', () => {
   const fill = sprites.findIndex(s => s.name === 'hp-fill:next')
   expect(background).toBeGreaterThanOrEqual(0)
   expect(fill).toBeGreaterThan(background)
+  dispose()
+})
+
+it('keeps burst history from the first damage event and displays actual boss cast progress', () => {
+  const { feedback, bus, entities, player, scene, dispose } = setup()
+  const boss = entities.create({ id: 'boss', type: 'boss', hp: 100 })
+  boss.hp = 60
+  bus.emit('damage:dealt', { target: boss, source: player, amount: 40 })
+  feedback.update([player, boss], player, boss.id, 0, { elapsed: 500, total: 1000 })
+  const sprites = scene.spriteManagers![0]!.sprites
+  const trail = sprites.find(s => s.name === 'hp-trail:boss')!
+  expect(trail.isVisible).toBe(true)
+  expect(feedback.healthState(boss).damageEnd).toBe(1)
+  const back = sprites.find(s => s.name === 'cast-background:boss')!
+  const fill = sprites.find(s => s.name === 'cast-fill:boss')!
+  expect(fill.width / back.width).toBeCloseTo(0.5)
+  feedback.update([player, boss], player, boss.id, 1300)
+  expect(trail.isVisible).toBe(false)
+  expect(back.isVisible).toBe(false)
+  boss.casting = { skillId: 'cast', targetId: player.id, elapsed: 300, castTime: 1000 }
+  feedback.update([player, boss], player, boss.id, 0)
+  expect(back.isVisible).toBe(true)
+  expect(fill.width / back.width).toBeCloseTo(0.3)
+  boss.casting = null
+  feedback.update([player, boss], player, boss.id, 0)
+  expect(back.isVisible).toBe(false)
   dispose()
 })

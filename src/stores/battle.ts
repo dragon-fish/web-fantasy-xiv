@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
+import type { HealthBarSnapshot } from '@/renderer/health-bar-motion'
 import type { BuffDef } from '@/core/types'
 import type { TimelineEntry } from '@/timeline/types'
 import type { DamageLogEntry } from '@/game/types'
 import type { SkillBarEntry } from '@/jobs/shared'
 
 export interface HpState {
+  feedback?: HealthBarSnapshot
   current: number
   max: number
   shield?: number

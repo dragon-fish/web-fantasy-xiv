@@ -79,6 +79,7 @@ function boot() {
   scene.buffDefs = new Map(CARDS.filter(c => c.buff).map(c => [c.buff!.id, c.buff!]))
   scene.buffDefs.set(DASH_GUARD.id, DASH_GUARD)
   scene.getCombatElapsed = () => run!.elapsed
+  scene.getBossCast = () => run!.bossFight?.cast ?? null
   scene.bus.on('combat:ended', ({ result }) => { scene!.endBattle(result); sync() })
   scene.onLogicTick = (dt) => {
     run!.tick(dt)
