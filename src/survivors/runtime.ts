@@ -6,6 +6,9 @@ import type { Arena } from '@/arena/arena'
 import type { CombatResolver } from '@/game/combat-resolver'
 import type { DisplacementAnimator } from '@/game/displacement-animator'
 import type { BuffDef } from '@/core/types'
+import type { AoeZoneManager } from '@/skill/aoe-zone'
+import { SurvivorBoss } from './boss'
+import { difficultyAt, GEM_LIFETIME, GEM_LIMIT } from './difficulty'
 import { Progression } from './progression'
 import { Dash } from './dash'
 import { Weapons } from './weapons'
@@ -14,7 +17,7 @@ import { distance, nearest, type Effect, type Gem } from './types'
 
 export interface SurvivorDeps {
   bus: EventBus; entityMgr: EntityManager; buffSystem: BuffSystem; arena: Arena
-  combatResolver: CombatResolver; displacer: DisplacementAnimator; player: Entity
+  zoneMgr: AoeZoneManager; combatResolver: CombatResolver; displacer: DisplacementAnimator; player: Entity
 }
 const FROST: BuffDef = { id: 'sv_frost', name: '冰结', type: 'debuff', duration: 1000, durationGrace: 0, stackable: false, maxStacks: 1, effects: [{ type: 'speed_modify', value: -0.55 }] }
 const SHOCK: BuffDef = { id: 'sv_shock', name: '感电', type: 'debuff', duration: 4000, stackable: false, maxStacks: 1, effects: [] }
@@ -30,14 +33,28 @@ export class SurvivorRuntime {
   result: 'victory' | 'wipe' | null = null
   gems: Gem[] = []
   private spawnTimer = 0
-  private nextElite = 60000
+  bossFight: SurvivorBoss | null = null
+  private bossMilestone = 0
+  private nextElite = 150000
   private serial = 0
   private gemSerial = 0
+  private onDamage = ({ target }: { target: Entity }) => {
+    // Zone damage resolves after our tick; block regeneration before the next player update.
+    if (target === this.player && target.hp <= 0) target.alive = false
+  }
   constructor(readonly deps: SurvivorDeps, private random: () => number = Math.random) {
     this.progression = new Progression(random)
     this.dash = new Dash(deps.player, deps.buffSystem, deps.displacer)
     this.weapons = new Weapons(this)
     deps.player.inCombat = true
+    deps.bus.on('damage:dealt', this.onDamage)
+  }
+  checkDeath() {
+    if (!this.result && this.player.hp <= 0) this.finish('wipe')
+  }
+  dispose() {
+    this.deps.bus.off('damage:dealt', this.onDamage)
+    this.bossFight?.dispose()
   }
   get player() { return this.deps.player }
   get area() { return 1 + this.rank('area') * 0.15 }
@@ -72,17 +89,22 @@ export class SurvivorRuntime {
     if (this.player.hp <= 0) { this.finish('wipe'); return }
     if (this.progression.pending) return
     this.elapsed += dt
-    if (this.elapsed >= RUN_DURATION) { this.finish('victory'); return }
+    if (!this.bossFight && this.bossMilestone < 2 && this.elapsed >= (this.bossMilestone + 1) * 240000) this.startBoss()
     this.dash.tick(dt)
-    this.spawnTimer -= dt
-    if (this.spawnTimer <= 0) {
-      this.spawnTimer += Math.max(160, 850 - this.elapsed / 750)
-      for (let i = 0; i < 1 + Math.floor(this.elapsed / 90000); i++) {
-        if (this.enemies().length < 320) this.spawn(false)
+    if (this.bossFight) {
+      this.bossFight.tick(dt)
+    } else {
+      const difficulty = difficultyAt(this.elapsed)
+      this.spawnTimer -= dt
+      if (this.spawnTimer <= 0) {
+        this.spawnTimer += difficulty.spawnInterval
+        const count = Math.min(difficulty.batch, difficulty.enemyLimit - this.enemies().length)
+        for (let i = 0; i < count; i++) this.spawn(false)
       }
+      if (this.elapsed >= this.nextElite) { this.spawn(true); this.nextElite = this.elapsed + 45000 }
     }
-    if (this.elapsed >= this.nextElite) { this.spawn(true); this.nextElite += 60000 }
     for (const enemy of this.enemies()) {
+      if (enemy === this.bossFight?.entity) continue
       const d = distance(enemy.position, this.player.position)
       if (d > 0.7) {
         const move = Math.min(d, enemy.speed * (1 + this.deps.buffSystem.getSpeedModifier(enemy)) * dt / 1000)
@@ -100,6 +122,7 @@ export class SurvivorRuntime {
     this.weapons.tick(dt)
     const pickup = 3 + this.rank('stride') * 1.5
     this.gems = this.gems.filter(gem => {
+      if (gem.expiresAt <= this.elapsed) return false
       const d = distance(gem, this.player.position)
       if (d < 1) { this.progression.gainXp(gem.value); return false }
       if (d < pickup) {
@@ -122,12 +145,16 @@ export class SurvivorRuntime {
       const burning = buffs.hasBuff(target, FIRE.id)
       entityMgr.destroy(target.id)
       this.kills++
-      this.gems.push({ id: ++this.gemSerial, x: center.x, y: center.y, value: target.type === 'boss' ? 35 : 3 })
-      // Merge old pickups without losing earned experience or growing scene memory forever.
-      if (this.gems.length > 450) {
-        const old = this.gems.shift()!
-        const closest = this.gems.reduce((a, b) => distance(a, old) < distance(b, old) ? a : b)
-        closest.value += old.value
+      this.dropGem(center, target.type === 'boss' ? 35 : 3)
+      if (target === this.bossFight?.entity) {
+        const stage = this.bossFight.stage
+        this.bossFight.dispose()
+        this.bossFight = null
+        this.nextElite = this.elapsed + 45000
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.maxHp * 0.3)
+        if (stage === 2) this.finish('victory')
+        else this.progression.gainXp(100)
+        return
       }
       if (target.type === 'boss') this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.maxHp * 0.3)
       if (secondary) return
@@ -156,13 +183,28 @@ export class SurvivorRuntime {
     let point = this.deps.arena.clampPosition({ x: p.x + Math.cos(angle) * 23, y: p.y + Math.sin(angle) * 23 })
     // Clamping an outward spawn at a corner must not place it on the player.
     if (distance(point, p) < 12) point = this.deps.arena.clampPosition({ x: p.x - Math.cos(angle) * 23, y: p.y - Math.sin(angle) * 23 })
-    const minute = this.elapsed / 60000
+    const difficulty = difficultyAt(this.elapsed)
     const kind = elite ? 'elite' : this.serial % 7 === 0 ? 'golem' : this.serial % 3 === 0 ? 'bat' : 'imp'
-    const hp = (35 + minute * 22) * (elite ? 16 : kind === 'golem' ? 3 : 1)
-    this.deps.entityMgr.create({ id: `sv_enemy_${++this.serial}`, type: elite ? 'boss' : 'mob', group: kind, position: { ...point, z: 0 }, hp, attack: (14 + minute * 4) * (elite ? 2 : 1), speed: kind === 'bat' ? 4.1 : kind === 'golem' ? 1.8 : 2.5 + minute * 0.12, size: elite ? 1.1 : kind === 'golem' ? 0.8 : 0.45 })
+    const hp = difficulty.hp * (elite ? 16 : kind === 'golem' ? 3 : 1)
+    this.deps.entityMgr.create({ id: `sv_enemy_${++this.serial}`, type: elite ? 'boss' : 'mob', group: kind, position: { ...point, z: 0 }, hp, attack: difficulty.attack * (elite ? 2 : 1), speed: (kind === 'bat' ? 3.5 : kind === 'golem' ? 1.6 : 2.2) * difficulty.speed, size: elite ? 1.1 : kind === 'golem' ? 0.8 : 0.45 })
+  }
+  private startBoss() {
+    for (const e of this.enemies()) this.deps.entityMgr.destroy(e.id)
+    this.gems = []
+    this.weapons.projectiles = []
+    this.weapons.fields = []
+    this.bossMilestone++
+    this.bossFight = new SurvivorBoss(this.bossMilestone as 1 | 2, this.deps)
+  }
+  private dropGem(point: { x: number; y: number }, value: number) {
+    const nearby = this.gems.find(g => g.expiresAt > this.elapsed && distance(g, point) < 1.5)
+    if (nearby) { nearby.value += value; return }
+    this.gems.push({ id: ++this.gemSerial, ...point, value, expiresAt: this.elapsed + GEM_LIFETIME })
+    if (this.gems.length > GEM_LIMIT) this.gems.shift()
   }
   private finish(result: 'victory' | 'wipe') {
     this.result = result
+    this.bossFight?.dispose()
     if (result === 'wipe') this.player.alive = false
     this.deps.bus.emit('combat:ended', { result, elapsed: this.elapsed })
   }

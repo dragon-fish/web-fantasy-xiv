@@ -3,6 +3,7 @@ import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 import type { EntityVisuals } from '@/renderer/entity-renderer'
 import type { SurvivorRuntime } from './runtime'
+import { BOSS_ARENA_RADIUS } from './boss'
 import { buildModel, type ModelKind } from './models'
 import type { Effect } from './types'
 
@@ -15,10 +16,12 @@ export class SurvivorVisuals implements EntityVisuals {
   private materials = new Map<string, StandardMaterial>()
   private banks = new Map<string, { source: Mesh; instances: InstancedMesh[]; used: number }>()
   private hitUntil = new Map<string, number>()
+  private boundary: Mesh | null = null
+  private barrier: Mesh | null = null
   private time = 0
   private run: SurvivorRuntime | null = null
   constructor(private scene: Scene, bus: EventBus) {
-    for (const kind of ['player', 'imp', 'bat', 'golem', 'elite'] as const) this.models.set(kind, buildModel(scene, kind))
+    for (const kind of ['player', 'imp', 'bat', 'golem', 'elite', 'sentinel'] as const) this.models.set(kind, buildModel(scene, kind))
     bus.on('entity:created', ({ entity }: { entity: Entity }) => {
       const kind = entity.type === 'player' ? 'player' : entity.group as ModelKind
       const template = this.models.get(kind) ?? this.models.get('imp')!
@@ -49,6 +52,18 @@ export class SurvivorVisuals implements EntityVisuals {
     return this.materials.get(key)!
   }
   private decorate() {
+    this.boundary = MeshBuilder.CreateTorus('boss-boundary', { diameter: BOSS_ARENA_RADIUS * 2, thickness: 0.13, tessellation: 96 }, this.scene)
+    this.boundary.material = this.mat('#f2b065')
+    this.boundary.position.y = 0.12
+    this.boundary.isPickable = false
+    this.boundary.setEnabled(false)
+    this.barrier = MeshBuilder.CreateCylinder('boss-barrier', { diameter: BOSS_ARENA_RADIUS * 2, height: 1.5, cap: 0, sideOrientation: 2, tessellation: 96 }, this.scene)
+    const barrierMat = this.mat('#ca8053', 0.25)
+    barrierMat.alpha = 0.16
+    this.barrier.material = barrierMat
+    this.barrier.position.y = 0.75
+    this.barrier.isPickable = false
+    this.barrier.setEnabled(false)
     this.scene.clearColor.set(0.027, 0.045, 0.065, 1)
     const ground = this.scene.getMeshByName('arena-ground')
     if (ground) ground.material = this.mat('#172c35', 0.12)
@@ -85,7 +100,7 @@ export class SurvivorVisuals implements EntityVisuals {
       mesh.position.set(e.position.x, e.group === 'bat' ? bob * 0.2 + 0.25 : Math.abs(bob) * 0.05, e.position.y)
       mesh.rotation.y = e.facing * Math.PI / 180
       mesh.rotation.z = e.group === 'bat' ? bob * 0.2 : 0
-      const scale = e.group === 'elite' ? 1.4 : 1
+      const scale = e.group === 'sentinel' ? 2.1 : e.group === 'elite' ? 1.4 : 1
       mesh.scaling.set(scale, scale * (this.hitUntil.has(e.id) ? 0.87 : 1), scale)
       if (e.type === 'player') mesh.visibility = e.buffs.some(b => b.defId === 'sv_dash_guard') ? 0.45 : 1
       if ((this.hitUntil.get(e.id) ?? Infinity) < this.time) this.hitUntil.delete(e.id)
@@ -124,6 +139,8 @@ export class SurvivorVisuals implements EntityVisuals {
     this.scene.metadata = { paused }
     const run = this.run
     if (!run) return
+    this.boundary?.setEnabled(!!run.bossFight && !run.result)
+    this.barrier?.setEnabled(!!run.bossFight && !run.result)
     for (const bank of this.banks.values()) bank.used = 0
     for (const p of run.weapons.projectiles) {
       const color = p.weapon === 'fire' ? '#ff944f' : p.weapon === 'holy' ? '#ffe9b0' : '#7affdf'
@@ -157,9 +174,13 @@ export class SurvivorVisuals implements EntityVisuals {
       const m = this.instance('experience', 'gem', '#7dffc9')
       m.position.set(g.x, 0.3, g.y)
       m.rotation.y = this.time / 700
-      m.scaling.setAll(g.value > 3 ? 1.5 : 1)
+      const life = Math.max(0, g.expiresAt - run.elapsed)
+      const fade = Math.min(1, life / 4000)
+      m.scaling.setAll((g.value > 3 ? 1.5 : 1) * fade)
     }
     for (const bank of this.banks.values()) for (let i = bank.used; i < bank.instances.length; i++) bank.instances[i]!.setEnabled(false)
+    const experience = this.banks.get('experience')
+    if (experience) while (experience.instances.length > experience.used + 24) experience.instances.pop()!.dispose()
     if (paused) return
     for (const f of this.flashes) {
       f.age += dt

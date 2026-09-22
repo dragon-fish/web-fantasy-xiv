@@ -1,3 +1,4 @@
+import { AoeZoneManager } from '@/skill/aoe-zone'
 import { BuffSystem } from '@/combat/buff'
 import { Arena } from '@/arena/arena'
 import { DisplacementAnimator } from '@/game/displacement-animator'
@@ -48,10 +49,11 @@ it('reuses expired effects without growing mesh count across repeated bursts', (
   const buffSystem = new BuffSystem(bus)
   const arena = new Arena({ name: 'test', shape: { type: 'rect', width: 120, height: 120 }, boundary: 'wall' })
   const displacer = new DisplacementAnimator(arena)
-  const combatResolver = new CombatResolver(bus, entityMgr, buffSystem, arena)
+  const zoneMgr = new AoeZoneManager(bus, entityMgr)
+  const combatResolver = new CombatResolver(bus, entityMgr, buffSystem, arena, zoneMgr)
   const visuals = new SurvivorVisuals(scene, bus)
   const player = entityMgr.create({ id: 'player', type: 'player', hp: 100 })
-  visuals.bind(new SurvivorRuntime({ bus, entityMgr, buffSystem, arena, displacer, combatResolver, player }))
+  visuals.bind(new SurvivorRuntime({ bus, entityMgr, buffSystem, arena, displacer, zoneMgr, combatResolver, player }))
   const burst = () => {
     bus.emit('survivor:effect', { kind: 'burst', from: { x: 0, y: 0 }, radius: 3, color: '#ff884e' })
     visuals.render(500, false)

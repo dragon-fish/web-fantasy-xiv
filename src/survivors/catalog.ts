@@ -41,13 +41,16 @@ export const CARDS: Card[] = [
   perk('dashStock', '前冲步 · 蓄势', '前冲步最大充能次数 +1，立即补充新增的一次。', 2),
   perk('vitality', '超越之力', '最大生命 +20% / 层，立即恢复 20% 最大生命。', 5, [{ type: 'max_hp_modifier', value: 0.2 }]),
 ]
+// Status IDs and legacy IconIDs verified against XIVAPI; CDN uses legacy asset names.
+// See docs/survivors-status-icons.md for original names and source rows.
 const perkIcons: Record<string, string> = {
-  haste: icon('skill_icons/25_BLM', 2656), area: icon('skill_icons/25_BLM', 2652),
-  multishot: icon('skill_icons/38_DNC', 3453), critical: icon('skill_icons/34_SAM', 3162),
-  leech: icon('skill_icons/32_DRK', 3071), stride: icon('skill_icons/38_DNC', 3467),
-  combustion: icon('skill_icons/25_BLM', 451), shatter: icon('skill_icons/25_BLM', 454),
-  conduction: icon('skill_icons/25_BLM', 468), dashHaste: icon('skill_icons/38_DNC', 3467),
-  dashStock: icon('skill_icons/38_DNC', 6354), vitality: icon('skill_icons/19_PLD', 2509),
+  power: icon('player_skill_effects', 10354), haste: icon('player_skill_effects', 12627),
+  area: icon('player_skill_effects', 12653), multishot: icon('player_skill_effects', 10356),
+  critical: icon('player_skill_effects', 12578), leech: icon('player_skill_effects', 13913),
+  stride: icon('player_skill_effects', 10101), combustion: icon('player_skill_effects', 10463),
+  shatter: icon('player_skill_effects', 10466), conduction: icon('player_skill_effects', 12660),
+  dashHaste: icon('player_skill_effects', 13908), dashStock: icon('player_skill_effects', 12690),
+  vitality: icon('effects', 16207),
 }
 const evolvedIcons: Record<string, string> = {
   fire: icon('skill_icons/25_BLM', 2652), ice: icon('skill_icons/25_BLM', 2653),

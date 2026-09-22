@@ -69,6 +69,7 @@ function onLeave() {
     @mouseleave="onLeave"
   )
     .buff-icon__box(
+      :class="{ 'buff-icon__box--fallback': !view.iconSrc }"
       :style="{ background: view.iconSrc ? 'transparent' : 'rgba(0,0,0,0.7)', border: view.iconSrc ? 'none' : `1px solid ${view.borderColor}` }"
     )
       img.buff-icon__img(v-if="view.iconSrc" :src="view.iconSrc")
@@ -87,7 +88,10 @@ function onLeave() {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 2px;
+  gap: 5px;
+  max-width: calc(100vw - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
   pointer-events: none;
 }
 
@@ -101,19 +105,22 @@ function onLeave() {
 }
 
 .buff-icon__box {
-  width: 28px;
-  height: 28px;
-  border-radius: 3px;
+  height: 32px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
+.buff-icon__box--fallback { width: 24px; border-radius: 3px; }
+
 .buff-icon__img {
-  width: 28px;
-  height: 28px;
+  display: block;
+  width: auto;
+  height: 32px;
+  max-width: none;
   object-fit: contain;
   pointer-events: none;
 }

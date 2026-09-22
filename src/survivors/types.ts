@@ -6,7 +6,7 @@ export interface Effect { kind: 'burst' | 'line' | 'slash' | 'dash'; from: Vec2;
 export interface Projectile extends Vec2 { id: number; vx: number; vy: number; life: number; weapon: WeaponId; potency: number; pierce: number; hit: Set<string>; target?: string; secondary: boolean }
 export interface Field extends Vec2 { id: number; radius: number; life: number; tick: number; potency: number }
 export interface Orb extends Vec2 { id: number; radius: number }
-export interface Gem extends Vec2 { id: number; value: number }
+export interface Gem extends Vec2 { id: number; value: number; expiresAt: number }
 export interface WeaponContext {
   player: Entity
   elapsed: number

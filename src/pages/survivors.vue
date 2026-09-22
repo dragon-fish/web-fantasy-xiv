@@ -20,7 +20,7 @@ const battle = useBattleStore()
 const started = ref(false)
 const ready = ref(false)
 const session = ref(0)
-const state = shallowRef({ elapsed: 0, level: 1, xp: 0, required: 11, kills: 0, count: 0, offers: [] as Card[], ranks: {} as Record<string, number> })
+const state = shallowRef({ elapsed: 0, level: 1, xp: 0, required: 11, kills: 0, count: 0, offers: [] as Card[], ranks: {} as Record<string, number>, boss: null as { name: string; hint: string } | null })
 let scene: GameScene | null = null
 let run: SurvivorRuntime | null = null
 let visuals: SurvivorVisuals | null = null
@@ -28,7 +28,7 @@ let adapter: ReturnType<typeof useStateAdapter> | null = null
 const trigger = ref<(idx: number) => void>((idx) => { if (idx === 200) dash() })
 provide(SKILL_TRIGGER_KEY, trigger)
 const clock = computed(() => `${Math.floor(state.value.elapsed / 60000).toString().padStart(2, '0')}:${Math.floor(state.value.elapsed / 1000 % 60).toString().padStart(2, '0')}`)
-const stage = computed(() => ['以太苏醒', '魔物涌动', '暗潮逼近', '群星坠落'][Math.min(3, Math.floor(state.value.elapsed / 120000))])
+const stage = computed(() => state.value.boss ? '讨伐战 · 场地封锁' : ['稳定发育', '魔潮渐强', '以太狂乱', '终末前夜'][Math.min(3, Math.floor(state.value.elapsed / 120000))])
 const unlocked = computed(() => WEAPONS.filter(w => state.value.ranks[w.id]).length)
 const awakened = computed(() => WEAPONS.filter(w => state.value.ranks[w.id] === 5).length)
 const entries = () => {
@@ -43,12 +43,19 @@ const entries = () => {
 function sync() {
   if (!run || !scene || !adapter) return
   scene.skillBarEntries = entries()
+  const boss = run.bossFight?.entity ?? null
+  if (scene.bossEntity !== boss) {
+    scene.bossEntity = boss
+    scene.camera.follow(boss ?? scene.player)
+  }
   adapter.writeFrame(0)
+  battle.bossCast = run.bossFight?.cast ? { ...run.bossFight.cast } : null
   battle.cooldowns = new Map(WEAPONS.map(c => [`sv_${c.id}`, Math.max(0, run!.weapons.remaining[c.weapon] ?? 0)]))
   battle.cooldowns.set('sv_dash', run.dash.remaining)
-  state.value = { elapsed: run.elapsed, level: run.progression.level, xp: run.progression.xp, required: run.progression.requiredXp, kills: run.kills, count: run.enemies().length, offers: [...run.progression.offers], ranks: { ...run.progression.ranks } }
+  state.value = { elapsed: run.elapsed, level: run.progression.level, xp: run.progression.xp, required: run.progression.requiredXp, kills: run.kills, count: run.enemies().length, offers: [...run.progression.offers], ranks: { ...run.progression.ranks }, boss: run.bossFight ? { name: run.bossFight.name, hint: run.bossFight.cast?.hint ?? '观察下一次咏唱 · 自动战技持续攻击' } : null }
 }
 function cleanup() {
+  run?.dispose()
   adapter?.dispose()
   adapter = null
   scene?.dispose()
@@ -82,6 +89,7 @@ function boot() {
   adapter = useStateAdapter(scene, { maxDamageEvents: 55 })
   let sinceSync = 0
   scene.onRenderTick = (dt) => {
+    run!.checkDeath()
     visuals!.render(dt, scene!.paused || scene!.battleOver)
     sinceSync += dt
     if (sinceSync >= 80) { sync(); sinceSync = 0 }
@@ -138,7 +146,7 @@ onBeforeUnmount(cleanup)
       span.subtitle {{ stage }}
     .run-time
       strong {{ clock }}
-      span / 08:00
+      span {{ state.boss ? 'BOSS' : '/ 08:00' }}
     .run-stats
       span 讨伐
       strong {{ state.kills }}
@@ -150,6 +158,11 @@ onBeforeUnmount(cleanup)
   .field-notes(v-if="started && !battle.battleOver")
     span {{ state.count }} 魔物逼近
     span {{ unlocked }} / 6 战技装载 · {{ awakened }} 觉醒
+  template(v-if="state.boss && !battle.battleOver")
+    .boss-name {{ state.boss.name }}
+    HudHpBar(mode="boss")
+    HudCastBar(mode="boss")
+    .boss-hint {{ state.boss.hint }}
   HudHpBar(mode="player")
   HudSkillBar
   HudBuffBar
@@ -165,12 +178,14 @@ onBeforeUnmount(cleanup)
         img(v-for="w in WEAPONS" :key="w.id" :src="w.icon" :alt="w.name" :title="w.name")
       p 六种自动战技，自由叠加强化。
       p 拾取以太结晶升级，五级觉醒改变攻击形态。
+      p 前两分钟发育 · 4 / 8 分钟机制 Boss · 击败最终 Boss 通关
+      p 以太结晶 20 秒后消散，请及时拾取。
       .instructions
         span #[kbd W A S D] 走位与拾取
         span #[kbd SPACE] 前冲步 · 短暂无敌
       button.primary(type="button" :disabled="!ready" @click="begin") {{ ready ? '进入荒原' : '凝聚以太…' }}
       RouterLink.back(to="/") 返回大厅
-      small FF14 概念改编 · 8 分钟生存挑战
+      small FF14 概念改编 · 怪潮与讨伐战
   .veil(v-else-if="state.offers.length && !battle.battleOver")
     section.selection
       span.eyebrow LEVEL {{ state.level }} · AETHER ATTUNEMENT
@@ -215,6 +230,10 @@ onBeforeUnmount(cleanup)
 .experience { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: #10292e; .experience-fill { height: 100%; background: #9de8d5; box-shadow: 0 0 12px #7de2c9; transition: width .15s; } span { position: absolute; top: 7px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #b3d9cd; } }
 .run-progress { position: absolute; bottom: 0; height: 2px; background: #d5ba7a; opacity: .5; }
 .field-notes { position: absolute; left: 28px; bottom: 26px; display: flex; flex-direction: column; gap: 7px; color: #9ab4b2; font-size: 11px; }
+.boss-name { position: absolute; top: 102px; width: 100%; text-align: center; color: #f0c28d; font-size: 15px; letter-spacing: .14em; }
+:deep(.hp-bar.boss) { top: 127px; width: min(420px, 75vw); }
+:deep(.cast-bar.boss) { top: 158px; width: min(330px, 65vw); }
+.boss-hint { position: absolute; top: 186px; width: 100%; text-align: center; font-size: 12px; color: #ffd2a3; text-shadow: 0 1px 4px #000; }
 .controls { position: absolute; bottom: 114px; width: 100%; text-align: center; color: #a1b2b3; font-size: 10px; letter-spacing: .08em; }
 .veil { pointer-events: auto; position: absolute; inset: 0; display: grid; place-items: center; overflow: auto; padding: 28px; background: #030c16cb; backdrop-filter: blur(5px); z-index: 30; }
 .intro, .result { text-align: center; max-width: 600px; padding: 35px; }
@@ -233,7 +252,7 @@ small { display: block; margin-top: 30px; color: #648385; font-size: 10px; lette
 .selection { max-width: 970px; width: 100%; text-align: center; }
 .selection-hint { margin-bottom: 28px; }
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; text-align: left; }
-.upgrade-card { color: #e7eeec; background: linear-gradient(160deg, #203039ee, #101d26); border: 1px solid #7b979749; border-top: 2px solid var(--card-color); padding: 24px; text-align: left; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; transition: transform .15s, border-color .15s; &:hover, &:focus-visible { transform: translateY(-6px); border-color: var(--card-color); outline: none; } img { width: 52px; height: 52px; margin-top: 22px; border-radius: 5px; } h3 { margin: 17px 0 0; font: 23px 'Songti SC', serif; } > p { min-height: 72px; } }
+.upgrade-card { color: #e7eeec; background: linear-gradient(160deg, #203039ee, #101d26); border: 1px solid #7b979749; border-top: 2px solid var(--card-color); padding: 24px; text-align: left; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; transition: transform .15s, border-color .15s; &:hover, &:focus-visible { transform: translateY(-6px); border-color: var(--card-color); outline: none; } img { width: auto; height: 52px; margin-top: 22px; border-radius: 5px; } h3 { margin: 17px 0 0; font: 23px 'Songti SC', serif; } > p { min-height: 72px; } }
 .card-type { color: var(--card-color); font-size: 10px; letter-spacing: .14em; }
 .evolution { border-top: 1px solid #7891913a; padding-top: 14px; margin-top: auto; span { color: var(--gold); font-size: 10px; letter-spacing: .12em; } p { font-size: 11px; color: #97aaa9; } }
 .card-select { color: var(--card-color); font-size: 11px; margin-top: auto; padding-top: 22px; }

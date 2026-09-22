@@ -1,6 +1,6 @@
 import { Mesh, MeshBuilder, StandardMaterial, Color3, type Scene } from '@babylonjs/core'
 
-export type ModelKind = 'player' | 'imp' | 'bat' | 'golem' | 'elite'
+export type ModelKind = 'player' | 'imp' | 'bat' | 'golem' | 'elite' | 'sentinel'
 /** Build once per scene; enemies share geometry/materials through Babylon instances. */
 export function buildModel(scene: Scene, kind: ModelKind): Mesh {
   const parts: Mesh[] = []
@@ -11,7 +11,7 @@ export function buildModel(scene: Scene, kind: ModelKind): Mesh {
     m.specularColor.set(0.12, 0.12, 0.12)
     return m
   }
-  const colors = { player: '#355e72', imp: '#ac6250', bat: '#6d5895', golem: '#536572', elite: '#7d3446' }
+  const colors = { player: '#355e72', imp: '#ac6250', bat: '#6d5895', golem: '#536572', elite: '#7d3446', sentinel: '#564169' }
   const body = material('body', colors[kind])
   const dark = material('dark', kind === 'player' ? '#1a293c' : '#292432')
   const light = material('trim', kind === 'player' ? '#e4c885' : '#c6b28c')
@@ -67,7 +67,7 @@ export function buildModel(scene: Scene, kind: ModelKind): Mesh {
       box(side * 0.76, 1.6, 0, 0.62, 0.65, 0.85, body, side * 0.2)
       box(side * 0.82, 0.98, 0.08, 0.46, 0.85, 0.55)
       ball(side * 0.16, 2.05, 0.3, 0.14, glow)
-      if (kind === 'elite') cone(side * 0.42, 2.45, 0, 0.3, 0, 1, light, side * -0.4)
+      if (kind === 'elite' || kind === 'sentinel') cone(side * 0.42, 2.45, 0, 0.3, 0, 1, light, side * -0.4)
     }
   }
   const merged = Mesh.MergeMeshes(parts, true, true, undefined, false, true)!

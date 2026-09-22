@@ -161,7 +161,9 @@ export class AoeRenderer {
           thickness: shape.outerRadius - shape.innerRadius,
           tessellation: 48,
         }, this.scene)
-        mesh.position.y = 0.02
+        mesh.position.set(zone.center.x, 0.02, zone.center.y)
+        // Wide rings are ground telegraphs, not tall 3D obstacles hiding the safe zone.
+        mesh.scaling.y = 0.005
         mesh.material = telegraphMat
         mesh.enableEdgesRendering()
         mesh.edgesWidth = 2.0
