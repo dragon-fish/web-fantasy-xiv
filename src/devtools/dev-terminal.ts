@@ -10,6 +10,8 @@ export class DevTerminal {
   private logEl: HTMLDivElement | null = null
   private inputEl: HTMLInputElement | null = null
   private visible = false
+  private listeners = new AbortController()
+  private subscriptions: Array<[string, (payload: any) => void]> = []
 
   constructor(
     private bus: EventBus,
@@ -64,7 +66,7 @@ export class DevTerminal {
       }
       // Prevent game input while typing
       e.stopPropagation()
-    })
+    }, { signal: this.listeners.signal })
     this.container.appendChild(this.inputEl)
 
     parent.appendChild(this.container)
@@ -80,14 +82,26 @@ export class DevTerminal {
         e.stopPropagation()
         this.toggle()
       }
-    })
+    }, { signal: this.listeners.signal })
+  }
+
+  dispose(): void {
+    this.listeners.abort()
+    for (const [event, handler] of this.subscriptions) this.bus.off(event, handler)
+    this.subscriptions = []
+    this.container?.remove()
+    this.container = this.logEl = this.inputEl = null
+    this.visible = false
   }
 
   toggle(): void {
     this.visible = !this.visible
     if (this.container) {
       this.container.style.display = this.visible ? 'flex' : 'none'
-      if (this.visible) this.inputEl?.focus()
+      if (this.visible) {
+        if (this.logEl) this.logEl.textContent = this.logs.join('\n') + '\n'
+        this.inputEl?.focus()
+      }
     }
   }
 
@@ -101,7 +115,7 @@ export class DevTerminal {
     this.logs.push(line)
     if (this.logs.length > MAX_LOG_LINES) this.logs.shift()
 
-    if (this.logEl) {
+    if (this.logEl && this.visible) {
       const lineEl = document.createElement('div')
       lineEl.textContent = line
       lineEl.style.color = color
@@ -118,56 +132,60 @@ export class DevTerminal {
   }
 
   private subscribeEvents(): void {
-    this.bus.on('skill:cast_start', (p: any) => {
+    const on = (event: string, handler: (payload: any) => void) => {
+      this.subscriptions.push([event, handler])
+      this.bus.on(event, handler)
+    }
+    on('skill:cast_start', (p: any) => {
       this.addLog(`${p.caster?.id} starts casting ${p.skill?.name ?? p.skillId}`, '#7bf')
     })
 
-    this.bus.on('skill:cast_complete', (p: any) => {
+    on('skill:cast_complete', (p: any) => {
       const name = p.skill?.name ?? p.skillId ?? '?'
       this.addLog(`${p.caster?.id} casts ${name}`, '#8f8')
     })
 
-    this.bus.on('skill:cast_interrupted', (p: any) => {
+    on('skill:cast_interrupted', (p: any) => {
       this.addLog(`${p.caster?.id} interrupted (${p.reason})`, '#fa5')
     })
 
-    this.bus.on('damage:dealt', (p: any) => {
+    on('damage:dealt', (p: any) => {
       this.addLog(`${p.source?.id} → ${p.target?.id}: ${p.amount} damage`, '#f88')
     })
 
-    this.bus.on('damage:lethal', (p: any) => {
+    on('damage:lethal', (p: any) => {
       this.addLog(`LETHAL: ${p.target?.id} killed (${p.reason})`, '#f44')
     })
 
-    this.bus.on('entity:created', (p: any) => {
+    on('entity:created', (p: any) => {
       this.addLog(`Entity created: ${p.entity?.id} (${p.entity?.type})`, '#888')
     })
 
-    this.bus.on('entity:died', (p: any) => {
+    on('entity:died', (p: any) => {
       this.addLog(`Entity died: ${p.entity?.id}`, '#f66')
     })
 
-    this.bus.on('buff:applied', (p: any) => {
+    on('buff:applied', (p: any) => {
       this.addLog(`${p.target?.id} gained ${p.buff?.name}`, '#bf8')
     })
 
-    this.bus.on('buff:removed', (p: any) => {
+    on('buff:removed', (p: any) => {
       this.addLog(`${p.target?.id} lost ${p.buff?.name} (${p.reason})`, '#ba8')
     })
 
-    this.bus.on('target:locked', (p: any) => {
+    on('target:locked', (p: any) => {
       this.addLog(`${p.entity?.id} locked target: ${p.target?.id}`, '#aaf')
     })
 
-    this.bus.on('target:released', (p: any) => {
+    on('target:released', (p: any) => {
       this.addLog(`${p.entity?.id} released target`, '#aaf')
     })
 
-    this.bus.on('aoe:zone_created', (p: any) => {
+    on('aoe:zone_created', (p: any) => {
       this.addLog(`AOE zone created: ${p.zone?.def?.shape?.type} (${p.skill})`, '#fa8')
     })
 
-    this.bus.on('aoe:zone_resolved', (p: any) => {
+    on('aoe:zone_resolved', (p: any) => {
       const hitCount = p.hitEntities?.length ?? 0
       this.addLog(`AOE zone resolved: hit ${hitCount} entities`, '#fa8')
     })

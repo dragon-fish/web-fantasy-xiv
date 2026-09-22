@@ -45,7 +45,7 @@ const buffViews = computed<BuffView[]>(() =>
       iconSrc,
       showStackText,
       remainingLabel:
-        buff.remaining > 0 ? (buff.remaining / 1000).toFixed(0) : '\u221E',
+        buff.remaining > 0 ? (buff.remaining / 1000).toFixed(buff.remaining < 1000 ? 1 : 0) : '\u221E',
     }
   })
 )

@@ -4,6 +4,12 @@ import { COMMON_BUFFS } from './commons/buffs'
 export interface SkillBarEntry {
   key: string
   skill: SkillDef
+  automatic?: boolean
+  level?: number
+  description?: string
+  charges?: number
+  maxCharges?: number
+  triggerIndex?: number
 }
 
 /** Job category — matches icon filenames in public/assets/images/class_jobs/ */

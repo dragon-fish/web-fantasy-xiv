@@ -2,7 +2,8 @@
 import { Engine } from '@babylonjs/core'
 import { SceneManager } from '@/renderer/scene-manager'
 import { ArenaRenderer } from '@/renderer/arena-renderer'
-import { EntityRenderer } from '@/renderer/entity-renderer'
+import { EntityRenderer, type EntityVisuals } from '@/renderer/entity-renderer'
+import type { Scene } from '@babylonjs/core'
 import { AoeRenderer } from '@/renderer/aoe-renderer'
 import { HitEffectRenderer } from '@/renderer/hit-effect-renderer'
 import { EventBus } from '@/core/event-bus'
@@ -35,6 +36,7 @@ export interface GameSceneConfig {
   playerInputConfig: PlayerInputConfig
   /** Called to restart this scene (for retry) */
   restart: () => void
+  createEntityRenderer?: (scene: Scene, bus: EventBus) => EntityVisuals
 }
 
 /**
@@ -55,7 +57,7 @@ export class GameScene {
 
   // Rendering
   readonly sceneManager: SceneManager
-  readonly entityRenderer: EntityRenderer
+  readonly entityRenderer: EntityVisuals
   readonly aoeRenderer: AoeRenderer
   readonly hitEffectRenderer: HitEffectRenderer
 
@@ -64,7 +66,7 @@ export class GameScene {
   readonly camera: CameraController
   playerDriver!: PlayerInputDriver
 
-  // UI (only DevTerminal remains — rest migrated to Preact)
+  // UI (only DevTerminal remains — the HUD is rendered by Vue)
   readonly devTerminal: DevTerminal
 
   // State
@@ -112,7 +114,8 @@ export class GameScene {
     // Rendering
     this.sceneManager = new SceneManager(config.engine)
     new ArenaRenderer(this.sceneManager.scene, config.arena, this.bus)
-    this.entityRenderer = new EntityRenderer(this.sceneManager.scene, this.bus)
+    this.entityRenderer = config.createEntityRenderer?.(this.sceneManager.scene, this.bus)
+      ?? new EntityRenderer(this.sceneManager.scene, this.bus)
     this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)
     this.hitEffectRenderer = new HitEffectRenderer(this.sceneManager.scene, this.bus, this.entityRenderer)
 
@@ -225,6 +228,7 @@ export class GameScene {
 
   /** Dispose all resources */
   dispose(): void {
+    this.devTerminal.dispose()
     this.sceneManager.dispose()
     this.input.dispose()
   }

@@ -5,7 +5,7 @@ import {
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
-import type { EntityRenderer } from './entity-renderer'
+import type { EntityVisuals } from './entity-renderer'
 
 interface FlyingArrow {
   mesh: Mesh
@@ -24,7 +24,7 @@ export class HitEffectRenderer {
   constructor(
     private scene: Scene,
     private bus: EventBus,
-    private entityRenderer: EntityRenderer,
+    private entityRenderer: EntityVisuals,
   ) {
     // Listen for single-target skill hits
     bus.on('skill:cast_complete', (payload: { caster: Entity; skill: any }) => {

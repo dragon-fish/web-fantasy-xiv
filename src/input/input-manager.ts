@@ -38,6 +38,7 @@ export class InputManager {
   readonly mouse: MouseState = { worldPos: { x: 0, y: 0 }, leftDown: false, rightDown: false }
   readonly skillPressed: (number | null)[] = [null, null, null, null]
 
+  private listeners = new AbortController()
   private pendingSkill: number | null = null
   private escPressed = false
 
@@ -64,6 +65,7 @@ export class InputManager {
   }
 
   private bindEvents(): void {
+    const options = { signal: this.listeners.signal }
     window.addEventListener('keydown', (e) => {
       if (this.shouldBlockInput?.()) return
       switch (e.code) {
@@ -81,7 +83,7 @@ export class InputManager {
         case 'KeyE': this.pendingSkill = 101; break  // special: backstep
         case 'Escape': this.escPressed = true; break
       }
-    })
+    }, options)
 
     window.addEventListener('keyup', (e) => {
       if (this.shouldBlockInput?.()) return
@@ -91,19 +93,20 @@ export class InputManager {
         case 'KeyS': this.keys.s = false; break
         case 'KeyD': this.keys.d = false; break
       }
-    })
+    }, options)
 
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) this.mouse.leftDown = true
       if (e.button === 2) this.mouse.rightDown = true
-    })
+    }, options)
 
     this.canvas.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouse.leftDown = false
       if (e.button === 2) this.mouse.rightDown = false
-    })
+    }, options)
 
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault())
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault(), options)
+    window.addEventListener('blur', () => this.clear(), options)
   }
 
   /** Call each frame with projected mouse world position */
@@ -111,7 +114,15 @@ export class InputManager {
     this.mouse.worldPos = worldPos
   }
 
+  clear(): void {
+    this.keys.w = this.keys.a = this.keys.s = this.keys.d = false
+    this.mouse.leftDown = this.mouse.rightDown = false
+    this.pendingSkill = null
+    this.escPressed = false
+  }
+
   dispose(): void {
-    // In production, would remove event listeners. For prototype, no-op.
+    this.listeners.abort()
+    this.clear()
   }
 }

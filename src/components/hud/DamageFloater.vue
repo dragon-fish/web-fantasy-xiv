@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch, onBeforeUnmount } from 'vue'
 import { useBattleStore } from '@/stores/battle'
 
 const ANIMATION_DURATION_MS = 1000
 
 const battle = useBattleStore()
+const timers = new Set<ReturnType<typeof setTimeout>>()
+onBeforeUnmount(() => { for (const timer of timers) clearTimeout(timer) })
 
 watch(
   () => battle.damageEvents,
@@ -12,9 +14,11 @@ watch(
     const oldIds = new Set(oldList?.map((e) => e.id) ?? [])
     const added = newList.filter((e) => !oldIds.has(e.id))
     for (const ev of added) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        timers.delete(timer)
         battle.damageEvents = battle.damageEvents.filter((x) => x.id !== ev.id)
       }, ANIMATION_DURATION_MS)
+      timers.add(timer)
     }
   },
   { deep: false }

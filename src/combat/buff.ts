@@ -29,7 +29,7 @@ export class BuffSystem {
     // to land the 6th GCD at exactly 15.0s. The extra 0.5s ensures the last
     // action within the intended window always goes through.
     const baseDuration = durationOverride ?? def.duration
-    const effectiveDuration = baseDuration > 0 ? baseDuration + 500 : 0
+    const effectiveDuration = baseDuration > 0 ? baseDuration + (def.durationGrace ?? 500) : 0
 
     const existing = entity.buffs.find((b) => b.defId === def.id)
 

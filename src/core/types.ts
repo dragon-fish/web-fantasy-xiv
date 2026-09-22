@@ -150,6 +150,8 @@ export interface BuffDef {
   iconPerStack?: Record<number, string>
   type: BuffType
   duration: number // ms, 0 = permanent
+  /** Timed-buff input grace in ms; defaults to 500. Use 0 for precise defensive windows. */
+  durationGrace?: number
   stackable: boolean
   maxStacks: number
   /** Shield buff: stacks = shield HP, absorbs damage before HP.

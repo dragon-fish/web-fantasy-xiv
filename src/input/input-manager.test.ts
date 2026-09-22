@@ -1,3 +1,4 @@
+import { InputManager } from './input-manager'
 // src/input/input-manager.test.ts
 import { describe, it, expect } from 'vitest'
 import { InputState, computeMoveDirection, computeDirectionAngle } from '@/input/input-manager'
@@ -49,5 +50,19 @@ describe('computeDirectionAngle', () => {
   it('should return correct angle for diagonal (NE)', () => {
     const angle = computeDirectionAngle({ x: 1, y: 1 })
     expect(angle).toBeCloseTo(45, 0)
+  })
+})
+
+
+describe('input lifecycle', () => {
+  it('removes listeners on disposal and clears held keys on blur', () => {
+    const input = new InputManager(document.createElement('canvas'))
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }))
+    expect(input.keys.w).toBe(true)
+    window.dispatchEvent(new Event('blur'))
+    expect(input.keys.w).toBe(false)
+    input.dispose()
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }))
+    expect(input.keys.w).toBe(false)
   })
 })

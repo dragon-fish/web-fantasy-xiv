@@ -4,6 +4,7 @@ import { useBattleStore } from '@/stores/battle'
 import { useTooltip } from '@/composables/use-tooltip'
 import { buildSkillTooltip } from '@/components/hud/tooltip-builders'
 import { SKILL_TRIGGER_KEY } from '@/components/hud/skill-trigger-key'
+import type { SkillBarEntry } from '@/jobs/shared'
 
 const battle = useBattleStore()
 const tooltip = useTooltip()
@@ -39,12 +40,13 @@ function cdText(entry: { skill: any }) {
   return a > 0 ? (a / 1000).toFixed(1) : null
 }
 
-function onEnter(e: MouseEvent, entry: { skill: any }) {
-  const html = buildSkillTooltip(
+function onEnter(e: MouseEvent, entry: SkillBarEntry) {
+  let html = buildSkillTooltip(
     entry.skill,
     battle.buffDefs.size > 0 ? battle.buffDefs : undefined,
     battle.tooltipContext
   )
+  if (entry.description) html += `<p style="color:#d7c9a8;max-width:280px">${entry.description}</p>`
   tooltip.show(html, e.clientX, e.clientY)
 }
 function onLeave() {
@@ -58,8 +60,9 @@ function keyToIndex(key: string): number {
   return Number.isNaN(n) ? -1 : n - 1
 }
 
-function onClick(entry: { key: string }) {
-  const idx = keyToIndex(entry.key)
+function onClick(entry: SkillBarEntry) {
+  if (entry.automatic) return
+  const idx = entry.triggerIndex ?? keyToIndex(entry.key)
   if (idx < 0) return
   triggerSkill?.value(idx)
 }
@@ -67,10 +70,12 @@ function onClick(entry: { key: string }) {
 
 <template lang="pug">
 .skill-bar
-  .skill-slot(
+  button.skill-slot(
     v-for="entry in battle.skillBarEntries"
-    :key="entry.key"
-    :class="{ locked: isLocked(entry) }"
+    :key="entry.skill.id"
+    :class="{ locked: isLocked(entry), automatic: entry.automatic, evolved: entry.level === 5 }"
+    :aria-label="entry.skill.name"
+    type="button"
     @click="() => onClick(entry)"
     @mouseenter="(e) => onEnter(e, entry)"
     @mousemove="(e) => onEnter(e, entry)"
@@ -81,6 +86,8 @@ function onClick(entry: { key: string }) {
     span.slot-fallback(v-else) {{ entry.skill.name.slice(0, 3) }}
     .slot-cd-overlay(v-if="cdPct(entry) > 0" :style="{ height: cdPct(entry) + '%' }")
     span.slot-cd-text(v-if="cdText(entry)") {{ cdText(entry) }}
+    span.slot-level(v-if="entry.level") {{ entry.level === 5 ? '★' : entry.level }}
+    span.slot-charges(v-if="entry.maxCharges") {{ entry.charges }}/{{ entry.maxCharges }}
 </template>
 
 <style lang="scss" scoped>
@@ -96,6 +103,8 @@ function onClick(entry: { key: string }) {
 }
 
 .skill-slot {
+  padding: 0;
+  color: inherit;
   width: 48px;
   height: 48px;
   background: rgba(0, 0, 0, 0.8);
@@ -113,6 +122,11 @@ function onClick(entry: { key: string }) {
     opacity: 0.5;
   }
 }
+
+.automatic { cursor: help; }
+.evolved { border-color: #dfc27f; box-shadow: 0 0 12px #dfc27f44; }
+.slot-level, .slot-charges { position: absolute; right: 2px; bottom: -2px; z-index: 2; color: #ffe3a1; font-size: 12px; text-shadow: 0 1px 3px #000; }
+.slot-key { z-index: 2; text-shadow: 0 1px 3px #000; }
 
 .slot-key {
   position: absolute;

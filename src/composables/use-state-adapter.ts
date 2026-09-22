@@ -2,7 +2,7 @@ import { useBattleStore, type DamageEvent } from '@/stores/battle'
 import type { GameScene } from '@/game/game-scene'
 import type { Entity } from '@/entity/entity'
 
-export function useStateAdapter(scene: GameScene) {
+export function useStateAdapter(scene: GameScene, options: { maxDamageEvents?: number } = {}) {
   const battle = useBattleStore()
   let dmgIdCounter = 0
   const playerDamageBySkill = new Map<string, number>()
@@ -38,7 +38,7 @@ export function useStateAdapter(scene: GameScene) {
       amount: Math.abs(payload.amount),
       isHeal,
     }
-    battle.damageEvents = [...battle.damageEvents, ev]
+    battle.damageEvents = [...battle.damageEvents, ev].slice(-(options.maxDamageEvents ?? Infinity))
   }
 
   const onInvulnerable = (payload: { target: Entity }) => {
@@ -63,7 +63,7 @@ export function useStateAdapter(scene: GameScene) {
       isHeal: false,
       isInvulnerable: true,
     }
-    battle.damageEvents = [...battle.damageEvents, ev]
+    battle.damageEvents = [...battle.damageEvents, ev].slice(-(options.maxDamageEvents ?? Infinity))
   }
 
   const onCastStart = (payload: { caster: Entity; skill: { name: string } }) => {

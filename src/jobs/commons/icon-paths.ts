@@ -1,4 +1,4 @@
-import { JobCategory } from '../shared'
+import type { JobCategory } from '../shared'
 
 const CDN_BASE = import.meta.env.VITE_CDN_BASE || 'https://r2.epb.wiki/ffxiv/'
 

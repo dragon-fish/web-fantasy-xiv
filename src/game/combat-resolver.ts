@@ -230,7 +230,8 @@ export class CombatResolver {
     return damageIncrease
   }
 
-  private applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = []): void {
+  /** Shared damage entry point for timeline skills and simulated projectile hits. */
+  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = []): void {
     // Invulnerable / damage immunity: negate all non-special damage
     if (!dmgTypes.includes('special') && (this.buffSystem.isInvulnerable(target) || this.buffSystem.hasDamageImmunity(target))) {
       this.bus.emit('damage:invulnerable', { source: caster, target, skill: skillName ? { name: skillName } : null })

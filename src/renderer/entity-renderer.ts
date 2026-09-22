@@ -24,6 +24,11 @@ interface EntityMeshGroup {
   baseEmissive: Color3  // stored once at creation for flash restore
 }
 
+export interface EntityVisuals {
+  updateAll(entities: Entity[], dt: number, lockedTargetId?: string | null): void
+  flashHit(entityId: string): void
+}
+
 export class EntityRenderer {
   private static readonly ROTATION_SPEED = 720 // degrees per second
   private meshes = new Map<string, EntityMeshGroup>()
