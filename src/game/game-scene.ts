@@ -6,6 +6,7 @@ import { EntityRenderer, type EntityVisuals } from '@/renderer/entity-renderer'
 import type { Scene } from '@babylonjs/core'
 import { AoeRenderer } from '@/renderer/aoe-renderer'
 import { HitEffectRenderer } from '@/renderer/hit-effect-renderer'
+import { EntityFeedback } from '@/renderer/entity-feedback'
 import { EventBus } from '@/core/event-bus'
 import { EntityManager } from '@/entity/entity-manager'
 import { GameLoop } from '@/core/game-loop'
@@ -60,6 +61,7 @@ export class GameScene {
   readonly entityRenderer: EntityVisuals
   readonly aoeRenderer: AoeRenderer
   readonly hitEffectRenderer: HitEffectRenderer
+  readonly entityFeedback: EntityFeedback
 
   // Input + Camera
   readonly input: InputManager
@@ -118,6 +120,8 @@ export class GameScene {
       ?? new EntityRenderer(this.sceneManager.scene, this.bus)
     this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)
     this.hitEffectRenderer = new HitEffectRenderer(this.sceneManager.scene, this.bus, this.entityRenderer)
+    this.entityFeedback = new EntityFeedback(this.sceneManager.scene, this.bus,
+      entity => this.entityRenderer.getHeight?.(entity) ?? (entity.type === 'boss' ? 3 : 1.8))
 
     // Input + Camera
     this.input = new InputManager(
@@ -192,6 +196,8 @@ export class GameScene {
       this.sceneManager.setCameraTarget(camPos.x, camPos.y, fallOffset)
       this.sceneManager.updateRoll(delta)
       this.entityRenderer.updateAll(this.entityMgr.getAlive(), delta, this.player?.target)
+      this.entityFeedback.update(this.entityMgr.getAlive(), this.player, this.bossEntity?.id ?? null,
+        this.paused || this.devTerminal.isVisible() ? 0 : delta)
       this.aoeRenderer.update(now)
       this.hitEffectRenderer.update(delta, (id) => this.entityMgr.get(id))
 
@@ -228,6 +234,7 @@ export class GameScene {
 
   /** Dispose all resources */
   dispose(): void {
+    this.entityFeedback.dispose()
     this.devTerminal.dispose()
     this.sceneManager.dispose()
     this.input.dispose()

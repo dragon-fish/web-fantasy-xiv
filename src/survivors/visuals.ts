@@ -90,6 +90,10 @@ export class SurvivorVisuals implements EntityVisuals {
     }
   }
   flashHit(id: string) { this.hitUntil.set(id, this.time + 100) }
+  getHeight(entity: Entity) {
+    return entity.group === 'sentinel' ? 6.2 : entity.group === 'elite' ? 4.2
+      : entity.type === 'player' ? 2.7 : entity.group === 'golem' ? 2.4 : 1.8
+  }
   updateAll(entities: Entity[], dt: number) {
     if (!this.run?.progression.pending && !this.run?.result && !this.scene.metadata?.paused) this.time += dt
     for (const e of entities) {

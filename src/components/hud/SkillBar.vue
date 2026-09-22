@@ -40,6 +40,10 @@ function cdText(entry: { skill: any }) {
   return a > 0 ? (a / 1000).toFixed(1) : null
 }
 
+function hasUsableCharge(entry: SkillBarEntry) {
+  return (entry.maxCharges ?? 0) > 0 && (entry.charges ?? 0) > 0
+}
+
 function onEnter(e: MouseEvent, entry: SkillBarEntry) {
   let html = buildSkillTooltip(
     entry.skill,
@@ -84,8 +88,10 @@ function onClick(entry: SkillBarEntry) {
     span.slot-key {{ entry.key }}
     img.slot-icon(v-if="entry.skill.icon" :src="entry.skill.icon")
     span.slot-fallback(v-else) {{ entry.skill.name.slice(0, 3) }}
-    .slot-cd-overlay(v-if="cdPct(entry) > 0" :style="{ height: cdPct(entry) + '%' }")
-    span.slot-cd-text(v-if="cdText(entry)") {{ cdText(entry) }}
+    svg.slot-charge-progress(v-if="hasUsableCharge(entry) && cdPct(entry) > 0" viewBox="0 0 48 48" aria-hidden="true")
+      rect(x="1.5" y="1.5" width="45" height="45" rx="3" pathLength="100" :stroke-dasharray="`${100 - cdPct(entry)} 100`")
+    .slot-cd-overlay(v-if="!hasUsableCharge(entry) && cdPct(entry) > 0" :style="{ height: cdPct(entry) + '%' }")
+    span.slot-cd-text(v-if="!hasUsableCharge(entry) && cdText(entry)") {{ cdText(entry) }}
     span.slot-level(v-if="entry.level") {{ entry.level === 5 ? '★' : entry.level }}
     span.slot-charges(v-if="entry.maxCharges") {{ entry.charges }}/{{ entry.maxCharges }}
 </template>
@@ -154,6 +160,15 @@ function onClick(entry: SkillBarEntry) {
   left: 0;
   width: 100%;
   background: rgba(0, 0, 0, 0.7);
+}
+
+.slot-charge-progress {
+  position: absolute;
+  inset: -2px;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+  rect { fill: none; stroke: #ffe39a; stroke-width: 3; stroke-linecap: round; }
 }
 
 .slot-cd-text {

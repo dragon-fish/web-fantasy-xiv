@@ -68,7 +68,7 @@ export { InputManager, computeMoveDirection, computeDirectionAngle } from './inp
 
 // UI state types (migrated out of deleted src/ui/state)
 export type { SkillBarEntry } from './jobs/shared'
-export type { HpState, CastInfo, BuffSnapshot, DamageEvent } from './stores/battle'
+export type { HpState, CastInfo, BuffSnapshot } from './stores/battle'
 export type { DamageLogEntry } from './game/types'
 
 // Game (reusable components)

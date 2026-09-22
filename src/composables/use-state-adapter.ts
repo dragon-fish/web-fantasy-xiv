@@ -1,10 +1,9 @@
-import { useBattleStore, type DamageEvent } from '@/stores/battle'
+import { useBattleStore } from '@/stores/battle'
 import type { GameScene } from '@/game/game-scene'
 import type { Entity } from '@/entity/entity'
 
-export function useStateAdapter(scene: GameScene, options: { maxDamageEvents?: number } = {}) {
+export function useStateAdapter(scene: GameScene) {
   const battle = useBattleStore()
-  let dmgIdCounter = 0
   const playerDamageBySkill = new Map<string, number>()
 
   const onDamage = (payload: {
@@ -17,53 +16,6 @@ export function useStateAdapter(scene: GameScene, options: { maxDamageEvents?: n
       const name = payload.skill.name
       playerDamageBySkill.set(name, (playerDamageBySkill.get(name) ?? 0) + payload.amount)
     }
-    let sx = window.innerWidth / 2
-    let sy = window.innerHeight / 2
-    const projected = scene.sceneManager.worldToScreen(
-      payload.target.position.x,
-      payload.target.position.y,
-      2,
-    )
-    if (projected) {
-      sx = projected.x
-      sy = projected.y
-    }
-    sx += (Math.random() - 0.5) * 40
-    sy += (Math.random() - 0.5) * 20
-    const isHeal = payload.amount < 0
-    const ev: DamageEvent = {
-      id: ++dmgIdCounter,
-      screenX: sx,
-      screenY: sy,
-      amount: Math.abs(payload.amount),
-      isHeal,
-    }
-    battle.damageEvents = [...battle.damageEvents, ev].slice(-(options.maxDamageEvents ?? Infinity))
-  }
-
-  const onInvulnerable = (payload: { target: Entity }) => {
-    let sx = window.innerWidth / 2
-    let sy = window.innerHeight / 2
-    const projected = scene.sceneManager.worldToScreen(
-      payload.target.position.x,
-      payload.target.position.y,
-      2,
-    )
-    if (projected) {
-      sx = projected.x
-      sy = projected.y
-    }
-    sx += (Math.random() - 0.5) * 40
-    sy += (Math.random() - 0.5) * 20
-    const ev: DamageEvent = {
-      id: ++dmgIdCounter,
-      screenX: sx,
-      screenY: sy,
-      amount: 0,
-      isHeal: false,
-      isInvulnerable: true,
-    }
-    battle.damageEvents = [...battle.damageEvents, ev].slice(-(options.maxDamageEvents ?? Infinity))
   }
 
   const onCastStart = (payload: { caster: Entity; skill: { name: string } }) => {
@@ -86,7 +38,6 @@ export function useStateAdapter(scene: GameScene, options: { maxDamageEvents?: n
   }
 
   scene.bus.on('damage:dealt', onDamage)
-  scene.bus.on('damage:invulnerable', onInvulnerable)
   scene.bus.on('skill:cast_start', onCastStart)
   scene.bus.on('skill:cast_complete', onCastComplete)
   scene.bus.on('skill:cast_interrupted', onCastInterrupted)
@@ -172,7 +123,6 @@ export function useStateAdapter(scene: GameScene, options: { maxDamageEvents?: n
 
   function dispose(): void {
     scene.bus.off('damage:dealt', onDamage)
-    scene.bus.off('damage:invulnerable', onInvulnerable)
     scene.bus.off('skill:cast_start', onCastStart)
     scene.bus.off('skill:cast_complete', onCastComplete)
     scene.bus.off('skill:cast_interrupted', onCastInterrupted)

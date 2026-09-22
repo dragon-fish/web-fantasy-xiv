@@ -19,7 +19,6 @@ const root = useTemplateRef<HTMLDivElement>('root')
 const battle = useBattleStore()
 const started = ref(false)
 const ready = ref(false)
-const session = ref(0)
 const state = shallowRef({ elapsed: 0, level: 1, xp: 0, required: 11, kills: 0, count: 0, offers: [] as Card[], ranks: {} as Record<string, number>, boss: null as { name: string; hint: string } | null })
 let scene: GameScene | null = null
 let run: SurvivorRuntime | null = null
@@ -66,7 +65,6 @@ function cleanup() {
 function boot() {
   if (!engine.value || !root.value) return
   cleanup()
-  session.value++
   started.value = false
   scene = new GameScene({
     engine: engine.value, uiRoot: root.value,
@@ -86,7 +84,7 @@ function boot() {
     run!.tick(dt)
     if (run!.progression.pending) { scene!.pause(); scene!.input.clear(); sync() }
   }
-  adapter = useStateAdapter(scene, { maxDamageEvents: 55 })
+  adapter = useStateAdapter(scene)
   let sinceSync = 0
   scene.onRenderTick = (dt) => {
     run!.checkDeath()
@@ -166,7 +164,6 @@ onBeforeUnmount(cleanup)
   HudHpBar(mode="player")
   HudSkillBar
   HudBuffBar
-  HudDamageFloater(:key="session")
   HudTooltip
   .controls(v-if="started") WASD 移动 · SPACE 前冲步 · ESC 暂停
   .veil(v-if="!started")

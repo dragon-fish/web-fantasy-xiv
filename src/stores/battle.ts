@@ -16,15 +16,6 @@ export interface CastInfo {
   total: number
 }
 
-export interface DamageEvent {
-  id: number
-  screenX: number
-  screenY: number
-  amount: number
-  isHeal: boolean
-  isInvulnerable?: boolean
-}
-
 export interface BuffSnapshot {
   defId: string
   name: string
@@ -64,7 +55,6 @@ export const useBattleStore = defineStore('battle', {
     buffDefs: new Map<string, BuffDef>(),
     cooldowns: new Map<string, number>(),
     // Damage display
-    damageEvents: [] as DamageEvent[],
     damageLog: [] as DamageLogEntry[],
     dpsMeter: { skills: [], totalDamage: 0, dps: 0 } as DpsMeterState,
     // Announce

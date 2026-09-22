@@ -138,8 +138,9 @@ export class SurvivorRuntime {
     const { buffSystem: buffs, combatResolver: combat, entityMgr } = this.deps
     if (!secondary && this.rank('combustion')) buffs.applyBuff(target, FIRE, this.player.id)
     const frozen = buffs.hasBuff(target, FROST.id), shocked = buffs.hasBuff(target, SHOCK.id)
-    const extra = [frozen ? this.rank('shatter') * 0.25 : 0, this.random() < this.rank('critical') * 0.12 ? 0.75 : 0]
-    combat.applyDamage(this.player, target, potency, CARDS.find(c => c.id === weapon)!.name, ['magical'], extra)
+    const isCritical = this.random() < this.rank('critical') * 0.12
+    const extra = [frozen ? this.rank('shatter') * 0.25 : 0, isCritical ? 0.75 : 0]
+    combat.applyDamage(this.player, target, potency, CARDS.find(c => c.id === weapon)!.name, ['magical'], extra, { isCritical })
     if (target.hp <= 0) {
       const center = { ...target.position }
       const burning = buffs.hasBuff(target, FIRE.id)

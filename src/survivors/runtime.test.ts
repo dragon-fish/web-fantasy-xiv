@@ -132,3 +132,17 @@ it('aims homing shots at nearby enemies instead of stale spawn order', () => {
   runtime.tick(16)
   expect(runtime.weapons.projectiles[0]?.target).toBe('near')
 })
+
+it('propagates the actual critical roll on shared damage events', () => {
+  const { runtime, enemy } = setup()
+  const target = enemy('crit-target', 3, 10000)
+  const hits: Array<{ amount: number; isCritical?: boolean }> = []
+  runtime.deps.bus.on('damage:dealt', event => { if (event.target === target) hits.push(event) })
+  runtime.progression.ranks.critical = 4
+  runtime.hit(target, 1, 'fire')
+  runtime.progression.ranks.critical = 0
+  runtime.hit(target, 1, 'fire')
+  expect(hits[0]!.isCritical).toBe(true)
+  expect(hits[1]!.isCritical).toBe(false)
+  expect(hits[0]!.amount).toBeGreaterThan(hits[1]!.amount)
+})

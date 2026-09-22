@@ -27,6 +27,7 @@ interface EntityMeshGroup {
 export interface EntityVisuals {
   updateAll(entities: Entity[], dt: number, lockedTargetId?: string | null): void
   flashHit(entityId: string): void
+  getHeight?(entity: Entity): number
 }
 
 export class EntityRenderer {

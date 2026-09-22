@@ -146,7 +146,6 @@ watch(
   HudSkillBar
   HudSkillPanelButton
   HudBuffBar
-  HudDamageFloater
   HudCombatAnnounce
   HudDialogBox
   HudDebugInfo

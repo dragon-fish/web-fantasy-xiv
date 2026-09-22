@@ -232,7 +232,7 @@ export class CombatResolver {
   }
 
   /** Shared damage entry point for timeline skills and simulated projectile hits. */
-  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = []): void {
+  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean } = {}): void {
     // Invulnerable / damage immunity: negate all non-special damage
     if (!dmgTypes.includes('special') && (this.buffSystem.isInvulnerable(target) || this.buffSystem.hasDamageImmunity(target))) {
       this.bus.emit('damage:invulnerable', { source: caster, target, skill: skillName ? { name: skillName } : null })
@@ -273,7 +273,7 @@ export class CombatResolver {
       target.mp = Math.min(target.maxMp, target.mp + mpOnHit)
     }
 
-    this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null })
+    this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null, isCritical: feedback.isCritical ?? false })
 
     // Lifesteal: heal caster for % of damage dealt
     const lifesteal = this.buffSystem.getLifesteal(caster)
