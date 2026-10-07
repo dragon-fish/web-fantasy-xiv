@@ -77,7 +77,7 @@ export const WARRIOR_SKILLS: SkillDef[] = [
     icon: icon('skill_icons/role_skills', 801),
     type: 'ability',
     castTime: 0,
-    cooldown: 25000,
+    cooldown: 15000,
     gcd: false,
     targetType: 'single',
     requiresTarget: false,

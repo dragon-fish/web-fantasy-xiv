@@ -69,7 +69,7 @@ export const DARK_KNIGHT_SKILLS: SkillDef[] = [
     icon: icon('skill_icons/32_DRK', 3075),
     type: 'ability',
     castTime: 0,
-    cooldown: 30000,
+    cooldown: 12000,
     gcd: false,
     targetType: 'single',
     requiresTarget: false,
