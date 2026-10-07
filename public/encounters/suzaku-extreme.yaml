@@ -29,7 +29,8 @@ entities:
     type: boss
     model: dragon
     group: boss
-    hp: 360000
+    # DPS 检测：理论满输出约 20 万（~1200 DPS × 约 60% 可攻击时间）；按机制处理干净、跳舞机叠层可达设定
+    hp: 160000
     attack: 1
     speed: 5
     # 大判定圈（FF14 原版朱雀同样巨大）：P2 悬停在中心洞上空时，近战从洞边仍能打到
