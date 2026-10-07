@@ -23,6 +23,8 @@ export interface EncounterData {
   timeline: TimelineAction[]
   /** Phase definitions (always has at least phase_default) */
   phases: PhaseDef[]
+  /** Skill an entity uses a while after being revived from dormancy (YAML `onRevive: { use, after }`) */
+  reviveHooks: Map<string, { use: string; after: number }>
   /** Battlefield condition ids to activate at the start of this encounter */
   conditions?: string[]
   /**
@@ -56,11 +58,13 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
 
   // --- Entities ---
   const entities = new Map<string, CreateEntityOptions>()
+  const reviveHooks = new Map<string, { use: string; after: number }>()
 
   if (raw.entities) {
     // New unified format: entities: { boss: {...}, mob1: {...}, ... }
     for (const [id, def] of Object.entries(raw.entities as Record<string, any>)) {
       entities.set(id, parseEntityOpts(id, def))
+      if (def.onRevive?.use) reviveHooks.set(id, { use: def.onRevive.use, after: def.onRevive.after ?? 0 })
     }
   }
 
@@ -164,7 +168,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
   }
 
   return {
-    arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs,
+    arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs, reviveHooks,
     ...(conditions !== undefined ? { conditions } : {}),
     ...(deathWindowMs !== undefined ? { deathWindowMs } : {}),
   }
@@ -186,6 +190,7 @@ function parseEntityOpts(id: string, raw: any): CreateEntityOptions {
     speed: raw.speed ?? 0,
     size: raw.size ?? 0.5,
     model: raw.model,
+    dormant: raw.dormant,
     autoAttackRange: raw.autoAttackRange ?? 5,
     aggroRange: raw.aggroRange ?? 0,
   }

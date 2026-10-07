@@ -72,11 +72,34 @@ function parseTrigger(raw: any): PhaseTrigger {
   return { type: 'manual' }
 }
 
+let chooseSerial = 0
+
+/**
+ * `choose:` = list of alternative entry lists (FFXIV pseudo-random set pieces). Children are
+ * timed with `after` relative to the choose entry; one option per group runs, picked at dispatch.
+ */
+function flattenChoose(entry: any, at: number, out: TimelineAction[]): void {
+  const group = `choose_${++chooseSerial}`
+  const options = entry.choose as any[][]
+  options.forEach((option, index) => {
+    const first = out.length
+    for (const child of option) flattenEntry({ ...child, at: 0, after: undefined }, at + (child.after ?? 0), out)
+    for (let i = first; i < out.length; i++) {
+      if (!out[i].variant) out[i].variant = { group, index, count: options.length }
+    }
+  })
+}
+
 function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void {
   const at = (entry.at ?? 0) + baseTime
   const entity = entry.entity as string | undefined
+  const first = out.length
 
-  if (entry.use != null) {
+  if (Array.isArray(entry.choose)) {
+    flattenChoose(entry, at, out)
+  } else if (entry.mechanic != null) {
+    out.push({ at, action: 'mechanic', mechanic: entry.mechanic, params: entry.params ?? {} })
+  } else if (entry.use != null) {
     out.push({ at, action: 'use', use: entry.use, entity })
   } else if (entry.loop != null) {
     out.push({ at, action: 'loop', loop: entry.loop })
@@ -120,6 +143,7 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
   } else if (entry.action === 'run_script') {
     out.push({ at, action: 'run_script', script: entry.script })
   }
+  if (entry.when && out.length > first) out[first].when = entry.when
 
   if (entry.then) {
     for (const child of entry.then) {

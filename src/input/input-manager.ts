@@ -41,6 +41,11 @@ export class InputManager {
   private listeners = new AbortController()
   private pendingSkill: number | null = null
   private escPressed = false
+  /**
+   * Monotonic count of action-key (Space) presses. Mechanics snapshot it when they start and
+   * only react to newer presses — a latched flag would let a stray earlier press count.
+   */
+  actionPresses = 0
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -82,6 +87,10 @@ export class InputManager {
         case 'KeyQ': this.pendingSkill = 100; break  // special: dash
         case 'KeyE': this.pendingSkill = 101; break  // special: backstep
         case 'Escape': this.escPressed = true; break
+        case 'Space':
+          e.preventDefault()
+          if (!e.repeat) this.actionPresses++
+          break
       }
     }, options)
 

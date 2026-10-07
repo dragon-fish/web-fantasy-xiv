@@ -132,3 +132,18 @@ describe('parsePhases', () => {
     expect(phases[1].trigger.type).toBe('manual')
   })
 })
+
+describe('choose blocks', () => {
+  it('flattens every option with a shared group tag and per-option index', () => {
+    const actions = flattenTimeline([
+      { at: 1000, choose: [
+        [{ after: 0, use: 'a' }, { after: 500, use: 'b' }],
+        [{ after: 200, use: 'c' }],
+      ] },
+    ])
+    expect(actions.map(a => [a.at, a.use, a.variant?.index, a.variant?.count])).toEqual([
+      [1000, 'a', 0, 2], [1200, 'c', 1, 2], [1500, 'b', 0, 2],
+    ])
+    expect(new Set(actions.map(a => a.variant?.group)).size).toBe(1)
+  })
+})

@@ -5,7 +5,10 @@ import { PhaseScheduler } from '@/timeline/phase-scheduler'
 import { loadEncounter } from '@/game/encounter-loader'
 import { DeathZoneManager } from '@/arena/death-zone-manager'
 import { ScriptRunner } from '@/timeline/script-runner'
-import { getJob } from '@/jobs'
+import { getJob, JobCategory } from '@/jobs'
+import { MechanicHost } from '@/game/mechanics/mechanic-host'
+import { MECHANICS } from '@/game/mechanics'
+import { matchesCondition } from '@/combat/conditions'
 import type { EventBus } from '@/core/event-bus'
 import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
@@ -239,6 +242,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     position: { x: 0, y: -12, z: 0 },
     ...enc.player,
     model: `job:${job.id}`,
+    role: job.category === JobCategory.Tank ? 'tank' : job.category === JobCategory.Healer ? 'healer' : 'dps',
     hp: job.stats.hp, maxHp: job.stats.hp,
     mp: job.stats.mp, maxMp: job.stats.mp,
     attack: job.stats.attack,
@@ -504,12 +508,55 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     }
   })
 
+  /** `choose:` group → picked option index (decided when the group first fires; re-rolled on each loop) */
+  const variantPicks = new Map<string, number>()
+  s.bus.on('timeline:loop', () => variantPicks.clear())
+
+  // Encounter mechanics run on the logic clock (frozen while paused)
+  let announceSerial = 0
+  const mechanics = new MechanicHost({
+    bus: s.bus, entities: s.entityMgr, buffs: s.buffSystem, combat: s.combatResolver, input: s.input, player: s.player,
+    buffDef: (id) => enc.localBuffs[id],
+    announce: (text, ms) => {
+      const serial = ++announceSerial
+      s.setAnnounce(text)
+      mechanics.after(ms, () => { if (serial === announceSerial) s.setAnnounce(null) })
+    },
+  }, MECHANICS)
+
+  // Revived dormant entities join the fight; optional per-entity follow-up skill
+  s.bus.on('entity:revived', ({ entity }: { entity: Entity }) => {
+    aiEnabled.add(entity.id)
+    aiMap.get(entity.id)?.unlockFacing()
+    entity.target = s.player.id
+    entity.inCombat = true
+    const hook = enc.reviveHooks.get(entity.id)
+    const skill = hook ? enc.skills.get(hook.use) : undefined
+    if (hook && skill) {
+      mechanics.after(hook.after, () => {
+        if (entity.alive && !entity.dormant) s.skillResolver.tryUse(entity, skill)
+      })
+    }
+  })
+
   // Timeline actions
   s.bus.on('timeline:action', (action: TimelineAction) => {
     if (s.battleOver) return
+    if (!matchesCondition(action.when, s.player)) return
+    if (action.variant) {
+      let picked = variantPicks.get(action.variant.group)
+      if (picked === undefined) {
+        picked = Math.floor(Math.random() * action.variant.count)
+        variantPicks.set(action.variant.group, picked)
+      }
+      if (picked !== action.variant.index) return
+    }
     const target = resolveEntity(action)
 
     switch (action.action) {
+      case 'mechanic':
+        if (action.mechanic) mechanics.start(action.mechanic, action.params)
+        break
       case 'use':
         if (action.use && target) {
           // Ensure mobs target player so toward_target AOE works
@@ -634,6 +681,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         },
       })
       scheduler.update(dt)
+      mechanics.update(dt)
     }
 
     // Falling animation (triggered by death zone / out of bounds)

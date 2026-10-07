@@ -1,4 +1,4 @@
-import type { ArenaDef, SkillDef, AoeZoneDef, SkillEffectDef, DeathZoneDef } from '@/core/types'
+import type { ArenaDef, SkillDef, AoeZoneDef, SkillEffectDef, DeathZoneDef, EffectCondition } from '@/core/types'
 
 // --- Arena ---
 export interface RawArenaConfig {
@@ -68,6 +68,7 @@ export function parseSkillConfig(raw: any): SkillDef {
     mpCost: raw.mpCost ?? 0,
     zones: raw.zones?.map((z: any) => parseZone(z)),
     effects: raw.effects as SkillEffectDef[] | undefined,
+    vfx: raw.vfx,
   }
 }
 
@@ -96,6 +97,7 @@ function parseZone(raw: any): AoeZoneDef {
     hitEffectDuration: raw.hitEffectDuration ?? 500,
     effects: raw.effects ?? [],
     displacementHint: raw.displacementHint,
+    marker: raw.marker,
   }
 }
 
@@ -133,6 +135,13 @@ export interface TimelineAction {
   returnMs?: number  // ms for return phase
   // script fields
   script?: string   // for run_script
+  /** Only dispatched when the player matches (e.g. role-specific mechanics) */
+  when?: EffectCondition
+  // mechanic fields (timeline `mechanic:` entries)
+  mechanic?: string
+  params?: Record<string, any>
+  /** Set on actions inside a `choose:` block; only the variant picked for the group runs */
+  variant?: { group: string; index: number; count: number }
 }
 
 // --- Phase system ---
