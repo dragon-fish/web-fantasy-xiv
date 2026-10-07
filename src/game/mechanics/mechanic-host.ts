@@ -8,6 +8,8 @@ import type { BuffSystem } from '@/combat/buff'
 import type { BuffDef } from '@/core/types'
 import type { CombatResolver } from '../combat-resolver'
 import type { InputManager } from '@/input/input-manager'
+import type { Arena } from '@/arena/arena'
+import type { DeathZoneManager } from '@/arena/death-zone-manager'
 
 export interface MechanicContext {
   bus: EventBus
@@ -15,6 +17,8 @@ export interface MechanicContext {
   buffs: BuffSystem
   combat: CombatResolver
   input: InputManager
+  arena: Arena
+  deathZones: DeathZoneManager
   player: Entity
   buffDef(id: string): BuffDef | undefined
   announce(text: string, ms: number): void

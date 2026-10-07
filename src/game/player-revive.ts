@@ -45,6 +45,8 @@ export interface PlayerReviveDeps {
   buffSystem: BuffSystem
   /** Run `fn` after `ms` of live battle time */
   schedule: (ms: number, fn: () => void) => void
+  /** Move the player back onto safe ground before standing up (fell off / died in a pit) */
+  relocate?: () => void
 }
 
 export interface PlayerRevive {
@@ -53,7 +55,7 @@ export interface PlayerRevive {
   isPending(): boolean
 }
 
-export function createPlayerRevive({ bus, player, buffSystem, schedule }: PlayerReviveDeps): PlayerRevive {
+export function createPlayerRevive({ bus, player, buffSystem, schedule, relocate }: PlayerReviveDeps): PlayerRevive {
   let pending = false
 
   // Transcendence breaks on any action, auto-attacks included
@@ -72,6 +74,7 @@ export function createPlayerRevive({ bus, player, buffSystem, schedule }: Player
       buffSystem.clearDeathBuffs(player)
       schedule(REVIVE_DELAY_MS, () => {
         pending = false
+        relocate?.()
         player.alive = true
         buffSystem.applyBuff(player, REVIVE_BUFFS[tier], player.id)
         player.hp = player.maxHp

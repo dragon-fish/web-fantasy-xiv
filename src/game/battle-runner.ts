@@ -496,6 +496,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   let announceSerial = 0
   const mechanics = new MechanicHost({
     bus: s.bus, entities: s.entityMgr, buffs: s.buffSystem, combat: s.combatResolver, input: s.input, player: s.player,
+    arena: s.arena, deathZones: deathZoneMgr,
     buffDef: (id) => enc.localBuffs[id],
     announce: (text, ms) => {
       const serial = ++announceSerial
@@ -505,12 +506,35 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   }, MECHANICS)
 
   const revive = enc.revive
-    ? createPlayerRevive({ bus: s.bus, player: s.player, buffSystem: s.buffSystem, schedule: (ms, fn) => mechanics.after(ms, fn) })
+    ? createPlayerRevive({
+      bus: s.bus, player: s.player, buffSystem: s.buffSystem,
+      schedule: (ms, fn) => mechanics.after(ms, fn),
+      relocate: () => {
+        ;(s.player as any)._fallOffset = 0
+        const spot = nearestSafeSpot({ x: s.player.position.x, y: s.player.position.y })
+        s.player.position.x = spot.x
+        s.player.position.y = spot.y
+      },
+    })
     : null
   if (revive) {
     s.combatResolver.registerBuffs(REVIVE_BUFFS)
     s.buffDefs = { ...s.buffDefs, ...REVIVE_BUFFS }
     s.bus.on('player:revived', () => s.setAnnounce(null))
+  }
+
+  /** Closest point that is inside the arena and outside every lethal zone (spiral search). */
+  function nearestSafeSpot(from: { x: number; y: number }): { x: number; y: number } {
+    const safe = (p: { x: number; y: number }) => s.arena.isInBounds(p) && !deathZoneMgr.isInAnyZone(p)
+    if (safe(from)) return from
+    for (let r = 0.5; r <= 60; r += 0.5) {
+      for (let a = 0; a < 360; a += 15) {
+        const rad = (a * Math.PI) / 180
+        const p = { x: from.x + Math.sin(rad) * r, y: from.y + Math.cos(rad) * r }
+        if (safe(p)) return p
+      }
+    }
+    return { x: 0, y: 0 }
   }
 
   let handlingDeath = false
