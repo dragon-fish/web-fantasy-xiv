@@ -225,6 +225,7 @@ export class GameScene {
       const fallOffset = (this.player as any)?._fallOffset ?? 0
       this.sceneManager.setCameraTarget(camPos.x, camPos.y, fallOffset, delta)
       this.sceneManager.updateRoll(delta)
+      this.sceneManager.updateView(delta)
       // Presentation freezes with the logic while paused; battleOver keeps animating (death poses)
       const frozen = this.paused || this.devTerminal.isVisible()
       const visualDelta = frozen ? 0 : delta

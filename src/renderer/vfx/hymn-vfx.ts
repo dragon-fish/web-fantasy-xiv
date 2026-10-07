@@ -136,8 +136,11 @@ export class HymnVfx {
     return this.iconMats[quadrant]
   }
 
-  private hymnStart(p: { id: string; icons: { x: number; y: number; quadrant: number }[]; enrage: boolean }): void {
+  private hymnStart(p: { id: string; icons: { x: number; y: number; quadrant: number }[]; enrage: boolean; birdId?: string }): void {
     this.ensureFloor(p.enrage)
+    // "Moon-man" overview: pull up and look almost straight down so both icon columns and the bird fit
+    this.vfx.sm.pushCameraView(54, 14)
+    if (p.birdId) this.trail(p.id, p.birdId)
     const meshes = p.icons.map((icon, i) => {
       const m = MeshBuilder.CreatePlane(`hymn-icon-${p.id}-${i}`, { size: 2.4 }, this.scene)
       m.billboardMode = TransformNode.BILLBOARDMODE_ALL
@@ -161,6 +164,42 @@ export class HymnVfx {
   private hymnEnd(id: string): void {
     for (const m of this.hymns.get(id) ?? []) m.dispose()
     this.hymns.delete(id)
+    for (const f of this.trails.get(id) ?? []) f.life = 0
+    this.trails.delete(id)
+    this.vfx.sm.popCameraView()
+  }
+
+  private trails = new Map<string, Fx[]>()
+  /** A blazing trail and halo so the circling firebird reads at overview distance */
+  private trail(id: string, birdId: string): void {
+    const gold = Color3.FromHexString('#ffb347')
+    const halo = this.vfx.spawn('billboard', 'glow', gold, Infinity, (f) => {
+      const b = this.vfx.entities.get(birdId)
+      if (!b?.visible) { f.mesh.visibility = 0; return }
+      f.mesh.visibility = 1
+      f.mesh.position.set(b.position.x, 2.2, b.position.y)
+      f.mesh.scaling.setAll(6 + Math.sin(f.age / 90) * 0.6)
+      this.vfx.burster('trail', 'fire').emit(b.position.x, 2, b.position.y, 3, { dirY: 0.2, spread: 0.3, jitter: 0.6 })
+      if (Math.random() < 0.5) this.vfx.burster('smoke', 'fire').emit(b.position.x, 2, b.position.y, 1, { dirY: 0.5, spread: 0.2, jitter: 0.5 })
+    })
+    // Tether from Suzaku to the circling bird: shows where it is even at the screen edge
+    const beads: Fx[] = []
+    for (let i = 1; i <= 14; i++) {
+      beads.push(this.vfx.spawn('billboard', 'glow', gold, Infinity, (f) => {
+        const b = this.vfx.entities.get(birdId)
+        const boss = this.vfx.entities.get('boss')
+        if (!b?.visible || !boss) { f.mesh.visibility = 0; return }
+        f.mesh.visibility = 0.85
+        const k = (i / 15 + f.age / 3000) % 1
+        f.mesh.position.set(
+          boss.position.x + (b.position.x - boss.position.x) * k,
+          3 + Math.sin(k * Math.PI) * 1.5,
+          boss.position.y + (b.position.y - boss.position.y) * k,
+        )
+        f.mesh.scaling.setAll(0.7)
+      }))
+    }
+    this.trails.set(id, [halo, ...beads])
   }
 
   /** Floor fire: flame columns burst up across the erupting quadrant */

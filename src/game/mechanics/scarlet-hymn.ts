@@ -68,7 +68,7 @@ export const scarletHymn: MechanicFactory = (ctx, raw, id) => {
   const lead = p.lead ?? 5000
   const windup = p.windup ?? 600
   const radius = p.radius ?? 21
-  const orbit = p.orbit ?? 25
+  const orbit = p.orbit ?? 23
   const start = p.start === 'random' || p.start === undefined ? Math.floor(Math.random() * 4) : p.start
   const order: Quadrant[] = p.enrage ? [] : p.sequence ?? hymnSequence(p.pattern ?? 'rotate', start, p.length ?? 8)
   const angles = hymnIconAngles(order.length)
@@ -101,7 +101,7 @@ export const scarletHymn: MechanicFactory = (ctx, raw, id) => {
     ctx.zones.spawn(def, skillId, { x: 0, y: 0 }, 0, null, boss?.id ?? null)
   }
 
-  ctx.bus.emit('mechanic:hymn_start', { id, icons, enrage: !!p.enrage })
+  ctx.bus.emit('mechanic:hymn_start', { id, icons, enrage: !!p.enrage, birdId: bird?.id })
   if (bird) { bird.visible = true; bird.targetable = false }
 
   const birdAt = (deg: number): Vec2 => {

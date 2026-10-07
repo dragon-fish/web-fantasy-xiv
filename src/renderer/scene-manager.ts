@@ -138,6 +138,34 @@ export class SceneManager {
     this.glowLayer?.removeIncludedOnlyMesh(mesh as any)
   }
 
+  /** Temporary camera views (e.g. an overview while a whole-arena mechanic plays); top of stack wins */
+  private viewStack: { radius: number; beta: number }[] = []
+  private baseView: { radius: number; beta: number } | null = null
+
+  /** Smoothly move to a temporary view; `popCameraView` returns to the previous one. */
+  pushCameraView(radius: number, betaDeg: number): void {
+    if (!this.viewStack.length) this.baseView = { radius: this.camera.radius, beta: this.camera.beta }
+    this.viewStack.push({ radius, beta: (betaDeg * Math.PI) / 180 })
+  }
+
+  popCameraView(): void {
+    this.viewStack.pop()
+  }
+
+  /** Ease the camera toward the active view. Call each frame. */
+  updateView(deltaMs: number): void {
+    const want = this.viewStack[this.viewStack.length - 1] ?? this.baseView
+    if (!want) return
+    const k = 1 - Math.exp(-deltaMs / 260)
+    this.camera.radius += (want.radius - this.camera.radius) * k
+    this.camera.beta += (want.beta - this.camera.beta) * k
+    if (!this.viewStack.length && Math.abs(want.radius - this.camera.radius) < 0.01 && Math.abs(want.beta - this.camera.beta) < 0.0005) {
+      this.camera.radius = want.radius
+      this.camera.beta = want.beta
+      this.baseView = null
+    }
+  }
+
   private shakeAmp = 0
   private shakeLeft = 0
   private shakeTotal = 1

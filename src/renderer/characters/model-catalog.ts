@@ -156,6 +156,11 @@ export const MODELS: Record<string, ModelSpec> = {
     id: 'firebird', url: 'models/monsters/dragon.glb', height: 2.6, hover: 0.6, placeholder: 'bat', tint: '#ff8a5c', nominalRadius: 0.8,
     clips: { idle: ['Flying_Idle'], move: ['Fast_Flying'], attack: ['Headbutt', 'Punch'], castLoop: ['Flying_Idle'], castRelease: ['Punch'], hit: ['HitReact'], death: ['Death'] },
   },
+  // The firebird circling the arena during 朱红旋律: larger and higher so it reads from the overview camera
+  phoenix: {
+    id: 'phoenix', url: 'models/monsters/dragon.glb', height: 4.2, hover: 2, placeholder: 'bat', tint: '#ffb066', nominalRadius: 0.8,
+    clips: { idle: ['Fast_Flying'], move: ['Fast_Flying'], death: ['Death'] },
+  },
   feather: {
     id: 'feather', url: 'models/props/crystal.glb', height: 1.8, hover: 0.5, placeholder: 'bat', tint: '#ff9a52', tintMode: 'replace', nominalRadius: 0.6,
     clips: {},
