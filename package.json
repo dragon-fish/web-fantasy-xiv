@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "^9.2.0",
+    "@babylonjs/loaders": "9.2.0",
     "@vue-flow/core": "^1.48.2",
     "@vueuse/core": "^14.2.1",
     "localspace": "^1.1.2",
