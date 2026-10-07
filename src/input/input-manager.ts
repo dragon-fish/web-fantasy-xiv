@@ -112,13 +112,15 @@ export class InputManager {
       }
     }, options)
 
-    this.canvas.addEventListener('mousedown', (e) => {
+    // Pointer events, not mouse events: the camera's pointer input preventDefaults some
+    // buttons, which suppresses the compatibility mousedown/mouseup entirely
+    this.canvas.addEventListener('pointerdown', (e) => {
       if (e.button === 0) this.mouse.leftDown = true
       if (e.button === 2) this.mouse.rightDown = true
       if (e.button === 0 || e.button === 2) this.clicked = true
     }, options)
 
-    this.canvas.addEventListener('mouseup', (e) => {
+    this.canvas.addEventListener('pointerup', (e) => {
       if (e.button === 0) this.mouse.leftDown = false
       if (e.button === 2) this.mouse.rightDown = false
     }, options)
