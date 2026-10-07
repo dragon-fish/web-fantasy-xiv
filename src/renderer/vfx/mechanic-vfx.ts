@@ -19,8 +19,9 @@ interface DanceView {
   floor: { index: number; fx: Fx } | null
 }
 
-/** Height a note chevron falls from */
-const DANCE_DROP = 6
+/** Distance a note chevron flies in from, and the peak of its arc */
+const DANCE_FLY_FROM = 24
+const DANCE_ARC = 3
 
 const MARKER_COLORS = {
   spread: Color3.FromHexString('#ff6fd8'),
@@ -147,12 +148,19 @@ export class MechanicVfx {
     const { center, radius } = d
     const rad = (p.dir * Math.PI) / 180
     const lead = Math.max(1, p.lead)
-    // Chevron pointing the note's way drops into the ring, landing exactly on the beat.
-    // Group 1 so the player standing in the ring never hides it.
+    // Chevron pointing the note's way flies in from a random side and lands in the ring exactly
+    // on the beat; separate approach paths keep queued notes apart. Group 1 so the player
+    // standing in the ring never hides it.
+    const from = Math.random() * Math.PI * 2
+    const start = { x: center.x + Math.sin(from) * DANCE_FLY_FROM, y: center.y + Math.cos(from) * DANCE_FLY_FROM }
     const chevron = this.vfx.spawn('flat', 'chevronUp', DANCE_GOLD, Infinity, (f) => {
       f.mesh.renderingGroupId = 1
       const k = Math.min(1, f.age / lead)
-      f.mesh.position.set(center.x, 0.15 + DANCE_DROP * (1 - k * k), center.y)
+      f.mesh.position.set(
+        start.x + (center.x - start.x) * k,
+        0.15 + Math.sin(k * Math.PI) * DANCE_ARC,
+        start.y + (center.y - start.y) * k,
+      )
       // 'chevron_up' points +X at rotation 0
       f.mesh.rotation.y = rad - Math.PI / 2
       const s = radius * 1.1
