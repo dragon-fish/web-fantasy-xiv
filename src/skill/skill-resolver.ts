@@ -214,6 +214,7 @@ export class SkillResolver {
         caster.facing,
         targetPos,
         caster.id,
+        targetEntity?.id ?? null,
       )
     }
   }

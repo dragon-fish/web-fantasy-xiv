@@ -1,5 +1,5 @@
 // src/entity/entity.ts
-import type { EntityType, Vec3, DamageType } from '@/core/types'
+import type { EntityType, Vec3, DamageType, Role } from '@/core/types'
 
 export interface CastState {
   skillId: string
@@ -55,6 +55,10 @@ export interface Entity {
   size: number
   /** Visual model id (renderer-only; see renderer/characters/model-catalog.ts) */
   model?: string
+  /** Combat role (players: from job category) */
+  role?: Role
+  /** Lying dormant (e.g. a corpse awaiting revival): untargetable, inert, revived by `revive` effects */
+  dormant?: boolean
 
   hp: number
   /** Derived maxHp = baseMaxHp × (1 + maxHpModifier). Maintained as a getter; BuffSystem syncs `maxHpModifier` on buff changes. */
@@ -100,6 +104,8 @@ export interface CreateEntityOptions {
   speed?: number
   size?: number
   model?: string
+  role?: Role
+  dormant?: boolean
   hp?: number
   maxHp?: number
   mp?: number
@@ -126,6 +132,8 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     speed: opts.speed ?? 5,
     size: opts.size ?? 0.5,
     model: opts.model,
+    role: opts.role,
+    dormant: opts.dormant,
     hp: opts.hp ?? baseMaxHp,
     maxHp: 0, // placeholder, overwritten below
     mp: opts.mp ?? maxMp,

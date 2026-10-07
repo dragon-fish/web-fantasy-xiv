@@ -13,6 +13,8 @@ export interface ActiveAoeZone {
   center: Vec2
   facing: number
   elapsed: number
+  /** Entity the zone is anchored on (target anchors); `target_live` zones follow it until resolve */
+  anchorEntityId: string | null
   /** Time (ms from creation) when telegraph appears */
   telegraphAt: number
   telegraphVisible: boolean
@@ -36,6 +38,7 @@ export class AoeZoneManager {
     casterFacing: number,
     targetPos: Vec2 | null,
     casterId: string | null = null,
+    targetId: string | null = null,
   ): ActiveAoeZone {
     const center = this.resolveAnchor(def.anchor, casterPos, targetPos)
     const facing = this.resolveDirection(def.direction, casterFacing, center, targetPos)
@@ -52,6 +55,7 @@ export class AoeZoneManager {
       center,
       facing,
       elapsed: 0,
+      anchorEntityId: def.anchor.type === 'target' || def.anchor.type === 'target_live' ? targetId : null,
       telegraphAt,
       telegraphVisible: false,
       resolved: false,
@@ -72,6 +76,10 @@ export class AoeZoneManager {
     for (let i = this.zones.length - 1; i >= 0; i--) {
       const zone = this.zones[i]
       zone.elapsed += dt
+      if (!zone.resolved && zone.def.anchor.type === 'target_live' && zone.anchorEntityId) {
+        const anchor = this.entityMgr.get(zone.anchorEntityId)
+        if (anchor?.alive) zone.center = { x: anchor.position.x, y: anchor.position.y }
+      }
 
       // Deferred telegraph appearance
       if (!zone.telegraphVisible && zone.elapsed >= zone.telegraphAt) {
@@ -95,8 +103,15 @@ export class AoeZoneManager {
     const hitEntities: Entity[] = []
     const caster = zone.casterId ? this.entityMgr.get(zone.casterId) : null
 
+    const revives = zone.def.effects.some(e => e.type === 'revive')
+    const dormantHits: Entity[] = []
     for (const entity of this.entityMgr.getAlive()) {
       if (zone.casterId !== null && entity.id === zone.casterId) continue
+      if (entity.dormant) {
+        // Dormant bodies ignore faction and targetability; only revive effects care about them
+        if (revives && isPointInAoeShape({ x: entity.position.x, y: entity.position.y }, zone.center, zone.def.shape, zone.facing)) dormantHits.push(entity)
+        continue
+      }
       // Skip untargetable entities (invulnerable)
       if (!entity.targetable) continue
       // Skip friendly entities (same faction: player vs player, or boss/mob vs boss/mob)
@@ -107,7 +122,7 @@ export class AoeZoneManager {
       }
     }
 
-    this.bus.emit('aoe:zone_resolved', { zone, hitEntities })
+    this.bus.emit('aoe:zone_resolved', { zone, hitEntities, dormantHits })
   }
 
   private isHostile(a: Entity, b: Entity): boolean {

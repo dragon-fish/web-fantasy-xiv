@@ -823,3 +823,37 @@ describe('CombatResolver — fractional lifesteal', () => {
     expect(player.hp).toBe(9000)
   })
 })
+
+describe('role-gated effects', () => {
+  it('applies an effect only when the target matches the role condition', () => {
+    const { bus, boss, player } = setup()
+    player.role = 'dps'
+    const buster = makeSkill({ id: 'buster', effects: [{ type: 'damage', potency: 5000, when: { role: 'tank' } }] })
+    boss.target = 'player'
+    castSkill(bus, boss, buster)
+    expect(player.hp).toBe(10000)
+
+    player.role = 'tank'
+    castSkill(bus, boss, buster)
+    expect(player.hp).toBe(5000)
+  })
+})
+
+describe('revive effect', () => {
+  it('wakes dormant entities caught in a revive zone and announces it', () => {
+    const bus = new EventBus()
+    const entityMgr = new EntityManager(bus)
+    const buffSystem = new BuffSystem(bus)
+    const arena = new Arena({ name: 'test', shape: { type: 'circle', radius: 50 }, boundary: 'wall' })
+    new CombatResolver(bus, entityMgr, buffSystem, arena)
+    const feather = entityMgr.create({ id: 'feather', type: 'mob', hp: 100 })
+    const corpse = entityMgr.create({ id: 'bird', type: 'mob', hp: 3000, targetable: false, dormant: true, position: { x: 3, y: 0, z: 0 } })
+    const revived = vi.fn()
+    bus.on('entity:revived', revived)
+    const zone = { casterId: feather.id, skillId: 'down', def: { effects: [{ type: 'revive' }] } }
+    bus.emit('aoe:zone_resolved', { zone, hitEntities: [], dormantHits: [corpse] })
+    expect(corpse.dormant).toBe(false)
+    expect(corpse.targetable).toBe(true)
+    expect(revived).toHaveBeenCalledWith({ entity: corpse, by: feather })
+  })
+})

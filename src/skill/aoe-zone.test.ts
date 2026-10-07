@@ -98,3 +98,41 @@ describe('AoeZoneManager', () => {
     expect(resolved.mock.calls[0][0].hitEntities[0].id).toBe('p1')
   })
 })
+
+describe('target_live anchoring', () => {
+  it('follows the anchored entity until it resolves, then stays put', async () => {
+    const { EventBus } = await import('@/core/event-bus')
+    const { EntityManager } = await import('@/entity/entity-manager')
+    const { AoeZoneManager } = await import('./aoe-zone')
+    const bus = new EventBus()
+    const entities = new EntityManager(bus)
+    const zones = new AoeZoneManager(bus, entities)
+    const player = entities.create({ id: 'p', type: 'player', hp: 100, position: { x: 0, y: 0, z: 0 } })
+    const zone = zones.spawn({ anchor: { type: 'target_live' }, direction: { type: 'none' }, shape: { type: 'circle', radius: 6 }, resolveDelay: 1000, hitEffectDuration: 500, effects: [] }, 'spread', { x: 9, y: 9 }, 0, { x: 0, y: 0 }, null, player.id)
+    player.position.x = 5
+    zones.update(500)
+    expect(zone.center).toEqual({ x: 5, y: 0 })
+    zones.update(600) // resolves
+    player.position.x = -5
+    zones.update(100)
+    expect(zone.center).toEqual({ x: 5, y: 0 })
+  })
+
+  it('collects dormant entities only for zones with a revive effect', async () => {
+    const { EventBus } = await import('@/core/event-bus')
+    const { EntityManager } = await import('@/entity/entity-manager')
+    const { AoeZoneManager } = await import('./aoe-zone')
+    const bus = new EventBus()
+    const entities = new EntityManager(bus)
+    const zones = new AoeZoneManager(bus, entities)
+    const feather = entities.create({ id: 'f', type: 'mob', hp: 100 })
+    entities.create({ id: 'bird', type: 'mob', hp: 100, dormant: true, targetable: false, position: { x: 2, y: 0, z: 0 } })
+    const seen: Record<string, string[]> = {}
+    bus.on('aoe:zone_resolved', (p: any) => { seen[p.zone.skillId] = p.dormantHits.map((e: any) => e.id) })
+    const def = (effects: any[]) => ({ anchor: { type: 'caster' as const }, direction: { type: 'none' as const }, shape: { type: 'circle' as const, radius: 9 }, resolveDelay: 0, hitEffectDuration: 0, effects })
+    zones.spawn(def([{ type: 'damage', potency: 1 }]), 'a', { x: 0, y: 0 }, 0, null, feather.id)
+    zones.spawn(def([{ type: 'revive' }]), 'b', { x: 0, y: 0 }, 0, null, feather.id)
+    zones.update(16)
+    expect(seen).toEqual({ a: [], b: ['bird'] })
+  })
+})

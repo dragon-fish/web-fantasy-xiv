@@ -53,7 +53,15 @@ export type DamageType =
   | 'earth'      // 土
   | 'wind'       // 风
 
-export type SkillEffectDef =
+/** Combat role, derived from the player's job category; encounters branch on it */
+export type Role = 'tank' | 'healer' | 'dps'
+
+/** Optional gate on an effect or timeline entry, evaluated against the affected entity / player */
+export interface EffectCondition {
+  role?: Role | Role[]
+}
+
+export type SkillEffectDef = (
   | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[] }
   | { type: 'heal'; potency: number }
   | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number; target?: 'caster' | 'target' }
@@ -67,6 +75,8 @@ export type SkillEffectDef =
   | { type: 'backstep'; distance: number }                              // caster jumps backward from target
   | { type: 'knockback'; distance: number; source?: DisplacementSource } // push target away from source (default: caster)
   | { type: 'pull'; distance: number; source?: DisplacementSource }      // pull target toward source (default: caster)
+  | { type: 'revive' }                                                   // wake dormant entities caught in the zone
+) & { when?: EffectCondition }
 
 /** Visual element of a skill's effects (renderer-only hint) */
 export type VfxElement =
@@ -91,6 +101,8 @@ export interface AoeZoneDef {
   effects: SkillEffectDef[]
   /** Visual hint for displacement direction in telegraph */
   displacementHint?: 'knockback' | 'pull'
+  /** Overhead marker on the anchored entity while the zone is pending (renderer-only) */
+  marker?: 'spread' | 'stack' | 'buster'
 }
 
 export interface SkillDef {

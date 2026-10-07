@@ -8,6 +8,7 @@ import { calculateDamage } from '@/combat/damage'
 import { applyPeriodicBuff, isPeriodicEffect } from '@/combat/buff-periodic'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import { EASING, type EasingFn } from './displacement-animator'
+import { matchesCondition } from '@/combat/conditions'
 import type { AoeZoneManager } from '@/skill/aoe-zone'
 import type { DisplacementAnimator } from './displacement-animator'
 
@@ -48,7 +49,7 @@ export class CombatResolver {
     })
 
     // AoE zone resolved effects
-    bus.on('aoe:zone_resolved', (payload: { zone: any; hitEntities: Entity[] }) => {
+    bus.on('aoe:zone_resolved', (payload: { zone: any; hitEntities: Entity[]; dormantHits?: Entity[] }) => {
       const casterId: string | null = payload.zone.casterId
       const caster = casterId ? this.entityMgr.get(casterId) : null
       const skillName: string | undefined = this.skillNames.get(payload.zone.skillId)
@@ -58,6 +59,8 @@ export class CombatResolver {
       for (const hit of payload.hitEntities) {
         this.resolveEffects(payload.zone.def.effects, caster, hit, skillName, potencyBonus)
       }
+      const revive = (payload.zone.def.effects as SkillEffectDef[]).find(e => e.type === 'revive')
+      if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
     })
   }
 
@@ -76,6 +79,7 @@ export class CombatResolver {
     extraIncreases: number[] = [],
   ): void {
     for (const effect of effects) {
+      if (!matchesCondition(effect.when, target ?? caster)) continue
       switch (effect.type) {
         case 'damage':
           if (!caster || !target) break
@@ -207,6 +211,16 @@ export class CombatResolver {
         }
       }
     }
+  }
+
+  /** Wake a dormant entity (corpse) — it becomes a live, targetable combatant. */
+  revive(entity: Entity, by: Entity | null | undefined): void {
+    if (!entity.dormant || !entity.alive) return
+    entity.dormant = false
+    entity.visible = true
+    entity.targetable = true
+    entity.hp = entity.maxHp
+    this.bus.emit('entity:revived', { entity, by: by ?? null })
   }
 
   /** Calculate bonus potency from per-stack buff scaling */
