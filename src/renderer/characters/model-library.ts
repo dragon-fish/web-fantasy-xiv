@@ -32,10 +32,64 @@ function assetUrl(path: string): string {
   return `${import.meta.env.BASE_URL}${path}`
 }
 
+export interface PropOptions {
+  /** Multiply albedo */
+  tint?: Color3
+  /** Replace albedo and drop the texture; per-material brightness is kept so dark trims stay dark */
+  recolor?: Color3
+  emissive?: Color3
+}
+
+const libraries = new WeakMap<Scene, ModelLibrary>()
+
 export class ModelLibrary {
   private prepared = new Map<string, Promise<Prepared>>()
 
-  constructor(private scene: Scene) {}
+  /** One library per scene so characters and set dressing share loaded containers. */
+  static for(scene: Scene): ModelLibrary {
+    let lib = libraries.get(scene)
+    if (!lib) { lib = new ModelLibrary(scene); libraries.set(scene, lib) }
+    return lib
+  }
+
+  private constructor(private scene: Scene) {}
+
+  /** Static set dressing: scaled to `height`, grounded, StandardMaterial, no animation. */
+  async instantiateProp(url: string, name: string, height: number, opts: PropOptions = {}): Promise<{ root: TransformNode; meshes: AbstractMesh[] }> {
+    const prep = await this.prepare(url)
+    const entries = prep.container.instantiateModelsToScene(n => `${name}:${n}`, true, { doNotInstantiate: true })
+    const root = new TransformNode(`${name}-prop`, this.scene)
+    const s = prep.unitScale * height
+    root.scaling.setAll(s)
+    root.position.y = -prep.minY * s
+    for (const node of entries.rootNodes) node.parent = root
+    for (const g of entries.animationGroups) g.dispose()
+    const meshes = root.getChildMeshes(false)
+    const converted = new Map<Material, StandardMaterial>()
+    for (const m of meshes) {
+      m.isPickable = false
+      m.receiveShadows = true
+      const src = m.material
+      if (!src) continue
+      let std = converted.get(src)
+      if (!std) {
+        std = toStandard(src, `${name}-${src.name}`, this.scene)
+        std.emissiveFresnelParameters.isEnabled = false
+        if (opts.recolor) {
+          const c = std.diffuseColor
+          const luma = std.diffuseTexture ? 0.55 : c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+          std.diffuseTexture = null
+          std.diffuseColor = opts.recolor.scale(0.35 + luma * 1.2)
+        }
+        else if (opts.tint) std.diffuseColor = std.diffuseColor.multiply(opts.tint)
+        if (opts.emissive) std.emissiveColor = opts.emissive.clone()
+        converted.set(src, std)
+      }
+      m.material = std
+    }
+    for (const [src, std] of converted) if (src !== std) src.dispose(false, false)
+    return { root, meshes }
+  }
 
   private prepare(url: string): Promise<Prepared> {
     let p = this.prepared.get(url)

@@ -35,7 +35,9 @@ Three decoupled layers:
 - `src/config/` — YAML config parsers for arena, entity, skill, timeline
 
 **Rendering Layer** (Babylon.js):
-- `src/renderer/` — Scene, entity meshes, AOE telegraph visuals, hit effects
+- `src/renderer/` — Scene (lighting, shadows, post-processing), themed arena (`arena-*`), SDF AOE telegraphs (`aoe-*`), overhead HP/damage billboards
+- `src/renderer/characters/` — Animated glTF characters (`public/models/`, CC0): model catalog, animation state, shared `ModelLibrary`
+- `src/renderer/vfx/` — Event-driven skill effects (cast circles, slashes, projectiles, impacts, AOE bursts); textures in `public/vfx/xiv/`, all referenced through `vfx-assets.ts`
 
 **UI Layer** (Vue 3 + Pinia + vue-router 5):
 - `src/pages/` — File-based route pages (index, encounters, job, about, encounter/[id])
@@ -54,6 +56,8 @@ Three decoupled layers:
 
 - **Event-driven**: All cross-system communication goes through EventBus (`damage:dealt`, `entity:created`, etc.)
 - **YAML encounters**: Boss fights defined in `public/encounters/*.yaml` — parsed by config layer, scheduled by TimelineScheduler
+- **Visual hints are data, not logic**: `arena.theme`, entity `model:` and `SkillDef.vfx` only steer the renderer; players get `model: job:<jobId>`. Never branch gameplay on them.
+- **Effect materials**: unlit tinted textures use `renderer/vfx/vfx-material.ts`. StandardMaterial can't do it (with `disableLighting` the diffuse term is zero, and `emissiveTexture` is added to `emissiveColor`, not multiplied).
 - **Discriminated unions**: `src/core/types.ts` uses tagged unions extensively (Vec2/Vec3, AnchorType, AoeShapeDef, etc.)
 - **State**: Pinia stores with per-frame mirror from `GameScene` via `use-state-adapter` (`$patch`). UI reads stores, never writes directly; mutations flow through `GameScene` methods (e.g., `scene.pause()`, `scene.endBattle()`).
 - **Template style**: pug + scoped scss with UnoCSS Attributify. Arbitrary-value utilities must be quoted in pug: `div(top="[50px]")` works; `div(top-[50px])` fails.

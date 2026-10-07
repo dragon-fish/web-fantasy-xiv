@@ -13,6 +13,17 @@ MenuShell
         | dragon-fish |&nbsp;
         a(href="https://github.com/dragon-fish/web-fantasy-xiv" target="_blank" rel="noopener") GitHub
       .about-license GPL-3.0 License
+    .about-divider
+      .about-section-title 素材
+      div
+        | 角色、怪物与场景模型：
+        a(href="https://kaylousberg.itch.io" target="_blank" rel="noopener") KayKit
+        |  /
+        a(href="https://quaternius.com" target="_blank" rel="noopener") Quaternius
+        |  /
+        a(href="https://poly.pizza" target="_blank" rel="noopener") poly.pizza
+        | （CC0）
+      div 技能图标与特效贴图：© SQUARE ENIX，仅用于非商业同人用途
 </template>
 
 <style lang="scss" scoped>

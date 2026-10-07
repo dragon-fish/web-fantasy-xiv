@@ -69,7 +69,7 @@ export class CharacterRenderer implements EntityVisuals {
 
   constructor(private sm: SceneManager, bus: EventBus) {
     this.scene = sm.scene
-    this.library = new ModelLibrary(this.scene)
+    this.library = ModelLibrary.for(this.scene)
 
     bus.on('entity:created', ({ entity }: { entity: Entity }) => this.create(entity))
     bus.on('entity:died', ({ entity }: { entity: Entity }) => {
@@ -143,7 +143,8 @@ export class CharacterRenderer implements EntityVisuals {
     this.views.set(entity.id, v)
 
     this.library.instantiate(spec, entity.id, scale).then((model) => {
-      if (this.views.get(entity.id) !== v) { model.dispose(); return }
+      // Scene restarted (retry) or entity removed while the model was streaming in
+      if (this.scene.isDisposed || this.views.get(entity.id) !== v) { model.dispose(); return }
       model.root.parent = body
       for (const m of model.meshes) this.sm.addShadowCaster(m)
       for (const mat of model.materials) v.baseEmissive.set(mat, mat.emissiveColor.clone())

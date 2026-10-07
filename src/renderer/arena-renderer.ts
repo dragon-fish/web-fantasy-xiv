@@ -329,8 +329,11 @@ export class ArenaRenderer {
       const prop = buildProp(scene, kind, this.theme, rand, { floating: lethal })
       prop.root.position.set(Math.cos(a) * r, lethal ? -1.5 - rand() * 3 : 0, Math.sin(a) * r)
       prop.root.rotation.y = rand() * Math.PI * 2
-      for (const m of prop.casters) this.sm.addShadowCaster(m)
-      for (const m of prop.glows) this.sm.addGlow(m)
+      prop.loaded.then(({ casters, glows }) => {
+        if (scene.isDisposed) return
+        for (const m of casters) this.sm.addShadowCaster(m)
+        for (const m of glows) this.sm.addGlow(m)
+      })
     }
 
     // Drifting motes

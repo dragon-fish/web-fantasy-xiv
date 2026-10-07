@@ -529,6 +529,22 @@ export class VfxRenderer {
     if (big) this.sm.shake(0.5, 600)
   }
 
+  /** Large enemies continuously shed motes of the encounter element. */
+  private tickAuras(dt: number): void {
+    for (const e of this.entities.getAlive()) {
+      if (e.type === 'player' || !e.visible || e.size < 1.1) continue
+      const rate = e.size * 9 // particles per second
+      let n = rate * (dt / 1000)
+      while (n > 0) {
+        if (n < 1 && Math.random() > n) break
+        n -= 1
+        const a = Math.random() * Math.PI * 2
+        const r = e.size * (0.4 + Math.random() * 0.9)
+        this.burster('mote', this.enemyElement).emit(e.position.x + Math.cos(a) * r, 0.2 + Math.random() * 1.5, e.position.y + Math.sin(a) * r, 1, { dirY: 1, spread: 0.15, jitter: 0.2 })
+      }
+    }
+  }
+
   // --- Frame ------------------------------------------------------------------
 
   update(dt: number): void {
@@ -540,6 +556,7 @@ export class VfxRenderer {
       for (const t of due) t.fn()
     }
     this.tickCasts()
+    this.tickAuras(dt)
     this.tickProjectiles(dt)
     for (let i = this.fx.length - 1; i >= 0; i--) {
       const f = this.fx[i]
