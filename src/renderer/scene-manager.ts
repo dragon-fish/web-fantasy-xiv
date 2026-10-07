@@ -257,6 +257,11 @@ export class SceneManager {
 
   dispose(): void {
     this.engine.stopRenderLoop()
+    // Dispose post effects before the scene: their async shader compiles otherwise
+    // complete against a disposed scene ("reading 'postProcessManager'") on quick retries.
+    this.pipeline.dispose()
+    this.glowLayer?.dispose()
+    this.shadows.dispose()
     this.scene.dispose()
   }
 }
