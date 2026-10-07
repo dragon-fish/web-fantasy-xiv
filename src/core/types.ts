@@ -104,7 +104,7 @@ export interface AoeZoneDef {
   /** false = no ground telegraph (raidwides: FFXIV shows only the cast bar). Default true. */
   telegraph?: boolean
   /** Overhead marker on the anchored entity while the zone is pending (renderer-only) */
-  marker?: 'spread' | 'stack' | 'buster'
+  marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull'
 }
 
 export interface SkillDef {

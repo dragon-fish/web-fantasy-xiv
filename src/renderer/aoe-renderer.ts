@@ -65,7 +65,7 @@ export class AoeRenderer {
       const { zone, material } = entry
       material.setFloat('time', time / 1000)
       // target_live zones move with their anchor until they resolve
-      if (entry.phase === 'telegraph' && zone.anchorEntityId) this.place(entry.mesh, zone)
+      if (entry.phase === 'telegraph' && zone.def.anchor.type === 'target_live') this.place(entry.mesh, zone)
       if (entry.phase === 'telegraph') {
         const span = Math.max(1, zone.def.resolveDelay - zone.telegraphAt)
         material.setFloat('progress', Math.min(1, Math.max(0, (zone.elapsed - zone.telegraphAt) / span)))

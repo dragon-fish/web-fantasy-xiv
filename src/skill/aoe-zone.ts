@@ -13,7 +13,7 @@ export interface ActiveAoeZone {
   center: Vec2
   facing: number
   elapsed: number
-  /** Entity the zone is anchored on (target anchors); `target_live` zones follow it until resolve */
+  /** Entity the zone is anchored on (caster/target anchors); only `target_live` zones follow it */
   anchorEntityId: string | null
   /** Time (ms from creation) when telegraph appears */
   telegraphAt: number
@@ -55,7 +55,8 @@ export class AoeZoneManager {
       center,
       facing,
       elapsed: 0,
-      anchorEntityId: def.anchor.type === 'target' || def.anchor.type === 'target_live' ? targetId : null,
+      anchorEntityId: def.anchor.type === 'target' || def.anchor.type === 'target_live' ? targetId
+        : def.anchor.type === 'caster' ? casterId : null,
       telegraphAt,
       telegraphVisible: false,
       resolved: false,

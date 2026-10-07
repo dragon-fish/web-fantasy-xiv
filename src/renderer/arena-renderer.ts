@@ -1,6 +1,6 @@
 // src/renderer/arena-renderer.ts
 import {
-  MeshBuilder, StandardMaterial, Color3, Color4, Vector3, ParticleSystem, Mesh, DynamicTexture,
+  MeshBuilder, StandardMaterial, Color3, Color4, Vector3, ParticleSystem, Mesh, DynamicTexture, TransformNode,
   type Scene,
 } from '@babylonjs/core'
 import type { ArenaDef, AoeShapeDef } from '@/core/types'
@@ -25,9 +25,15 @@ export class ArenaRenderer {
   private wallMat: StandardMaterial
   private scene: Scene
   readonly theme: ArenaTheme
+  /** Guard rail meshes removed when the floor breaks */
+  private wallParts: Mesh[] = []
+  /** Courtyard + props: they fall into the void when the floor breaks */
+  private dressing: TransformNode[] = []
+  private def: ArenaDef
 
   constructor(private sm: SceneManager, arenaDef: ArenaDef, private bus?: EventBus, options: ArenaRendererOptions = { decor: true }) {
     const scene = this.scene = sm.scene
+    this.def = arenaDef
     this.theme = resolveArenaTheme(arenaDef.theme)
     if (options.decor) sm.setAtmosphere(this.theme.atmosphere)
 
@@ -58,6 +64,7 @@ export class ArenaRenderer {
       bus.on('deathzone:removed', (payload: { id: string }) => {
         this.removeDeathZoneMesh(payload.id)
       })
+      bus.on('arena:morphed', () => this.breakFloor())
     }
   }
 
@@ -125,7 +132,83 @@ export class ArenaRenderer {
       mesh.position.set(center.x, 0.02, center.y)
     }
     mesh.material = isWall ? this.wallMat : this.dzMat
+    // Lethal pits read as an abyss: near-black floor with a glowing danger rim
+    if (!isWall && shape.type === 'circle') {
+      mesh.material = this.abyssMaterial()
+      const rim = MeshBuilder.CreateTorus(`deathzone-rim-${id}`, { diameter: shape.radius * 2, thickness: 0.18, tessellation: 96 }, this.scene)
+      rim.parent = mesh
+      rim.rotation.x = -Math.PI / 2
+      rim.scaling.y = 0.3
+      rim.material = this.dangerRimMaterial()
+      this.sm.addGlow(rim)
+    }
     this.deathZoneMeshes.set(id, mesh)
+  }
+
+  private abyss: StandardMaterial | null = null
+  private abyssMaterial(): StandardMaterial {
+    if (!this.abyss) {
+      this.abyss = new StandardMaterial('abyss-mat', this.scene)
+      this.abyss.diffuseColor = Color3.Black()
+      this.abyss.specularColor = Color3.Black()
+      this.abyss.emissiveColor = new Color3(0.05, 0.01, 0.06)
+    }
+    return this.abyss
+  }
+
+  private dangerRim: StandardMaterial | null = null
+  private dangerRimMaterial(): StandardMaterial {
+    if (!this.dangerRim) {
+      this.dangerRim = new StandardMaterial('danger-rim-mat', this.scene)
+      this.dangerRim.disableLighting = true
+      this.dangerRim.emissiveColor = new Color3(0.85, 0.25, 0.95)
+    }
+    return this.dangerRim
+  }
+
+  /**
+   * The guard rail shatters: edge becomes lethal, a floating-island underside appears and the
+   * surrounding courtyard + props drop into the void.
+   */
+  private breakFloor(): void {
+    if (this.def.shape.type !== 'circle') return
+    const radius = this.def.shape.radius
+    for (const m of this.wallParts) m.dispose()
+    this.wallParts = []
+
+    const edge = MeshBuilder.CreateTorus('arena-edge-glow', { diameter: radius * 2, thickness: 0.16, tessellation: 128 }, this.scene)
+    edge.position.y = 0.03
+    edge.scaling.y = 0.3
+    edge.material = this.dangerRimMaterial()
+    this.sm.addGlow(edge)
+    const slab = MeshBuilder.CreateCylinder('arena-platform', { height: 1.2, diameter: radius * 2, tessellation: 96 }, this.scene)
+    slab.position.y = -0.62
+    const cliff = new StandardMaterial('platform-break-mat', this.scene)
+    cliff.diffuseColor = Color3.FromHexString(this.theme.cliff)
+    cliff.specularColor = Color3.Black()
+    slab.material = cliff
+    const under = MeshBuilder.CreateCylinder('arena-underside', { height: radius * 0.9, diameterTop: radius * 1.96, diameterBottom: radius * 0.35, tessellation: 14, subdivisions: 3 }, this.scene)
+    under.position.y = -1.2 - radius * 0.45
+    under.material = cliff
+    under.convertToFlatShadedMesh()
+
+    const falling = this.dressing.map((node, i) => ({ node, v: 0, delay: (i % 7) * 90, spin: (Math.random() - 0.5) * 0.8 }))
+    this.dressing = []
+    let t = 0
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      const dt = this.scene.getEngine().getDeltaTime() / 1000
+      t += dt * 1000
+      let alive = false
+      for (const f of falling) {
+        if (t < f.delay || f.node.isDisposed()) { alive = alive || !f.node.isDisposed(); continue }
+        f.v += 22 * dt
+        f.node.position.y -= f.v * dt
+        f.node.rotation.z += f.spin * dt
+        if (f.node.position.y < -40) f.node.dispose()
+        else alive = true
+      }
+      if (!alive) this.scene.onBeforeRenderObservable.remove(obs)
+    })
   }
 
   private removeDeathZoneMesh(id: string): void {
@@ -209,6 +292,7 @@ export class ArenaRenderer {
       // Wall boundary: glowing rim + translucent shimmering barrier
       const boundary = MeshBuilder.CreateTorus('arena-boundary', { diameter: radius * 2, thickness: 0.12, tessellation: 128 }, scene)
       boundary.position.y = 0.05
+      this.wallParts.push(boundary)
       boundary.material = decor ? this.accentMaterial('boundary-mat', 1, 0.9) : (() => {
         const m = new StandardMaterial('boundary-mat', scene)
         m.diffuseColor = new Color3(0.9, 0.9, 0.9)
@@ -221,6 +305,7 @@ export class ArenaRenderer {
           diameter: radius * 2, height: 1.6, tessellation: 128, cap: Mesh.NO_CAP, sideOrientation: Mesh.DOUBLESIDE,
         }, scene)
         barrier.position.y = 0.8
+        this.wallParts.push(barrier)
         const mat = this.accentMaterial('arena-barrier-mat', 1, 0.8)
         mat.opacityTexture = this.barrierGradient()
         mat.backFaceCulling = false
@@ -316,6 +401,7 @@ export class ArenaRenderer {
       yard.material = mat
       yard.receiveShadows = true
       yard.isPickable = false
+      this.dressing.push(yard)
     }
 
     // Props in a loose ring outside the walkable area
@@ -329,6 +415,7 @@ export class ArenaRenderer {
       const prop = buildProp(scene, kind, this.theme, rand, { floating: lethal })
       prop.root.position.set(Math.cos(a) * r, lethal ? -1.5 - rand() * 3 : 0, Math.sin(a) * r)
       prop.root.rotation.y = rand() * Math.PI * 2
+      this.dressing.push(prop.root)
       prop.loaded.then(({ casters, glows }) => {
         if (scene.isDisposed) return
         for (const m of casters) this.sm.addShadowCaster(m)
