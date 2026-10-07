@@ -71,7 +71,7 @@ export type SkillEffectDef = (
   | { type: 'consume_all_buff_stacks'; buffId: string }                  // remove all stacks of a buff
   | { type: 'consume_buff_stacks'; buffId: string; stacks: number }      // remove N stacks from a buff
   | { type: 'restore_mp'; percent: number }                              // restore % of max MP to caster
-  | { type: 'dash'; stopDistance?: number }                              // caster dashes toward target (stops at stopDistance or autoAttackRange)
+  | { type: 'dash'; stopDistance?: number }                              // caster dashes toward target; stops `stopDistance` beyond its hitbox edge (default 0 → lands 0.1m inside the target ring, FFXIV-style)
   | { type: 'dash_forward'; distance: number }                          // caster dashes forward (toward facing direction)
   | { type: 'dash_to_ley_lines' }                                       // caster dashes to ley lines center
   | { type: 'backstep'; distance: number }                              // caster jumps backward from target

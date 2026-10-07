@@ -867,3 +867,14 @@ describe('notBuff condition', () => {
     expect(player.hp).toBe(10000)
   })
 })
+
+describe('gap closer', () => {
+  it('lands just inside the target ring (hitbox edge - 0.1m)', () => {
+    const { bus, boss, player } = setup()
+    boss.size = 2
+    boss.position.x = 0; boss.position.y = 10
+    player.position.x = 0; player.position.y = 0
+    castSkill(bus, player, makeSkill({ id: 'dash', effects: [{ type: 'dash' }] }))
+    expect(player.position.y).toBeCloseTo(8.1, 3)
+  })
+})

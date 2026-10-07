@@ -46,4 +46,8 @@ export class DeathZoneManager {
   getWallZones(): DeathZoneDef[] {
     return [...this.zones.values()].filter(z => z.behavior === 'wall')
   }
+
+  getLethalZones(): DeathZoneDef[] {
+    return [...this.zones.values()].filter(z => z.behavior !== 'wall')
+  }
 }

@@ -305,6 +305,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   const deathZoneMgr = new DeathZoneManager(s.bus)
   if (enc.arena.deathZones) deathZoneMgr.loadInitial(enc.arena.deathZones)
   s.arena.setWallZoneProvider(() => deathZoneMgr.getWallZones())
+  s.arena.setLethalZoneProvider(() => deathZoneMgr.getLethalZones())
 
   const scriptRunner = new ScriptRunner({
     bus: s.bus,
