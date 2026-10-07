@@ -251,6 +251,25 @@ skills:
           - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
 
   # --- 鬼宿脚：坦克吃死刑，DPS 拼刀（timeline 里的 blade_clash） ---
+  # 歼殛战标准：不开减伤打到血皮，不会穿杀（零式才是不开减伤必死）。按减伤最少的战士定：
+  # 10000 血满血硬吃常规版剩约 1000，开铁壁（40%）只掉一半。
+  phantom_flurry_tutorial:
+    name: 鬼宿脚
+    type: spell
+    castTime: 5000
+    targetType: single
+    requiresTarget: true
+    range: 99
+    zones:
+      - anchor: { type: target_live }
+        direction: { type: none }
+        shape: { type: circle, radius: 1.2 }
+        marker: buster
+        resolveDelay: 5000
+        hitEffectDuration: 200
+        effects: []
+    effects:
+      - { type: damage, potency: 6000, when: { role: tank } }
   phantom_flurry:
     name: 鬼宿脚
     type: spell
@@ -267,7 +286,7 @@ skills:
         hitEffectDuration: 200
         effects: []
     effects:
-      - { type: damage, potency: 13000, when: { role: tank } }
+      - { type: damage, potency: 9000, when: { role: tank } }
   # 死刑后接的前方半场刀，方向锁定在读条开始时的朝向
   phantom_half_tutorial:
     name: 鬼宿脚
@@ -535,7 +554,7 @@ phases:
       - { at: 28500, action: hide_dialog }
 
       # 鬼宿脚：死刑（坦克开减伤 / DPS 拼刀）→ 前方半场刀
-      - { at: 32000, use: phantom_flurry }
+      - { at: 32000, use: phantom_flurry_tutorial }
       - { at: 32000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
       - { at: 37500, use: phantom_half_tutorial }
       - { at: 32000, action: show_dialog, when: { role: tank }, text: 鬼宿脚：坦克死刑！读条结束前开启减伤。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
