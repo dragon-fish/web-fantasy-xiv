@@ -8,7 +8,7 @@ export interface TimingWindows {
   good: number
 }
 
-export const DEFAULT_WINDOWS: TimingWindows = { just: 70, perfect: 150, good: 300 }
+export const DEFAULT_WINDOWS: TimingWindows = { just: 100, perfect: 220, good: 450 }
 
 /**
  * Grade a press `offset` ms from the target moment (negative = early).
