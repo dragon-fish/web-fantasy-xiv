@@ -1,402 +1,373 @@
-# 小怪阶段副本（Phase 系统版）
-# phase_default: Boss 开场AOE → 4小怪
-# phase_boss_return: 小怪全灭后 Boss 复归，每5s释放AOE
+# 朱雀诗魂战（极） — 浓缩单人版
+# 设计：docs/superpowers/specs/2026-10-08-suzaku-extreme-design.md
+# 时间轴参照 cactbot ui/raidboss/data/04-sb/trial/suzaku-ex.txt
+# 数值：boss attack = 1，potency 即固定伤害。可回避机制常规 3800，教学 2300；全屏 1800，教学 1100。
+
+# 练习友好复活：衰弱 → 濒死 → 结束（game/player-revive.ts）
+revive: true
 
 arena:
-  name: 试炼场
+  name: 红莲狱火
   shape: circle
-  radius: 15
+  radius: 20
   boundary: wall
   theme: wind
 
-# --- 统一实体定义 ---
 entities:
   boss:
     type: boss
     model: dragon
     group: boss
-    hp: 60000
+    hp: 400000
     attack: 1
-    speed: 4
-    size: 1.5
+    speed: 5
+    size: 2
     facing: 180
+    position: { x: 0, y: 6, z: 0 }
     autoAttackRange: 5
-    aggroRange: 8
-  mob_nw:
+    aggroRange: 10
+  # 不可见的施法辅助（FF14 的 helper actor），用于与本体并行的点名技能
+  helper:
     type: mob
-    model: bat
-    group: adds_wave1
-    hp: 5000
+    group: helper
+    hp: 1
     attack: 1
-    speed: 0
-    size: 0.6
+    size: 0.1
     visible: false
     targetable: false
-  mob_ne:
-    type: mob
-    model: bat
-    group: adds_wave1
-    hp: 5000
-    attack: 1
-    speed: 0
-    size: 0.6
-    visible: false
-    targetable: false
-  mob_se:
-    type: mob
-    model: bat
-    group: adds_wave1
-    hp: 5000
-    attack: 1
-    speed: 0
-    size: 0.6
-    visible: false
-    targetable: false
-  mob_sw:
-    type: mob
-    model: bat
-    group: adds_wave1
-    hp: 5000
-    attack: 1
-    speed: 0
-    size: 0.6
-    visible: false
-    targetable: false
+    position: { x: 0, y: 0, z: 0 }
+  # 场地中央的火焰鸟尸体：被羽毛的苏生神通力或玩家的苏生之炎碰到会复活
+  bird_1: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: 3, y: 3, z: 0 }, facing: 45, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_2: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: 3, y: -3, z: 0 }, facing: 135, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_3: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: -3, y: -3, z: 0 }, facing: 225, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_4: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: -3, y: 3, z: 0 }, facing: 315, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  # 苏生之羽刷出的羽毛（两种布局之一）
+  feather_1: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_2: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_3: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_4: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
 
 player:
   position: { x: 0, y: -12, z: 0 }
 
 boss_ai:
   chaseRange: 5
-  autoAttackRange: 15
+  autoAttackRange: 6
   autoAttackInterval: 3000
-  aggroRange: 8
+  aggroRange: 10
 
-# --- 技能定义 ---
+local_buffs:
+  suzaku_vuln:
+    name: 受伤加重
+    type: debuff
+    stackable: true
+    maxStacks: 8
+    duration: 90000
+    effects:
+      - { type: vulnerability, value: 0.25 }
+  keen_eye:
+    name: 见切
+    type: buff
+    duration: 10000
+    effects:
+      - { type: damage_increase, value: 0.2 }
+  opening:
+    name: 破绽
+    type: debuff
+    duration: 10000
+    effects:
+      - { type: damage_increase, value: -0.2 }
+
 skills:
   boss_auto:
     name: 攻击
     type: ability
     targetType: single
     requiresTarget: true
-    range: 15
-    effects: [{ type: damage, potency: 300 }]
+    range: 6
+    effects:
+      - { type: damage, potency: 900, when: { role: tank } }
+      - { type: damage, potency: 300, when: { role: dps } }
 
-  arena_blast:
-    name: 震撼登场
+  # --- 全屏 ---
+  screams_tutorial:
+    name: 叫唤地狱
     type: spell
-    castTime: 2000
+    castTime: 3000
     targetType: aoe
     zones:
       - anchor: { type: caster }
         direction: { type: none }
-        shape: { type: circle, radius: 99 }
-        resolveDelay: 2000
-        hitEffectDuration: 500
-        effects: [{ type: damage, potency: 2400 }]
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1100 }]
+  screams:
+    name: 叫唤地狱
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1800 }]
 
-  mob_line:
-    name: 直线突刺
+  # --- 猛进：从场边横穿全场 ---
+  rout_tutorial:
+    name: 猛进
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: caster_facing }
+        shape: { type: rect, length: 55, width: 6 }
+        resolveDelay: 4000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 2300 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
+  rout:
+    name: 猛进
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: caster_facing }
+        shape: { type: rect, length: 55, width: 6 }
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
+
+  # --- 苏生之炎：跟随玩家的分散圈，碰到火焰鸟尸体会复活它 ---
+  rekindle:
+    name: 苏生之炎
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 99
+    zones:
+      - anchor: { type: target_live }
+        direction: { type: none }
+        shape: { type: circle, radius: 6 }
+        marker: spread
+        resolveDelay: 5000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 800 }
+          - { type: revive }
+
+  # --- 翼宿击：朝玩家的 90° 扇形 ---
+  fleeting_summer_tutorial:
+    name: 翼宿击
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        shape: { type: fan, radius: 40, angle: 90 }
+        resolveDelay: 4000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 2300 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
+  fleeting_summer:
+    name: 翼宿击
     type: spell
     castTime: 3000
     targetType: aoe
     zones:
       - anchor: { type: caster }
         direction: { type: toward_target }
-        shape: { type: rect, length: 20, width: 3 }
+        shape: { type: fan, radius: 40, angle: 90 }
         resolveDelay: 3000
-        telegraphBefore: 3000
         hitEffectDuration: 400
         effects:
-          - { type: damage, potency: 3400 }
+          - { type: damage, potency: 3800 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
 
-  mob_scream:
-    name: 绝命咆哮
+  # --- 鬼宿脚：坦克吃死刑，DPS 拼刀（timeline 里的 blade_clash） ---
+  phantom_flurry:
+    name: 鬼宿脚
     type: spell
     castTime: 5000
-    targetType: aoe
+    targetType: single
+    requiresTarget: true
+    range: 99
     zones:
-      - anchor: { type: caster }
+      - anchor: { type: target_live }
         direction: { type: none }
-        shape: { type: circle, radius: 99 }
+        shape: { type: circle, radius: 1.2 }
+        marker: buster
         resolveDelay: 5000
-        hitEffectDuration: 500
-        effects:
-          - { type: apply_buff, buffId: vulnerability, stacks: 10 }
-          - { type: damage, potency: 999999 }
-
-  boss_fan_s:
-    name: 前方斩击
+        hitEffectDuration: 200
+        effects: []
+    effects:
+      - { type: damage, potency: 13000, when: { role: tank } }
+  # 死刑后接的前方半场刀，方向锁定在读条开始时的朝向
+  phantom_half_tutorial:
+    name: 鬼宿脚
     type: spell
-    castTime: 3000
+    castTime: 6000
     targetType: aoe
     zones:
       - anchor: { type: caster }
-        direction: { type: fixed, angle: 180 }
-        shape: { type: fan, radius: 15, angle: 120 }
-        resolveDelay: 3000
-        hitEffectDuration: 500
+        direction: { type: caster_facing }
+        shape: { type: fan, radius: 41, angle: 180 }
+        resolveDelay: 6000
+        hitEffectDuration: 400
         effects:
-          - { type: damage, potency: 3600 }
-          - { type: apply_buff, buffId: vulnerability, stacks: 10 }
-
-  boss_circle:
-    name: 钢铁
+          - { type: damage, potency: 2300 }
+          - { type: knockback, distance: 8 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
+  phantom_half:
+    name: 鬼宿脚
     type: spell
     castTime: 4000
     targetType: aoe
     zones:
       - anchor: { type: caster }
-        direction: { type: none }
-        shape: { type: circle, radius: 8 }
+        direction: { type: caster_facing }
+        shape: { type: fan, radius: 41, angle: 180 }
         resolveDelay: 4000
-        telegraphBefore: 4000
-        hitEffectDuration: 500
+        hitEffectDuration: 400
         effects:
-          - { type: damage, potency: 3600 }
-          - { type: apply_buff, buffId: vulnerability, stacks: 10 }
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 8 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
 
-  enrage:
-    name: 时间的尽头
+  # --- 小怪战 ---
+  phoenix_down:
+    name: 苏生之羽
     type: spell
-    castTime: 10000
+    castTime: 3000
+    targetType: aoe
+  feather_rebirth:
+    name: 苏生神通力
+    type: spell
+    castTime: 20000
     targetType: aoe
     zones:
       - anchor: { type: caster }
         direction: { type: none }
-        shape: { type: circle, radius: 99 }
-        resolveDelay: 10000
-        hitEffectDuration: 500
-        effects: [{ type: damage, potency: 999999999, dmgType: special }]
+        shape: { type: circle, radius: 9 }
+        resolveDelay: 20000
+        telegraphBefore: 8000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 1500 }
+          - { type: revive }
+  ashes_to_ashes:
+    name: 升天
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 4200 }]
 
-# --- 阶段定义 ---
 phases:
   phase_default:
-    trigger:
-      on_start: true
     actions:
-      # === P1: Boss 开场 (0-5s) ===
-      - at: 0
-        action: enable_ai
+      # ===== P1（教学） =====
+      - { at: 0, action: enable_ai }
+      - { at: 6000, use: screams_tutorial }
 
-      # 5s: Boss 回中，全屏AOE
-      - at: 5000
-        action: disable_ai
-      - at: 5000
-        action: teleport
-        position: { x: 0, y: 0 }
-      - at: 5000
-        action: lock_facing
-        facing: 180
-      - at: 5500
-        use: arena_blast
+      # 猛进：朱雀离场，从场边随机一处出现并横穿全场；同时玩家头顶分散圈
+      - { at: 11000, action: disable_ai }
+      - { at: 11000, action: set_visible, value: false }
+      - { at: 11000, action: set_targetable, value: false }
+      - at: 11500
+        choose:
+          - [{ action: teleport, position: { x: -20, y: 0 } }, { action: lock_facing, facing: 90 }]
+          - [{ action: teleport, position: { x: 20, y: 0 } }, { action: lock_facing, facing: 270 }]
+          - [{ action: teleport, position: { x: 0, y: 20 } }, { action: lock_facing, facing: 180 }]
+          - [{ action: teleport, position: { x: 0, y: -20 } }, { action: lock_facing, facing: 0 }]
+      - { at: 12500, action: set_visible, value: true }
+      - { at: 12600, use: rout_tutorial }
+      - { at: 13500, use: rekindle, entity: helper }
+      - { at: 18500, action: set_visible, value: false }
+      - { at: 19000, action: teleport, position: { x: 0, y: 6 } }
+      - { at: 19800, action: set_visible, value: true }
+      - { at: 19800, action: set_targetable, value: true }
+      - { at: 20000, action: enable_ai }
 
-      # === P2: Boss 离场，4小怪登场 (8s) ===
-      - at: 8000
-        action: set_visible
-        value: false
-      - at: 8000
-        action: set_targetable
-        value: false
+      - { at: 24000, use: fleeting_summer_tutorial }
 
-      # NW (-7, 7)
-      - at: 8500
-        action: teleport
-        entity: mob_nw
-        position: { x: -7, y: 7 }
-      - at: 8500
-        action: set_visible
-        entity: mob_nw
-        value: true
-      - at: 8500
-        action: set_targetable
-        entity: mob_nw
-        value: true
+      # 鬼宿脚：死刑（坦克开减伤 / DPS 拼刀）→ 前方半场刀
+      - { at: 32000, use: phantom_flurry }
+      - { at: 32000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 37500, use: phantom_half_tutorial }
 
-      # NE (7, 7)
-      - at: 8500
-        action: teleport
-        entity: mob_ne
-        position: { x: 7, y: 7 }
-      - at: 8500
-        action: set_visible
-        entity: mob_ne
-        value: true
-      - at: 8500
-        action: set_targetable
-        entity: mob_ne
-        value: true
+      # ===== 小怪战 =====
+      - { at: 46000, use: screams }
+      - { at: 51000, action: disable_ai }
+      - { at: 51000, action: teleport, position: { x: 0, y: 6 } }
+      - { at: 51500, use: phoenix_down }
+      - at: 54500
+        choose:
+          - # 正点
+            - { action: teleport, entity: feather_1, position: { x: 0, y: 11 } }
+            - { action: teleport, entity: feather_2, position: { x: 11, y: 0 } }
+            - { action: teleport, entity: feather_3, position: { x: 0, y: -11 } }
+            - { action: teleport, entity: feather_4, position: { x: -11, y: 0 } }
+          - # 斜点
+            - { action: teleport, entity: feather_1, position: { x: 7.8, y: 7.8 } }
+            - { action: teleport, entity: feather_2, position: { x: 7.8, y: -7.8 } }
+            - { action: teleport, entity: feather_3, position: { x: -7.8, y: -7.8 } }
+            - { action: teleport, entity: feather_4, position: { x: -7.8, y: 7.8 } }
+      - { at: 55000, action: set_visible, entity: feather_1, value: true }
+      - { at: 55000, action: set_visible, entity: feather_2, value: true }
+      - { at: 55000, action: set_visible, entity: feather_3, value: true }
+      - { at: 55000, action: set_visible, entity: feather_4, value: true }
+      - { at: 55000, action: set_targetable, entity: feather_1, value: true }
+      - { at: 55000, action: set_targetable, entity: feather_2, value: true }
+      - { at: 55000, action: set_targetable, entity: feather_3, value: true }
+      - { at: 55000, action: set_targetable, entity: feather_4, value: true }
+      - { at: 55200, use: feather_rebirth, entity: feather_1 }
+      - { at: 55200, use: feather_rebirth, entity: feather_2 }
+      - { at: 55200, use: feather_rebirth, entity: feather_3 }
+      - { at: 55200, use: feather_rebirth, entity: feather_4 }
+      - { at: 61000, use: rekindle, entity: helper }
+      - { at: 84000, use: screams }
+      - { at: 91000, action: enable_ai }
 
-      # SE (7, -7)
-      - at: 8500
-        action: teleport
-        entity: mob_se
-        position: { x: 7, y: -7 }
-      - at: 8500
-        action: set_visible
-        entity: mob_se
-        value: true
-      - at: 8500
-        action: set_targetable
-        entity: mob_se
-        value: true
-
-      # SW (-7, -7)
-      - at: 8500
-        action: teleport
-        entity: mob_sw
-        position: { x: -7, y: -7 }
-      - at: 8500
-        action: set_visible
-        entity: mob_sw
-        value: true
-      - at: 8500
-        action: set_targetable
-        entity: mob_sw
-        value: true
-
-      # --- 小怪直线AOE循环: 每5s一轮 ---
-      - at: 10000
-        use: mob_line
-        entity: mob_nw
-      - at: 10000
-        use: mob_line
-        entity: mob_ne
-      - at: 10000
-        use: mob_line
-        entity: mob_se
-      - at: 10000
-        use: mob_line
-        entity: mob_sw
-
-      - at: 15000
-        use: mob_line
-        entity: mob_nw
-      - at: 15000
-        use: mob_line
-        entity: mob_ne
-      - at: 15000
-        use: mob_line
-        entity: mob_se
-      - at: 15000
-        use: mob_line
-        entity: mob_sw
-
-      - at: 20000
-        use: mob_line
-        entity: mob_nw
-      - at: 20000
-        use: mob_line
-        entity: mob_ne
-      - at: 20000
-        use: mob_line
-        entity: mob_se
-      - at: 20000
-        use: mob_line
-        entity: mob_sw
-
-      - at: 25000
-        use: mob_line
-        entity: mob_nw
-      - at: 25000
-        use: mob_line
-        entity: mob_ne
-      - at: 25000
-        use: mob_line
-        entity: mob_se
-      - at: 25000
-        use: mob_line
-        entity: mob_sw
-
-      - at: 30000
-        use: mob_line
-        entity: mob_nw
-      - at: 30000
-        use: mob_line
-        entity: mob_ne
-      - at: 30000
-        use: mob_line
-        entity: mob_se
-      - at: 30000
-        use: mob_line
-        entity: mob_sw
-
-      - at: 35000
-        use: mob_line
-        entity: mob_nw
-      - at: 35000
-        use: mob_line
-        entity: mob_ne
-      - at: 35000
-        use: mob_line
-        entity: mob_se
-      - at: 35000
-        use: mob_line
-        entity: mob_sw
-
-      # === 绝命咆哮: 小怪出现后30s = 38.5s ===
-      - at: 38500
-        use: mob_scream
-        entity: mob_nw
-      - at: 38500
-        use: mob_scream
-        entity: mob_ne
-      - at: 38500
-        use: mob_scream
-        entity: mob_se
-      - at: 38500
-        use: mob_scream
-        entity: mob_sw
-
-  # === Boss 复归阶段: 小怪全灭后触发 ===
-  phase_boss_return:
-    trigger:
-      on_all_killed: { group: adds_wave1 }
-    actions:
-      # Boss 立即重new出现在场中央
-      - at: 0
-        action: set_visible
-        value: true
-      - at: 0
-        action: set_targetable
-        value: true
-      - at: 0
-        action: teleport
-        position: { x: 0, y: 0 }
-      - at: 0
-        action: lock_facing
-        facing: 180
-
-      # 1s 后开始追击
-      - at: 1000
-        action: enable_ai
-
-      # 每5s一次AOE轮转
-      - at: 5000
-        use: boss_fan_s
-      - at: 10000
-        use: boss_circle
-      - at: 15000
-        use: boss_fan_s
-      - at: 20000
-        use: boss_circle
-      - at: 25000
-        use: boss_fan_s
-      - at: 30000
-        use: boss_circle
-      - at: 35000
-        use: boss_fan_s
-      - at: 40000
-        use: boss_circle
-
-      # 狂暴 (boss复归后60s)
-      - at: 60000
-        action: disable_ai
-      - at: 60000
-        action: teleport
-        position: { x: 0, y: 0 }
-      - at: 60000
-        action: lock_facing
-        facing: 180
-      - at: 60500
-        use: enrage
+      # ===== 组合段（P2 实装前的占位循环） =====
+      - { at: 96000, use: phantom_flurry }
+      - { at: 96000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 101500, use: phantom_half }
+      - { at: 108000, use: rekindle, entity: helper }
+      - { at: 109000, use: fleeting_summer }
+      - { at: 117000, use: screams }
+      - { at: 123000, action: disable_ai }
+      - { at: 123000, action: set_visible, value: false }
+      - { at: 123000, action: set_targetable, value: false }
+      - at: 123500
+        choose:
+          - [{ action: teleport, position: { x: -20, y: 0 } }, { action: lock_facing, facing: 90 }]
+          - [{ action: teleport, position: { x: 20, y: 0 } }, { action: lock_facing, facing: 270 }]
+          - [{ action: teleport, position: { x: 0, y: 20 } }, { action: lock_facing, facing: 180 }]
+          - [{ action: teleport, position: { x: 0, y: -20 } }, { action: lock_facing, facing: 0 }]
+      - { at: 124300, action: set_visible, value: true }
+      - { at: 124400, use: rout }
+      - { at: 124400, use: rekindle, entity: helper }
+      - { at: 128500, action: set_visible, value: false }
+      - { at: 129000, action: teleport, position: { x: 0, y: 6 } }
+      - { at: 129800, action: set_visible, value: true }
+      - { at: 129800, action: set_targetable, value: true }
+      - { at: 130000, action: enable_ai }
+      - { at: 136000, loop: 96000 }
