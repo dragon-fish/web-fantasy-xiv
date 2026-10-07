@@ -137,9 +137,28 @@ export class SceneManager {
     this.glowLayer?.removeIncludedOnlyMesh(mesh as any)
   }
 
+  private shakeAmp = 0
+  private shakeLeft = 0
+  private shakeTotal = 1
+
+  /** Brief positional camera shake; stronger requests override weaker ones in flight. */
+  shake(amplitude: number, ms: number): void {
+    const current = this.shakeTotal > 0 ? this.shakeAmp * (this.shakeLeft / this.shakeTotal) : 0
+    if (amplitude < current) return
+    this.shakeAmp = amplitude
+    this.shakeLeft = this.shakeTotal = ms
+  }
+
   /** Set camera target directly (used by CameraController) */
-  setCameraTarget(x: number, y: number, heightOffset = 0): void {
-    this.camera.target.set(x, -heightOffset, y)
+  setCameraTarget(x: number, y: number, heightOffset = 0, deltaMs = 0): void {
+    let ox = 0, oz = 0
+    if (this.shakeLeft > 0) {
+      this.shakeLeft = Math.max(0, this.shakeLeft - deltaMs)
+      const k = this.shakeAmp * (this.shakeLeft / this.shakeTotal)
+      ox = (Math.random() - 0.5) * 2 * k
+      oz = (Math.random() - 0.5) * 2 * k
+    }
+    this.camera.target.set(x + ox, -heightOffset, y + oz)
   }
 
   /**

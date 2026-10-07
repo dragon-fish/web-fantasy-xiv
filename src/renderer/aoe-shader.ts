@@ -66,6 +66,7 @@ uniform float progress;
 uniform float time;
 uniform float flash;
 uniform float opacity;
+uniform float flashScale;
 
 float sdPie(vec2 p, vec2 c, float r) {
   p.x = abs(p.x);
@@ -121,8 +122,9 @@ void main() {
   float alpha = max(fill, rim * 0.95) + front * 0.5;
 
   // Resolve flash: whiten and brighten, then fade out
-  col = mix(col, vec3(1.0, 0.95, 0.85), flash * 0.55);
-  alpha = mix(alpha, 0.85, flash);
+  float fl = flash * flashScale;
+  col = mix(col, vec3(1.0, 0.95, 0.85), fl * 0.45);
+  alpha = mix(alpha, 0.75, fl);
 
   gl_FragColor = vec4(col, clamp(alpha * opacity * inside, 0.0, 1.0));
 }
@@ -131,7 +133,7 @@ void main() {
 export function createTelegraphMaterial(scene: Scene, name: string, geo: TelegraphGeometry, fill: Color3, rim: Color3): ShaderMaterial {
   const mat = new ShaderMaterial(name, scene, NAME, {
     attributes: ['position'],
-    uniforms: ['worldViewProjection', 'forwardOffset', 'shape', 'radius', 'inner', 'halfAngle', 'rectSize', 'fillColor', 'rimColor', 'progress', 'time', 'flash', 'opacity'],
+    uniforms: ['flashScale', 'worldViewProjection', 'forwardOffset', 'shape', 'radius', 'inner', 'halfAngle', 'rectSize', 'fillColor', 'rimColor', 'progress', 'time', 'flash', 'opacity'],
     needAlphaBlending: true,
   })
   mat.backFaceCulling = false
@@ -148,5 +150,10 @@ export function createTelegraphMaterial(scene: Scene, name: string, geo: Telegra
   mat.setFloat('time', 0)
   mat.setFloat('flash', 0)
   mat.setFloat('opacity', 1)
+  // Resolve flash fades out for huge zones (an arena-wide flash whites out the screen)
+  const area = geo.shape === 3 ? geo.width * geo.length
+    : geo.shape === 1 ? geo.radius * geo.radius * geo.halfAngle
+    : Math.PI * (geo.radius * geo.radius - geo.inner * geo.inner)
+  mat.setFloat('flashScale', Math.min(1, 90 / Math.max(1, area)))
   return mat
 }

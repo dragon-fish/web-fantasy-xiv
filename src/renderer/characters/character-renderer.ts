@@ -9,7 +9,7 @@ import {
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 import type { SkillDef } from '@/core/types'
-import type { EntityVisuals } from '../entity-renderer'
+import type { EntityVisuals } from '../entity-visuals'
 import type { SceneManager } from '../scene-manager'
 import { buildModel, type ModelKind } from './procedural-models'
 import { resolveModel, modelScaleFor, MODELS, type ModelSpec, type AnimRole } from './model-catalog'

@@ -8,6 +8,7 @@ export const DARK_KNIGHT_SKILLS: SkillDef[] = [
   {
     id: 'drk_shadow_bolt',
     name: '噬魂斩',
+    vfx: { element: 'dark' },
     icon: icon('skill_icons/32_DRK', 3051),
     type: 'weaponskill',
     castTime: 0,
@@ -26,6 +27,7 @@ export const DARK_KNIGHT_SKILLS: SkillDef[] = [
   {
     id: 'drk_drain_slash',
     name: '吸收波',
+    vfx: { element: 'dark' },
     icon: icon('skill_icons/32_DRK', 3064),
     type: 'spell',
     castTime: 0,
@@ -44,6 +46,7 @@ export const DARK_KNIGHT_SKILLS: SkillDef[] = [
   {
     id: 'drk_dark_mind',
     name: '嗜血',
+    vfx: { element: 'dark' },
     icon: icon('skill_icons/32_DRK', 3071),
     type: 'ability',
     castTime: 0,
@@ -62,6 +65,7 @@ export const DARK_KNIGHT_SKILLS: SkillDef[] = [
   {
     id: 'drk_shadow_wall',
     name: '暗影墙',
+    vfx: { element: 'dark' },
     icon: icon('skill_icons/32_DRK', 3075),
     type: 'ability',
     castTime: 0,
@@ -80,6 +84,7 @@ export const DARK_KNIGHT_SKILLS: SkillDef[] = [
   {
     id: 'drk_living_dead',
     name: '行尸走肉',
+    vfx: { element: 'dark' },
     icon: icon('skill_icons/32_DRK', 3077),
     type: 'ability',
     castTime: 0,

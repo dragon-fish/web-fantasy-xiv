@@ -58,10 +58,11 @@ export { BossBehavior } from './ai/boss-behavior'
 
 // Renderer
 export { SceneManager } from './renderer/scene-manager'
-export { EntityRenderer } from './renderer/entity-renderer'
+export { CharacterRenderer } from './renderer/characters/character-renderer'
+export type { EntityVisuals } from './renderer/entity-visuals'
 export { AoeRenderer } from './renderer/aoe-renderer'
 export { ArenaRenderer } from './renderer/arena-renderer'
-export { HitEffectRenderer } from './renderer/hit-effect-renderer'
+export { VfxRenderer } from './renderer/vfx/vfx-renderer'
 
 // Input
 export { InputManager, computeMoveDirection, computeDirectionAngle } from './input/input-manager'

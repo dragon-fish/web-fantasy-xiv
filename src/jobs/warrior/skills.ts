@@ -58,6 +58,7 @@ export const WARRIOR_SKILLS: SkillDef[] = [
   {
     id: 'embolden',
     name: '解放',
+    vfx: { element: 'fire' },
     icon: icon('skill_icons/21_WAR', 2564),
     type: 'ability',
     castTime: 0,

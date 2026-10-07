@@ -25,6 +25,7 @@ export const PALADIN_SKILLS: SkillDef[] = [
   {
     id: 'pld_holy_spirit',
     name: '圣灵',
+    vfx: { element: 'holy' },
     icon: icon('skill_icons/19_PLD', 2514),
     type: 'spell',
     castTime: 2500,
@@ -75,6 +76,7 @@ export const PALADIN_SKILLS: SkillDef[] = [
   {
     id: 'pld_hallowed_ground',
     name: '神圣领域',
+    vfx: { element: 'holy' },
     icon: icon('skill_icons/19_PLD', 2502),
     type: 'ability',
     castTime: 0,

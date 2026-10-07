@@ -1,7 +1,7 @@
 import { Color3, MeshBuilder, StandardMaterial, Vector3, type Scene, type Mesh, type InstancedMesh } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
-import type { EntityVisuals } from '@/renderer/entity-renderer'
+import type { EntityVisuals } from '@/renderer/entity-visuals'
 import type { SurvivorRuntime } from './runtime'
 import { BOSS_ARENA_RADIUS } from './boss'
 import { buildModel, type ModelKind } from '@/renderer/characters/procedural-models'

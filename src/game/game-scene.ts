@@ -2,11 +2,12 @@
 import { Engine } from '@babylonjs/core'
 import { SceneManager } from '@/renderer/scene-manager'
 import { ArenaRenderer } from '@/renderer/arena-renderer'
-import type { EntityVisuals } from '@/renderer/entity-renderer'
+import type { EntityVisuals } from '@/renderer/entity-visuals'
 import { CharacterRenderer } from '@/renderer/characters/character-renderer'
 import type { Scene } from '@babylonjs/core'
 import { AoeRenderer } from '@/renderer/aoe-renderer'
-import { HitEffectRenderer } from '@/renderer/hit-effect-renderer'
+import { VfxRenderer } from '@/renderer/vfx/vfx-renderer'
+import { THEME_ELEMENT } from '@/renderer/vfx/vfx-assets'
 import { EntityFeedback, type EntityCast } from '@/renderer/entity-feedback'
 import { EventBus } from '@/core/event-bus'
 import { EntityManager } from '@/entity/entity-manager'
@@ -39,8 +40,11 @@ export interface GameSceneConfig {
   /** Called to restart this scene (for retry) */
   restart: () => void
   createEntityRenderer?: (scene: Scene, bus: EventBus) => EntityVisuals
-  /** Themed floor, surroundings and props. Default true; modes that dress the scene themselves turn it off. */
-  arenaDecor?: boolean
+  /**
+   * Themed arena dressing + skill VFX. Default true; modes with their own presentation
+   * (survivors: hundreds of hits per second, own effect system) turn it off.
+   */
+  standardVisuals?: boolean
 }
 
 /**
@@ -63,7 +67,7 @@ export class GameScene {
   readonly sceneManager: SceneManager
   readonly entityRenderer: EntityVisuals
   readonly aoeRenderer: AoeRenderer
-  readonly hitEffectRenderer: HitEffectRenderer
+  readonly vfx: VfxRenderer | null
   readonly entityFeedback: EntityFeedback
 
   // Input + Camera
@@ -119,11 +123,16 @@ export class GameScene {
 
     // Rendering
     this.sceneManager = new SceneManager(config.engine)
-    new ArenaRenderer(this.sceneManager, config.arena, this.bus, { decor: config.arenaDecor ?? true })
+    const standardVisuals = config.standardVisuals ?? true
+    const arenaRenderer = new ArenaRenderer(this.sceneManager, config.arena, this.bus, { decor: standardVisuals })
     this.entityRenderer = config.createEntityRenderer?.(this.sceneManager.scene, this.bus)
       ?? new CharacterRenderer(this.sceneManager, this.bus)
     this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)
-    this.hitEffectRenderer = new HitEffectRenderer(this.sceneManager.scene, this.bus, this.entityRenderer)
+    this.vfx = standardVisuals
+      ? new VfxRenderer(this.sceneManager, this.bus, this.entityMgr,
+        entity => this.entityRenderer.getHeight?.(entity) ?? (entity.type === 'boss' ? 3 : 1.8),
+        THEME_ELEMENT[arenaRenderer.theme.id] ?? 'aether')
+      : null
     this.entityFeedback = new EntityFeedback(this.sceneManager.scene, this.bus,
       entity => this.entityRenderer.getHeight?.(entity) ?? (entity.type === 'boss' ? 3 : 1.8))
 
@@ -199,13 +208,13 @@ export class GameScene {
 
       const camPos = this.camera.update(delta)
       const fallOffset = (this.player as any)?._fallOffset ?? 0
-      this.sceneManager.setCameraTarget(camPos.x, camPos.y, fallOffset)
+      this.sceneManager.setCameraTarget(camPos.x, camPos.y, fallOffset, delta)
       this.sceneManager.updateRoll(delta)
       this.entityRenderer.updateAll(this.entityMgr.getAlive(), delta, this.player?.target)
       this.entityFeedback.update(this.entityMgr.getAlive(), this.player, this.bossEntity?.id ?? null,
         this.paused || this.devTerminal.isVisible() ? 0 : delta, this.getBossCast())
       this.aoeRenderer.update(now)
-      this.hitEffectRenderer.update(delta, (id) => this.entityMgr.get(id))
+      this.vfx?.update(this.paused || this.devTerminal.isVisible() ? 0 : delta)
 
       this.onRenderTick?.(delta)
     })
@@ -241,6 +250,7 @@ export class GameScene {
   /** Dispose all resources */
   dispose(): void {
     this.entityFeedback.dispose()
+    this.vfx?.dispose()
     this.devTerminal.dispose()
     this.sceneManager.dispose()
     this.input.dispose()

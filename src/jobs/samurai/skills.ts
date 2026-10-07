@@ -6,6 +6,7 @@ export const SAMURAI_SKILLS: SkillDef[] = [
   {
     id: 'sam_setsu',
     name: '雪风',
+    vfx: { element: 'ice' },
     icon: icon('skill_icons/34_SAM', 3166),
     type: 'weaponskill',
     castTime: 0,
@@ -24,6 +25,7 @@ export const SAMURAI_SKILLS: SkillDef[] = [
   {
     id: 'sam_getsu',
     name: '月光',
+    vfx: { element: 'aether' },
     icon: icon('skill_icons/34_SAM', 3158),
     type: 'weaponskill',
     castTime: 0,
@@ -42,6 +44,7 @@ export const SAMURAI_SKILLS: SkillDef[] = [
   {
     id: 'sam_ka',
     name: '花车',
+    vfx: { element: 'fire' },
     icon: icon('skill_icons/34_SAM', 3164),
     type: 'weaponskill',
     castTime: 0,
@@ -60,6 +63,7 @@ export const SAMURAI_SKILLS: SkillDef[] = [
   {
     id: 'sam_midare',
     name: '纷乱雪月花',
+    vfx: { element: 'holy' },
     icon: icon('skill_icons/34_SAM', 3162),
     type: 'spell',
     castTime: 800,
@@ -86,6 +90,7 @@ export const SAMURAI_SKILLS: SkillDef[] = [
   {
     id: 'sam_enpi',
     name: '燕飞',
+    vfx: { element: 'wind' },
     icon: icon('skill_icons/34_SAM', 3155),
     type: 'weaponskill',
     castTime: 0,

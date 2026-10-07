@@ -19,6 +19,7 @@ export const ARCHER_SKILLS: SkillDef[] = [
   {
     id: 'arc_venom_shot',
     name: '毒药箭',
+    vfx: { element: 'poison' },
     type: 'weaponskill',
     castTime: 0,
     cooldown: 0,

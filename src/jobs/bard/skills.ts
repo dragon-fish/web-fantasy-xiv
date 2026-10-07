@@ -21,6 +21,7 @@ export const BARD_SKILLS: SkillDef[] = [
   {
     id: 'brd_ballad',
     name: '贤者的叙事谣',
+    vfx: { element: 'wind' },
     icon: icon('skill_icons/23_BRD', 2602),
     type: 'ability',
     castTime: 0,
@@ -39,6 +40,7 @@ export const BARD_SKILLS: SkillDef[] = [
   {
     id: 'brd_paeon',
     name: '军神的赞美歌',
+    vfx: { element: 'wind' },
     icon: icon('skill_icons/23_BRD', 2603),
     type: 'ability',
     castTime: 0,
@@ -57,6 +59,7 @@ export const BARD_SKILLS: SkillDef[] = [
   {
     id: 'brd_minuet',
     name: '放浪神的小步舞曲',
+    vfx: { element: 'wind' },
     icon: icon('skill_icons/23_BRD', 2607),
     type: 'ability',
     castTime: 0,
@@ -75,6 +78,7 @@ export const BARD_SKILLS: SkillDef[] = [
   {
     id: 'brd_pitch_perfect',
     name: '完美音调',
+    vfx: { element: 'wind' },
     icon: icon('skill_icons/23_BRD', 2611),
     type: 'ability',
     castTime: 0,

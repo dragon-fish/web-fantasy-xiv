@@ -6,6 +6,7 @@ export const BLACK_MAGE_SKILLS: SkillDef[] = [
   {
     id: 'blm_fire',
     name: '火炎',
+    vfx: { element: 'fire' },
     icon: icon('skill_icons/25_BLM', 451),
     type: 'spell',
     castTime: 2300,
@@ -27,6 +28,7 @@ export const BLACK_MAGE_SKILLS: SkillDef[] = [
   {
     id: 'blm_ice',
     name: '冰结',
+    vfx: { element: 'ice' },
     icon: icon('skill_icons/25_BLM', 454),
     type: 'spell',
     castTime: 1800,
@@ -47,6 +49,7 @@ export const BLACK_MAGE_SKILLS: SkillDef[] = [
   {
     id: 'blm_flare',
     name: '核爆',
+    vfx: { element: 'fire' },
     icon: icon('skill_icons/25_BLM', 2652),
     type: 'ability',
     castTime: 0,
@@ -73,6 +76,7 @@ export const BLACK_MAGE_SKILLS: SkillDef[] = [
   {
     id: 'blm_leylines',
     name: '黑魔纹',
+    vfx: { element: 'aether', delivery: 'buff' },
     icon: icon('skill_icons/25_BLM', 2656),
     type: 'ability',
     castTime: 0,

@@ -5,6 +5,7 @@ export const THAUMATURGE_SKILLS: SkillDef[] = [
   {
     id: 'thm_stone',
     name: '辉石魔砾',
+    vfx: { element: 'earth' },
     type: 'spell',
     castTime: 2000,
     cooldown: 0,
@@ -33,6 +34,7 @@ export const THAUMATURGE_SKILLS: SkillDef[] = [
   {
     id: 'thm_swiftcast',
     name: '即刻咏唱',
+    vfx: { element: 'aether' },
     type: 'ability',
     castTime: 0,
     cooldown: 40000,

@@ -92,6 +92,7 @@ export const ROLE_SECOND_WIND: SkillDef = {
 export const ROLE_LUCID_DREAMING: SkillDef = {
   id: 'role_lucid_dreaming',
   name: '醒梦',
+  vfx: { element: 'aether' },
   type: 'ability',
   castTime: 0,
   cooldown: 60000,

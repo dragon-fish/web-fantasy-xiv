@@ -68,6 +68,19 @@ export type SkillEffectDef =
   | { type: 'knockback'; distance: number; source?: DisplacementSource } // push target away from source (default: caster)
   | { type: 'pull'; distance: number; source?: DisplacementSource }      // pull target toward source (default: caster)
 
+/** Visual element of a skill's effects (renderer-only hint) */
+export type VfxElement =
+  | 'physical' | 'fire' | 'ice' | 'lightning' | 'holy' | 'dark'
+  | 'wind' | 'water' | 'earth' | 'aether' | 'heal' | 'poison'
+
+/** How a skill's visual reaches its target (renderer-only hint) */
+export type VfxDelivery = 'melee' | 'projectile' | 'beam' | 'burst' | 'buff'
+
+export interface SkillVfxDef {
+  element?: VfxElement
+  delivery?: VfxDelivery
+}
+
 export interface AoeZoneDef {
   anchor: AnchorType
   direction: DirectionType
@@ -113,6 +126,8 @@ export interface SkillDef {
   potencyWithBuff?: { buffId: string; damageIncrease: number; consumeStack: boolean; restoreMp?: number }
   zones?: AoeZoneDef[]
   effects?: SkillEffectDef[]
+  /** Visual style override; inferred from targeting/effects when omitted */
+  vfx?: SkillVfxDef
 }
 
 export type BuffEffectDef =
