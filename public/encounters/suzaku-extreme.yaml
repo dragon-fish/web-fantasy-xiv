@@ -21,7 +21,8 @@ entities:
     hp: 400000
     attack: 1
     speed: 5
-    size: 2
+    # 大判定圈（FF14 原版朱雀同样巨大）：P2 悬停在中心洞上空时，近战从洞边仍能打到
+    size: 4.5
     facing: 180
     position: { x: 0, y: 6, z: 0 }
     autoAttackRange: 5
@@ -51,8 +52,9 @@ player:
   position: { x: 0, y: -12, z: 0 }
 
 boss_ai:
-  chaseRange: 5
-  autoAttackRange: 6
+  # 自动攻击按中心距离判定，需覆盖 4.5 的判定半径
+  chaseRange: 7
+  autoAttackRange: 9
   autoAttackInterval: 3000
   aggroRange: 10
 
