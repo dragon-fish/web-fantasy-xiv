@@ -21,3 +21,22 @@ describe('PhaseScheduler loop', () => {
     expect(fired).toEqual(['opener', 'loopA', 'loopB', 'loopA', 'loopB', 'loopA', 'loopB'])
   })
 })
+
+describe('PhaseScheduler seek', () => {
+  it('re-emits skipped actions once as fast-forward, then resumes normally', () => {
+    const bus = new EventBus()
+    const seen: string[] = []
+    bus.on('timeline:action', (a: any) => seen.push(`${a.use ?? a.action}${a.fastForward ? '(ff)' : ''}`))
+    const scheduler = new PhaseScheduler(bus, [{
+      id: 'phase_default', trigger: { type: 'on_combat_start' },
+      actions: [
+        { at: 500, action: 'set_visible' },
+        { at: 900, action: 'use', use: 'cast' },
+        { at: 1500, action: 'use', use: 'after' },
+      ],
+    }])
+    scheduler.seek(1000)
+    scheduler.update(600)
+    expect(seen).toEqual(['set_visible(ff)', 'cast(ff)', 'after'])
+  })
+})

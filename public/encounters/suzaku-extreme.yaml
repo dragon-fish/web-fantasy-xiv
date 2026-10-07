@@ -6,6 +6,13 @@
 # 练习友好复活：衰弱 → 濒死 → 结束（game/player-revive.ts）
 revive: true
 
+# dev 终端（~）`seek <名字>` 跳转练习；跳过的显隐/站位/场地变形会被快进补上
+checkpoints:
+  小怪: 46
+  跳舞机: 94
+  燃烬天火: 127
+  p2: 140
+
 arena:
   name: 红莲狱火
   shape: circle

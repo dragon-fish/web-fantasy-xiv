@@ -77,12 +77,19 @@ export class PhaseScheduler {
   }
 
   /**
-   * Dev/practice: jump the most recent phase to `ms`. Actions before it are skipped, not replayed,
-   * so arena state set earlier in the timeline (e.g. a ring morph) must be re-created by the caller.
+   * Dev/practice: jump the most recent phase to `ms`. Skipped actions are re-emitted once with
+   * `fastForward: true` so listeners can restore lasting state (visibility, arena shape, positions)
+   * without replaying casts.
    */
   seek(ms: number): void {
     const active = this.activePhases[this.activePhases.length - 1]
     if (!active) return
+    if (ms > active.elapsed) {
+      const actions = active.def.actions
+      for (let i = active.pointer; i < actions.length && actions[i].at < ms; i++) {
+        if (actions[i].action !== 'loop') this.bus.emit('timeline:action', { ...actions[i], fastForward: true })
+      }
+    }
     this.combatElapsed += ms - active.elapsed
     active.elapsed = ms
     active.pointer = active.def.actions.findIndex(a => a.at >= ms)

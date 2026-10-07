@@ -10,6 +10,7 @@ import type { CombatResolver } from '../combat-resolver'
 import type { InputManager } from '@/input/input-manager'
 import type { Arena } from '@/arena/arena'
 import type { DeathZoneManager } from '@/arena/death-zone-manager'
+import type { AoeZoneManager } from '@/skill/aoe-zone'
 
 export interface MechanicContext {
   bus: EventBus
@@ -19,6 +20,7 @@ export interface MechanicContext {
   input: InputManager
   arena: Arena
   deathZones: DeathZoneManager
+  zones: AoeZoneManager
   player: Entity
   buffDef(id: string): BuffDef | undefined
   announce(text: string, ms: number): void

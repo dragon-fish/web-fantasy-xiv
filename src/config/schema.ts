@@ -142,6 +142,8 @@ export interface TimelineAction {
   // mechanic fields (timeline `mechanic:` entries)
   mechanic?: string
   params?: Record<string, any>
+  /** Re-emitted by a timeline seek: only lasting state changes should be applied */
+  fastForward?: boolean
   /** Set on actions inside a `choose:` block; only the variant picked for the group runs */
   variant?: { group: string; index: number; count: number }
 }

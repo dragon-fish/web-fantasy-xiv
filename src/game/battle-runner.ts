@@ -7,7 +7,7 @@ import { DeathZoneManager } from '@/arena/death-zone-manager'
 import { ScriptRunner } from '@/timeline/script-runner'
 import { getJob, JobCategory } from '@/jobs'
 import { MechanicHost } from '@/game/mechanics/mechanic-host'
-import { MECHANICS } from '@/game/mechanics'
+import { MECHANICS, FAST_FORWARD } from '@/game/mechanics'
 import { matchesCondition } from '@/combat/conditions'
 import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
 import type { EventBus } from '@/core/event-bus'
@@ -489,15 +489,26 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   })
 
   if (import.meta.env.DEV) {
-    s.devCommands.register('seek', '[dev] seek <seconds> — jump the encounter timeline (earlier actions are skipped)', (args) => {
-      const sec = Number((args._ as unknown[])[0])
-      if (!Number.isFinite(sec) || sec < 0) return 'Usage: seek <seconds>'
+    const seekTo = (arg: unknown): string => {
+      const named = typeof arg === 'string' ? enc.checkpoints[arg] : undefined
+      const sec = named ?? Number(arg)
+      if (!Number.isFinite(sec) || sec < 0) {
+        const names = Object.entries(enc.checkpoints).map(([k, v]) => `${k}(${v}s)`).join(' ')
+        return `Usage: seek <seconds|checkpoint>${names ? `\nCheckpoints: ${names}` : ''}`
+      }
       if (!combatStarted) engageCombat()
       scheduler.seek(sec * 1000)
-      return `Timeline → ${sec}s`
-    })
-    ;(globalThis as any).__battle = { seek: (sec: number) => { if (!combatStarted) engageCombat(); scheduler.seek(sec * 1000) } }
+      return `Timeline → ${sec}s (lasting state fast-forwarded)`
+    }
+    s.devCommands.register('seek', '[dev] seek <seconds|checkpoint> — jump the timeline; arena/visibility/positions are fast-forwarded', (args) => seekTo((args._ as unknown[])[0]))
+    ;(globalThis as any).__battle = { seek: seekTo }
   }
+
+  /** Timeline actions that restore lasting state when a seek fast-forwards past them */
+  const FAST_FORWARD_ACTIONS = new Set([
+    'set_visible', 'set_targetable', 'set_speed', 'teleport', 'enable_ai', 'disable_ai', 'lock_facing',
+    'add_death_zone', 'remove_death_zone', 'mechanic', 'run_script', 'hide_dialog',
+  ])
 
   /** `choose:` group → picked option index (decided when the group first fires; re-rolled on each loop) */
   const variantPicks = new Map<string, number>()
@@ -507,7 +518,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   let announceSerial = 0
   const mechanics = new MechanicHost({
     bus: s.bus, entities: s.entityMgr, buffs: s.buffSystem, combat: s.combatResolver, input: s.input, player: s.player,
-    arena: s.arena, deathZones: deathZoneMgr,
+    arena: s.arena, deathZones: deathZoneMgr, zones: s.zoneMgr,
     buffDef: (id) => enc.localBuffs[id],
     announce: (text, ms) => {
       const serial = ++announceSerial
@@ -591,6 +602,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   s.bus.on('timeline:action', (action: TimelineAction) => {
     if (s.battleOver) return
     if (!matchesCondition(action.when, s.player)) return
+    if (action.fastForward && !FAST_FORWARD_ACTIONS.has(action.action)) return
     if (action.variant) {
       let picked = variantPicks.get(action.variant.group)
       if (picked === undefined) {
@@ -603,7 +615,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
 
     switch (action.action) {
       case 'mechanic':
-        if (action.mechanic) mechanics.start(action.mechanic, action.params)
+        if (!action.mechanic) break
+        if (action.fastForward) FAST_FORWARD[action.mechanic]?.(mechanics, action.params ?? {}, s.entityMgr)
+        else mechanics.start(action.mechanic, action.params)
         break
       case 'use':
         if (action.use && target) {
@@ -631,7 +645,10 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         if (target) aiEnabled.delete(target.id)
         break
       case 'teleport':
-        if (target && action.position) {
+        if (target && action.position && action.fastForward) {
+          target.position.x = action.position.x
+          target.position.y = action.position.y
+        } else if (target && action.position) {
           s.displacer.start(target, action.position.x, action.position.y, 400)
           s.bus.emit('entity:teleported', { entity: target, position: action.position })
         }

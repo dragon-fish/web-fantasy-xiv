@@ -213,6 +213,11 @@ export class CombatResolver {
     }
   }
 
+  /** Display name for zones spawned directly by mechanics (no skill cast to learn it from). */
+  nameSkill(skillId: string, name: string): void {
+    this.skillNames.set(skillId, name)
+  }
+
   /** Wake a dormant entity (corpse) — it becomes a live, targetable combatant. */
   revive(entity: Entity, by: Entity | null | undefined): void {
     if (!entity.dormant || !entity.alive) return

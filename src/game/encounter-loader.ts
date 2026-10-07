@@ -25,6 +25,8 @@ export interface EncounterData {
   phases: PhaseDef[]
   /** Skill an entity uses a while after being revived from dormancy (YAML `onRevive: { use, after }`) */
   reviveHooks: Map<string, { use: string; after: number }>
+  /** Named timeline positions (seconds) for the dev `seek` command, e.g. `p2: 138` */
+  checkpoints: Record<string, number>
   /** Practice-friendly revival ladder (Weakness → Brink of Death), see game/player-revive.ts */
   revive: boolean
   /** Battlefield condition ids to activate at the start of this encounter */
@@ -138,6 +140,8 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
         effects: def.effects ?? [],
         ...(def.icon != null ? { icon: def.icon } : {}),
         ...(def.preserveOnDeath != null ? { preserveOnDeath: def.preserveOnDeath } : {}),
+        ...(def.description != null ? { description: def.description } : {}),
+        ...(def.visual != null ? { visual: def.visual } : {}),
       }
     }
   }
@@ -172,6 +176,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
   return {
     arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs, reviveHooks,
     revive: raw.revive === true,
+    checkpoints: raw.checkpoints ?? {},
     ...(conditions !== undefined ? { conditions } : {}),
     ...(deathWindowMs !== undefined ? { deathWindowMs } : {}),
   }
