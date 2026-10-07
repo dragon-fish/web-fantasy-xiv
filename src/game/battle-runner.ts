@@ -488,6 +488,17 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (dead.id === s.player.id) handlePlayerDeath()
   })
 
+  if (import.meta.env.DEV) {
+    s.devCommands.register('seek', '[dev] seek <seconds> — jump the encounter timeline (earlier actions are skipped)', (args) => {
+      const sec = Number((args._ as unknown[])[0])
+      if (!Number.isFinite(sec) || sec < 0) return 'Usage: seek <seconds>'
+      if (!combatStarted) engageCombat()
+      scheduler.seek(sec * 1000)
+      return `Timeline → ${sec}s`
+    })
+    ;(globalThis as any).__battle = { seek: (sec: number) => { if (!combatStarted) engageCombat(); scheduler.seek(sec * 1000) } }
+  }
+
   /** `choose:` group → picked option index (decided when the group first fires; re-rolled on each loop) */
   const variantPicks = new Map<string, number>()
   s.bus.on('timeline:loop', () => variantPicks.clear())
@@ -627,6 +638,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         break
       case 'set_visible':
         if (target) target.visible = action.value ?? true
+        break
+      case 'set_speed':
+        if (target) target.speed = action.speed ?? 0
         break
       case 'set_targetable':
         if (target) {

@@ -114,6 +114,7 @@ export interface TimelineAction {
   facing?: number
   locked?: boolean
   value?: boolean     // for set_visible / set_targetable
+  speed?: number      // for set_speed (0 = rooted; AI still turns and auto-attacks)
   // death zone fields
   deathZone?: { id: string; center: { x: number; y: number }; facing?: number; shape: any; behavior?: 'lethal' | 'wall' }
   deathZoneId?: string   // for remove_death_zone

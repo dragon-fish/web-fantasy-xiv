@@ -77,6 +77,8 @@ export class GameScene {
 
   // UI (only DevTerminal remains — the HUD is rendered by Vue)
   readonly devTerminal: DevTerminal
+  /** Encounter runners add their own dev commands here (registered only in DEV builds) */
+  readonly devCommands: CommandRegistry
 
   // State
   paused = false
@@ -144,7 +146,7 @@ export class GameScene {
     this.camera = new CameraController()
 
     // DevTerminal (only remaining vanilla UI)
-    const registry = new CommandRegistry()
+    const registry = this.devCommands = new CommandRegistry()
     if (import.meta.env.DEV) this.registerDevCommands(registry)
     this.devTerminal = new DevTerminal(this.bus, registry)
     this.devTerminal.mount(config.uiRoot)
