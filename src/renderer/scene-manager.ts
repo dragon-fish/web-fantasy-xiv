@@ -41,8 +41,10 @@ export class SceneManager {
     this.camera = new ArcRotateCamera(
       'camera',
       -Math.PI / 2,
-      (28 * Math.PI) / 180,
-      40,
+      // Polar angle from vertical. Steeper than ~40° foreshortens far-side telegraphs too much;
+      // flatter than ~30° shows only the tops of character heads.
+      (36 * Math.PI) / 180,
+      38,
       Vector3.Zero(),
       this.scene,
     )
@@ -70,15 +72,16 @@ export class SceneManager {
     this.pipeline.fxaaEnabled = true
     this.pipeline.bloomEnabled = true
     this.pipeline.bloomThreshold = 0.82
-    this.pipeline.bloomWeight = 0.35
+    this.pipeline.bloomWeight = 0.22
     this.pipeline.bloomKernel = 48
     this.pipeline.bloomScale = 0.5
     this.pipeline.imageProcessingEnabled = true
     const ip = this.pipeline.imageProcessing
     ip.toneMappingEnabled = true
-    ip.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES
-    ip.exposure = 1.25
-    ip.contrast = 1.12
+    // KHR neutral keeps authored albedo; ACES crushed dark-textured models to silhouettes
+    ip.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_KHR_PBR_NEUTRAL
+    ip.exposure = 1.1
+    ip.contrast = 1.0
     ip.vignetteEnabled = true
     ip.vignetteWeight = 1.6
     ip.vignetteStretch = 0.4
@@ -97,7 +100,9 @@ export class SceneManager {
   }
 
   setAtmosphere(a: SceneAtmosphere): void {
-    this.scene.clearColor.set(a.clearColor.r, a.clearColor.g, a.clearColor.b, 1)
+    // Image processing treats the clear colour as linear; convert so the authored sRGB hex shows as-is
+    const clear = a.clearColor.toLinearSpace()
+    this.scene.clearColor.set(clear.r, clear.g, clear.b, 1)
     this.ambient.diffuse = a.skyColor
     this.ambient.groundColor = a.groundColor
     this.ambient.specular = Color3.Black()

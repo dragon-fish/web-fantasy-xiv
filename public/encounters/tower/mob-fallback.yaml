@@ -16,6 +16,7 @@ arena:
 entities:
   boss:
     type: mob
+    model: skeleton-minion
     group: boss
     hp: 20000
     attack: 150

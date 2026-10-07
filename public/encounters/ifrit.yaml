@@ -11,6 +11,7 @@ arena:
 boss:
   name: Test Boss
   type: boss
+  model: demon
   hp: 36000
   attack: 1
   speed: 4

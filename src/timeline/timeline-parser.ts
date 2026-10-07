@@ -92,6 +92,7 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
       spawnAttack: entry.spawnAttack,
       spawnSpeed: entry.spawnSpeed,
       spawnSize: entry.spawnSize,
+      spawnModel: entry.spawnModel,
       position: entry.position,
     })
   } else if (entry.action === 'lock_facing') {

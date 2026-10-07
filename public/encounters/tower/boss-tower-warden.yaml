@@ -16,6 +16,7 @@ arena:
 entities:
   boss:
     type: mob
+    model: giant
     group: boss
     hp: 600000
     attack: 350

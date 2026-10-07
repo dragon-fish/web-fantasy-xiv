@@ -11,6 +11,7 @@ arena:
 entities:
   boss:
     type: boss
+    model: dummy
     group: boss
     hp: 999999
     attack: 0

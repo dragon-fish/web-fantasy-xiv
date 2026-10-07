@@ -1,0 +1,184 @@
+// src/renderer/characters/model-library.ts
+// Loads glTF models once per scene into AssetContainers and stamps out
+// independent instances (own skeleton, animation groups and materials).
+import {
+  LoadAssetContainerAsync, TransformNode, Color3, FresnelParameters, PBRMaterial, StandardMaterial,
+  type AssetContainer, type Scene, type AbstractMesh, type AnimationGroup, type Node, type Material,
+} from '@babylonjs/core'
+// Static import registers the glTF plugin on the same @babylonjs/core instance Vite pre-bundles.
+// Do not switch to `@babylonjs/loaders/dynamic`: its lazy import() is served un-bundled in dev
+// and registers into a duplicate core copy ("Unable to find a plugin to load .glb files").
+import '@babylonjs/loaders/glTF'
+import type { ModelSpec } from './model-catalog'
+
+export interface ModelInstance {
+  /** Root to position/rotate; already scaled & grounded */
+  root: TransformNode
+  meshes: AbstractMesh[]
+  materials: StandardMaterial[]
+  animations: Map<string, AnimationGroup>
+  dispose(): void
+}
+
+interface Prepared {
+  container: AssetContainer
+  /** Uniform scale that maps the model's bind-pose height to 1 meter */
+  unitScale: number
+  /** Bind-pose bottom (model units), to lift feet onto the ground */
+  minY: number
+}
+
+function assetUrl(path: string): string {
+  return `${import.meta.env.BASE_URL}${path}`
+}
+
+export class ModelLibrary {
+  private prepared = new Map<string, Promise<Prepared>>()
+
+  constructor(private scene: Scene) {}
+
+  private prepare(url: string): Promise<Prepared> {
+    let p = this.prepared.get(url)
+    if (!p) {
+      p = LoadAssetContainerAsync(assetUrl(url), this.scene).then((container) => {
+        // Bind-pose bounds across all meshes
+        let minY = Infinity, maxY = -Infinity
+        for (const mesh of container.meshes) {
+          if (!mesh.getTotalVertices()) continue
+          mesh.computeWorldMatrix(true)
+          const b = mesh.getBoundingInfo().boundingBox
+          minY = Math.min(minY, b.minimumWorld.y)
+          maxY = Math.max(maxY, b.maximumWorld.y)
+        }
+        const height = Number.isFinite(maxY - minY) && maxY > minY ? maxY - minY : 1
+        return { container, unitScale: 1 / height, minY: Number.isFinite(minY) ? minY : 0 }
+      })
+      this.prepared.set(url, p)
+    }
+    return p
+  }
+
+  /** Warm the cache so the first entity of a kind doesn't pop in late. */
+  preload(urls: string[]): void {
+    for (const url of new Set(urls)) this.prepare(url).catch(() => {})
+  }
+
+  async instantiate(spec: ModelSpec, name: string, scale = 1): Promise<ModelInstance> {
+    const prep = await this.prepare(spec.url)
+    const entries = prep.container.instantiateModelsToScene(n => `${name}:${n}`, true, { doNotInstantiate: true })
+
+    const root = new TransformNode(`${name}-model`, this.scene)
+    const s = prep.unitScale * spec.height * scale
+    const inner = new TransformNode(`${name}-model-inner`, this.scene)
+    inner.parent = root
+    inner.scaling.setAll(s)
+    inner.position.y = -prep.minY * s + (spec.hover ?? 0)
+    inner.rotation.y = spec.yaw ?? 0
+    for (const node of entries.rootNodes) node.parent = inner
+
+    const meshes = inner.getChildMeshes(false)
+    const animations = new Map<string, AnimationGroup>()
+    for (const group of entries.animationGroups) {
+      group.stop()
+      const clip = group.name.slice(group.name.indexOf(':') + 1)
+      animations.set(clip, group)
+    }
+
+    // Weapon slots: keep only the listed meshes under each slot node
+    if (spec.weaponSlots) {
+      const keep = new Set(spec.weapons ?? [])
+      for (const slotName of spec.weaponSlots) {
+        const slot = findNode(inner, slotName)
+        if (!slot) continue
+        for (const child of slot.getChildMeshes(false)) {
+          const base = child.name.slice(child.name.indexOf(':') + 1)
+          if (!keep.has(base)) child.setEnabled(false)
+        }
+      }
+    }
+
+    // Attached props (weapons from separate files)
+    if (spec.attach) {
+      for (const a of spec.attach) {
+        const slot = findNode(inner, a.slot)
+        if (!slot) continue
+        const wp = await this.prepare(a.url)
+        const w = wp.container.instantiateModelsToScene(n => `${name}:${a.slot}:${n}`, true)
+        const holder = new TransformNode(`${name}-attach`, this.scene)
+        holder.parent = slot
+        holder.position.set(...a.position)
+        holder.rotation.set(...a.rotation)
+        holder.scaling.setAll(a.scale)
+        for (const node of w.rootNodes) node.parent = holder
+        meshes.push(...holder.getChildMeshes(false))
+      }
+    }
+
+    // glTF PBR → StandardMaterial: matches the scene's lighting model and is cheaper.
+    // Materials are per-instance (cloneMaterials above) so tint / hit flash stay local.
+    const converted = new Map<Material, StandardMaterial>()
+    const tint = spec.tint ? Color3.FromHexString(spec.tint) : null
+    for (const m of meshes) {
+      m.isPickable = false
+      const src = m.material
+      if (!src) continue
+      let std = converted.get(src)
+      if (!std) {
+        std = toStandard(src, `${name}-${src.name}`, this.scene)
+        if (tint) {
+          const c = std.diffuseColor
+          const luma = c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+          if (spec.tintMode === 'replace') { if (luma > 0.15) std.diffuseColor = tint.scale(Math.min(1.2, 0.6 + luma)) }
+          else std.diffuseColor = c.multiply(tint)
+        }
+        converted.set(src, std)
+      }
+      m.material = std
+    }
+    for (const [src, std] of converted) if (src !== std) src.dispose(false, false)
+    const materials = new Set<StandardMaterial>(converted.values())
+
+    return {
+      root,
+      meshes,
+      materials: [...materials],
+      animations,
+      dispose: () => {
+        for (const g of entries.animationGroups) g.dispose()
+        for (const sk of entries.skeletons) sk.dispose()
+        for (const mat of materials) mat.dispose(false, false)
+        root.dispose(false, false)
+      },
+    }
+  }
+}
+
+function toStandard(src: Material, name: string, scene: Scene): StandardMaterial {
+  const std = new StandardMaterial(name, scene)
+  // Soft rim light so silhouettes separate from the floor under a top-down camera
+  std.emissiveFresnelParameters = new FresnelParameters({
+    leftColor: new Color3(0.32, 0.3, 0.28), rightColor: Color3.Black(), bias: 0.1, power: 2.2,
+  })
+  std.specularColor = new Color3(0.06, 0.06, 0.06)
+  std.specularPower = 32
+  if (src instanceof PBRMaterial) {
+    std.diffuseTexture = src.albedoTexture
+    std.diffuseColor = src.albedoColor.clone()
+    if (src.emissiveTexture) std.emissiveTexture = src.emissiveTexture
+    std.emissiveColor = src.emissiveColor.clone()
+    std.alpha = src.alpha
+    std.backFaceCulling = src.backFaceCulling
+    if (src.albedoTexture?.hasAlpha && src.transparencyMode) std.useAlphaFromDiffuseTexture = true
+  } else if (src instanceof StandardMaterial) {
+    return src
+  }
+  return std
+}
+
+function findNode(root: Node, baseName: string): Node | null {
+  for (const n of root.getDescendants(false)) {
+    if (n.name.slice(n.name.indexOf(':') + 1) === baseName) return n
+  }
+  return null
+}
+

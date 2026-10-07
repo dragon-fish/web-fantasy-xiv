@@ -11,8 +11,8 @@ import { createFloorTextures } from './arena-floor'
 import { buildProp } from './arena-props'
 import { fxTexture } from './fx-textures'
 
-const DEATH_ZONE_COLOR = new Color3(0.3, 0.05, 0.35)  // dark purple
-const DEATH_ZONE_EMISSIVE = new Color3(0.22, 0.03, 0.28)
+const DEATH_ZONE_COLOR = new Color3(0.1, 0.02, 0.13)  // abyss purple
+const DEATH_ZONE_EMISSIVE = new Color3(0.16, 0.03, 0.2)
 
 export interface ArenaRendererOptions {
   /** Floor texture, outer courtyard, props and ambient motes. Off for modes that dress the scene themselves. */
@@ -183,8 +183,9 @@ export class ArenaRenderer {
 
     if (arenaDef.boundary === 'lethal') {
       // Floating island: thin platform slab + tapering rock underside
+      // Top sits just below the floor: coplanar faces z-fight with the ground disc
       const slab = MeshBuilder.CreateCylinder('arena-platform', { height: 1.2, diameter: radius * 2, tessellation: 96 }, scene)
-      slab.position.y = -0.6
+      slab.position.y = -0.62
       slab.material = this.cliffMaterial()
       if (decor) {
         const under = MeshBuilder.CreateCylinder('arena-underside', {
@@ -260,7 +261,7 @@ export class ArenaRenderer {
     if (isLethal) {
       const platformDepth = decor ? 1.2 : 3
       const platform = MeshBuilder.CreateBox('arena-platform', { width, height: platformDepth, depth: height }, scene)
-      platform.position.y = -platformDepth / 2
+      platform.position.y = -platformDepth / 2 - 0.02
       platform.material = this.cliffMaterial()
     }
 
@@ -278,7 +279,8 @@ export class ArenaRenderer {
     if (isLethal) {
       boundaryMat = new StandardMaterial('boundary-mat', scene)
       boundaryMat.diffuseColor = new Color3(0.5, 0.1, 0.55)
-      boundaryMat.emissiveColor = new Color3(0.6, 0.15, 0.7)
+      boundaryMat.emissiveColor = new Color3(0.5, 0.12, 0.6)
+      boundaryMat.disableLighting = true
     } else if (decor) {
       boundaryMat = this.accentMaterial('boundary-mat', 1, 0.9)
     } else {
@@ -309,7 +311,7 @@ export class ArenaRenderer {
       yard.rotation.x = Math.PI / 2
       yard.position.y = -0.04
       const mat = new StandardMaterial('arena-courtyard-mat', scene)
-      mat.diffuseColor = Color3.FromHexString(this.theme.grout).scale(1.6)
+      mat.diffuseColor = Color3.FromHexString(this.theme.grout).scale(1.15)
       mat.specularColor = Color3.Black()
       yard.material = mat
       yard.receiveShadows = true

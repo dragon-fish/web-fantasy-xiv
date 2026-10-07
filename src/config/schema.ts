@@ -124,6 +124,7 @@ export interface TimelineAction {
   spawnAttack?: number
   spawnSpeed?: number
   spawnSize?: number
+  spawnModel?: string
   spawnAutoAttackRange?: number
   spawnAggroRange?: number
   // camera_roll fields

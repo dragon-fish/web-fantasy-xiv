@@ -13,3 +13,6 @@
 *.woff filter=lfs diff=lfs merge=lfs -text
 *.woff2 filter=lfs diff=lfs merge=lfs -text
 *.eot filter=lfs diff=lfs merge=lfs -text
+
+# 3D models
+*.glb filter=lfs diff=lfs merge=lfs -text

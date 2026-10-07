@@ -53,6 +53,8 @@ export interface Entity {
   facing: number
   speed: number
   size: number
+  /** Visual model id (renderer-only; see renderer/characters/model-catalog.ts) */
+  model?: string
 
   hp: number
   /** Derived maxHp = baseMaxHp × (1 + maxHpModifier). Maintained as a getter; BuffSystem syncs `maxHpModifier` on buff changes. */
@@ -97,6 +99,7 @@ export interface CreateEntityOptions {
   facing?: number
   speed?: number
   size?: number
+  model?: string
   hp?: number
   maxHp?: number
   mp?: number
@@ -122,6 +125,7 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     facing: opts.facing ?? 0,
     speed: opts.speed ?? 5,
     size: opts.size ?? 0.5,
+    model: opts.model,
     hp: opts.hp ?? baseMaxHp,
     maxHp: 0, // placeholder, overwritten below
     mp: opts.mp ?? maxMp,

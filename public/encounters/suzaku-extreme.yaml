@@ -13,6 +13,7 @@ arena:
 entities:
   boss:
     type: boss
+    model: dragon
     group: boss
     hp: 60000
     attack: 1
@@ -23,6 +24,7 @@ entities:
     aggroRange: 8
   mob_nw:
     type: mob
+    model: bat
     group: adds_wave1
     hp: 5000
     attack: 1
@@ -32,6 +34,7 @@ entities:
     targetable: false
   mob_ne:
     type: mob
+    model: bat
     group: adds_wave1
     hp: 5000
     attack: 1
@@ -41,6 +44,7 @@ entities:
     targetable: false
   mob_se:
     type: mob
+    model: bat
     group: adds_wave1
     hp: 5000
     attack: 1
@@ -50,6 +54,7 @@ entities:
     targetable: false
   mob_sw:
     type: mob
+    model: bat
     group: adds_wave1
     hp: 5000
     attack: 1

@@ -2,7 +2,8 @@
 import { Engine } from '@babylonjs/core'
 import { SceneManager } from '@/renderer/scene-manager'
 import { ArenaRenderer } from '@/renderer/arena-renderer'
-import { EntityRenderer, type EntityVisuals } from '@/renderer/entity-renderer'
+import type { EntityVisuals } from '@/renderer/entity-renderer'
+import { CharacterRenderer } from '@/renderer/characters/character-renderer'
 import type { Scene } from '@babylonjs/core'
 import { AoeRenderer } from '@/renderer/aoe-renderer'
 import { HitEffectRenderer } from '@/renderer/hit-effect-renderer'
@@ -120,7 +121,7 @@ export class GameScene {
     this.sceneManager = new SceneManager(config.engine)
     new ArenaRenderer(this.sceneManager, config.arena, this.bus, { decor: config.arenaDecor ?? true })
     this.entityRenderer = config.createEntityRenderer?.(this.sceneManager.scene, this.bus)
-      ?? new EntityRenderer(this.sceneManager.scene, this.bus)
+      ?? new CharacterRenderer(this.sceneManager, this.bus)
     this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)
     this.hitEffectRenderer = new HitEffectRenderer(this.sceneManager.scene, this.bus, this.entityRenderer)
     this.entityFeedback = new EntityFeedback(this.sceneManager.scene, this.bus,
@@ -138,6 +139,8 @@ export class GameScene {
     if (import.meta.env.DEV) this.registerDevCommands(registry)
     this.devTerminal = new DevTerminal(this.bus, registry)
     this.devTerminal.mount(config.uiRoot)
+    // Dev-only handle for poking at live state from the browser console
+    if (import.meta.env.DEV) (globalThis as any).__gameScene = this
   }
 
   /** Create player entity and bind input driver + camera */

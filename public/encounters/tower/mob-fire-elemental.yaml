@@ -11,6 +11,7 @@ arena:
 entities:
   boss:
     type: mob
+    model: imp
     group: boss
     hp: 45000
     attack: 180

@@ -14,6 +14,7 @@ arena:
 entities:
   boss:
     type: mob
+    model: skeleton-warrior
     group: boss
     hp: 180000
     attack: 280

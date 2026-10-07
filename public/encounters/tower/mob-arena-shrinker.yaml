@@ -11,6 +11,7 @@ arena:
 entities:
   boss:
     type: mob
+    model: spider
     group: boss
     hp: 40000
     attack: 180

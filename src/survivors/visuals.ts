@@ -4,7 +4,7 @@ import type { Entity } from '@/entity/entity'
 import type { EntityVisuals } from '@/renderer/entity-renderer'
 import type { SurvivorRuntime } from './runtime'
 import { BOSS_ARENA_RADIUS } from './boss'
-import { buildModel, type ModelKind } from './models'
+import { buildModel, type ModelKind } from '@/renderer/characters/procedural-models'
 import type { Effect } from './types'
 
 interface Flash { mesh: Mesh; age: number; duration: number; radius: number; kind: Effect['kind'] }

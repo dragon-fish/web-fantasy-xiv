@@ -75,6 +75,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
       attack: raw.boss.attack ?? 1,
       speed: raw.boss.speed ?? 0,
       size: raw.boss.size ?? 1.5,
+      model: raw.boss.model,
       autoAttackRange: raw.boss.autoAttackRange ?? 5,
       aggroRange: raw.boss.aggroRange ?? raw.boss_ai?.aggroRange ?? 0,
       facing: raw.boss.facing ?? 180,
@@ -184,6 +185,7 @@ function parseEntityOpts(id: string, raw: any): CreateEntityOptions {
     attack: raw.attack ?? 1,
     speed: raw.speed ?? 0,
     size: raw.size ?? 0.5,
+    model: raw.model,
     autoAttackRange: raw.autoAttackRange ?? 5,
     aggroRange: raw.aggroRange ?? 0,
   }

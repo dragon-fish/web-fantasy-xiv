@@ -11,6 +11,7 @@ arena:
 entities:
   boss:
     type: boss
+    model: tribal
     group: boss
     hp: 200000
     attack: 1
