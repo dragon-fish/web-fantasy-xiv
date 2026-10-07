@@ -77,6 +77,24 @@ local_buffs:
     duration: 10000
     effects:
       - { type: damage_increase, value: -0.2 }
+  # 跳舞机：对准一拍给玩家叠，错过一拍给朱雀叠
+  hymn_resonance:
+    name: 伤害提高
+    type: buff
+    stackable: true
+    maxStacks: 10
+    duration: 180000
+    effects:
+      - { type: damage_increase, value: 0.1 }
+  hymn_fervor:
+    name: 灼热
+    type: buff
+    stackable: true
+    maxStacks: 10
+    duration: 600000
+    preserveOnDeath: true
+    effects:
+      - { type: damage_increase, value: 0.15 }
 
 skills:
   boss_auto:
@@ -280,6 +298,140 @@ skills:
         hitEffectDuration: 400
         effects: [{ type: damage, potency: 4200 }]
 
+  # --- 跳舞机 → 燃烬天火 → 场地破碎 ---
+  eternal_flame:
+    name: 苏生大火
+    type: spell
+    castTime: 3000
+    targetType: aoe
+  scarlet_fever:
+    name: 燃烬天火
+    type: spell
+    castTime: 7000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 7000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1800 }]
+
+  # --- P2 ---
+  southron_star_tutorial:
+    name: 星宿波
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 4000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1100 }]
+  southron_star:
+    name: 星宿波
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 4000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1800 }]
+  # 引诱旋律：吸引向中心洞（站外沿）；拒绝旋律：击退（站内沿）
+  mesmerizing_melody_tutorial:
+    name: 引诱旋律
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        marker: pull
+        resolveDelay: 5000
+        hitEffectDuration: 300
+        effects: [{ type: pull, distance: 9 }]
+  mesmerizing_melody:
+    name: 引诱旋律
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        marker: pull
+        resolveDelay: 4000
+        hitEffectDuration: 300
+        effects: [{ type: pull, distance: 9 }]
+  ruthless_refrain_tutorial:
+    name: 拒绝旋律
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        marker: knockback
+        resolveDelay: 5000
+        hitEffectDuration: 300
+        effects: [{ type: knockback, distance: 9 }]
+  ruthless_refrain:
+    name: 拒绝旋律
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        marker: knockback
+        resolveDelay: 4000
+        hitEffectDuration: 300
+        effects: [{ type: knockback, distance: 9 }]
+  # 井宿焰：朝玩家的超宽直线
+  well_of_flame_tutorial:
+    name: 井宿焰
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        shape: { type: rect, length: 41, width: 20 }
+        resolveDelay: 5000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 2300 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
+  well_of_flame:
+    name: 井宿焰
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        shape: { type: rect, length: 41, width: 20 }
+        resolveDelay: 4000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
+
 phases:
   phase_default:
     actions:
@@ -346,28 +498,59 @@ phases:
       - { at: 84000, use: screams }
       - { at: 91000, action: enable_ai }
 
-      # ===== 组合段（P2 实装前的占位循环） =====
-      - { at: 96000, use: phantom_flurry }
-      - { at: 96000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
-      - { at: 101500, use: phantom_half }
-      - { at: 108000, use: rekindle, entity: helper }
-      - { at: 109000, use: fleeting_summer }
-      - { at: 117000, use: screams }
-      - { at: 123000, action: disable_ai }
-      - { at: 123000, action: set_visible, value: false }
-      - { at: 123000, action: set_targetable, value: false }
-      - at: 123500
+      # ===== 跳舞机（苏生大火） =====
+      - { at: 95000, action: disable_ai }
+      - { at: 95000, action: set_targetable, value: false }
+      - { at: 95000, use: eternal_flame }
+      - { at: 98000, mechanic: move_along, params: { entity: boss, path: [{ x: 0, y: 14 }, { x: 0, y: 34 }], duration: 2200 } }
+      - { at: 100200, action: set_visible, value: false }
+      - { at: 100500, action: show_dialog, text: 站进光圈。光球落下的瞬间，面朝箭头方向（朝哪个方向移动就面朝哪里）。 }
+      - { at: 100500, mechanic: dance, params: { center: { x: 0, y: -6 }, radius: 2.5, lead: 1800, successBuff: hymn_resonance, failBuff: hymn_fervor, beats: [7000, 8100, 9200, 16900, 19000, 20100, 21200, 23400, 25500, 26700] } }
+      - { at: 112000, action: hide_dialog }
+
+      # ===== 燃烬天火 → 场地破碎为环形 =====
+      - { at: 128000, action: teleport, position: { x: 0, y: 20 } }
+      - { at: 128400, action: set_visible, value: true }
+      - { at: 128400, mechanic: move_along, params: { entity: boss, path: [{ x: 0, y: 0 }], duration: 1600, faceTravel: false } }
+      - { at: 128400, action: lock_facing, facing: 180 }
+      - { at: 130000, use: scarlet_fever }
+      - { at: 137000, mechanic: arena_ring, params: { inner: 5.5 } }
+      - at: 137000
+        action: run_script
+        script: |
+          // 场地破碎时，没复活的火焰鸟尸体随碎片坠落
+          for (const id of ['bird_1', 'bird_2', 'bird_3', 'bird_4']) {
+            const e = ctx.getEntity(id)
+            if (e && e.dormant) { e.dormant = false; e.visible = false; e.targetable = false }
+          }
+      - { at: 138000, action: set_targetable, value: true }
+      - { at: 138000, action: set_speed, speed: 0 }
+      - { at: 138000, action: enable_ai }
+
+      # ===== P2（教学） =====
+      - { at: 142000, use: southron_star_tutorial }
+      - { at: 149000, use: mesmerizing_melody_tutorial }
+      - { at: 158000, use: well_of_flame_tutorial }
+      - { at: 158000, use: rekindle, entity: helper }
+      - { at: 168000, use: phantom_flurry }
+      - { at: 168000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 173500, use: phantom_half }
+      - { at: 182000, use: ruthless_refrain_tutorial }
+      - { at: 191000, use: southron_star }
+
+      # ===== 组合段（鸳鸯锅与傀儡旋律实装前的循环） =====
+      - at: 197000
         choose:
-          - [{ action: teleport, position: { x: -20, y: 0 } }, { action: lock_facing, facing: 90 }]
-          - [{ action: teleport, position: { x: 20, y: 0 } }, { action: lock_facing, facing: 270 }]
-          - [{ action: teleport, position: { x: 0, y: 20 } }, { action: lock_facing, facing: 180 }]
-          - [{ action: teleport, position: { x: 0, y: -20 } }, { action: lock_facing, facing: 0 }]
-      - { at: 124300, action: set_visible, value: true }
-      - { at: 124400, use: rout }
-      - { at: 124400, use: rekindle, entity: helper }
-      - { at: 128500, action: set_visible, value: false }
-      - { at: 129000, action: teleport, position: { x: 0, y: 6 } }
-      - { at: 129800, action: set_visible, value: true }
-      - { at: 129800, action: set_targetable, value: true }
-      - { at: 130000, action: enable_ai }
-      - { at: 136000, loop: 96000 }
+          - [{ use: ruthless_refrain }]
+          - [{ use: mesmerizing_melody }]
+      - { at: 203000, use: well_of_flame }
+      - { at: 203000, use: rekindle, entity: helper }
+      - { at: 210000, use: phantom_flurry }
+      - { at: 210000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 215500, use: phantom_half }
+      - at: 219800
+        choose:
+          - [{ use: ruthless_refrain }]
+          - [{ use: mesmerizing_melody }]
+      - { at: 228000, use: southron_star }
+      - { at: 234000, loop: 197000 }
