@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { onKeyStroke } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { useBattleStore } from '@/stores/battle'
 import { getActiveScene } from '@/game/battle-runner'
@@ -7,8 +6,6 @@ import { getActiveScene } from '@/game/battle-runner'
 const battle = useBattleStore()
 const router = useRouter()
 const emit = defineEmits<{ retry: []; resume: [] }>()
-
-onKeyStroke('Escape', () => getActiveScene()?.togglePause())
 
 function onResume() {
   getActiveScene()?.resume()

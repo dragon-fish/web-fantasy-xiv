@@ -193,8 +193,15 @@ export class GameScene {
   /** Start the game loop + render loop */
   start(): void {
     this.gameLoop.onUpdate((dt) => {
-      if (this.paused || this.battleOver) return
+      if (this.battleOver) return
       if (this.devTerminal.isVisible()) return
+      // ESC is owned by the player driver while running (interrupt cast → release target → pause);
+      // while paused it only resumes
+      if (this.paused) {
+        this.input.consumeClick()
+        if (this.input.consumeEsc()) this.resume()
+        return
+      }
 
       const result = this.playerDriver.update(dt)
       if (result === 'pause') { this.pause(); return }
