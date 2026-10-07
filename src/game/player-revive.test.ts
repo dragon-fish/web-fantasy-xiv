@@ -36,6 +36,13 @@ describe('player revive ladder', () => {
     expect(player.buffs.some(b => b.defId === 'revive_transcendent')).toBe(false)
   })
 
+  it('drops the target on revive so auto-attacks do not break transcendence', () => {
+    const { player, die, flush } = setup()
+    player.target = 'boss'
+    die(); flush()
+    expect(player.target).toBeNull()
+  })
+
   it('stays dead until the scheduled revive fires', () => {
     const { player, revive, die, flush } = setup()
     die()

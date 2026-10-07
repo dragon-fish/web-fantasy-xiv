@@ -77,6 +77,12 @@ export function createPlayerRevive({ bus, player, buffSystem, schedule }: Player
         player.hp = player.maxHp
         player.mp = Math.min(player.maxMp, player.mp + Math.floor(player.maxMp * 0.25))
         buffSystem.applyBuff(player, REVIVE_BUFFS.revive_transcendent, player.id)
+        // Drop the target: auto-attacks would otherwise break transcendence on the first swing.
+        // Pressing any skill re-acquires a target and ends it, as intended.
+        if (player.target) {
+          player.target = null
+          bus.emit('target:released', { entity: player })
+        }
         bus.emit('player:revived', { entity: player, tier })
       })
       return true
