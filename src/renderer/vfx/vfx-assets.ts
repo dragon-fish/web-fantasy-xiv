@@ -17,7 +17,7 @@ export type VfxTex =
   | 'ringThick' | 'ringThin' | 'ringMid' | 'shockSpike' | 'waveRing'
   | 'glow' | 'glowDisc' | 'orbGold' | 'softWhite' | 'glowRing'
   // Head markers / lock-ons
-  | 'spreadArcs' | 'tankCrest' | 'ringAll' | 'ringBold' | 'chevronUp' | 'shareGlow'
+  | 'spreadArcs' | 'ringAll' | 'ringBold' | 'chevronUp' | 'shareGlow'
   | 'arrowRed' | 'arrowBlue' | 'exclamation' | 'clockRing' | 'knockbackEmblem' | 'chevronTriple'
 
 const FILES: Record<VfxTex, string> = {
@@ -33,7 +33,7 @@ const FILES: Record<VfxTex, string> = {
   darkMark: 'dark_mark1', darkAura: 'aura_yami', darkWave: 'wave_dark', darkFire: 'fire_dark',
   ringThick: 'ring_thick_glow', ringThin: 'ring_thin_glow', ringMid: 'ring_mid', shockSpike: 'shock_spike', waveRing: 'wave_ring',
   glow: 'glow002', glowDisc: 'glow_disc', orbGold: 'light_orb_gold', softWhite: 'light_soft_white', glowRing: 'glow_ring',
-  spreadArcs: 'spread_arcs', tankCrest: 'tank_mark_crest', ringAll: 'ring_all', ringBold: 'ring_thick', chevronUp: 'chevron_up', shareGlow: 'share_glow',
+  spreadArcs: 'spread_arcs', ringAll: 'ring_all', ringBold: 'ring_thick', chevronUp: 'chevron_up', shareGlow: 'share_glow',
   arrowRed: 'arrow_red', arrowBlue: 'arrow_blue', exclamation: 'exclamation', clockRing: 'clock_ring', knockbackEmblem: 'knockback_emblem', chevronTriple: 'chevron_triple',
 }
 

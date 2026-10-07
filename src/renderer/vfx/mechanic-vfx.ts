@@ -6,6 +6,7 @@ import type { EventBus } from '@/core/event-bus'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import type { TimingGrade } from '@/game/mechanics/timed-input'
 import type { VfxRenderer } from './vfx-renderer'
+import { TankbusterMarker } from './tankbuster-marker'
 
 type Fx = ReturnType<VfxRenderer['spawn']>
 
@@ -88,21 +89,29 @@ export class MechanicVfx {
       return
     }
     if (kind === 'buster') {
-      fx.push(this.vfx.spawn('billboard', 'tankCrest', color, Infinity, (f) => {
-        follow(f, 1.3)
-        const pulse = 1 + Math.sin(f.age / 90) * 0.06
-        f.mesh.scaling.set(1.1 * pulse, 2.2 * pulse, 1)
-      }))
-    } else {
-      // Spread: four rotating arcs; stack: glow + chevrons pointing in
-      fx.push(this.vfx.spawn('billboard', kind === 'spread' ? 'spreadArcs' : 'shareGlow', color, Infinity, (f) => {
-        follow(f, 1.1)
-        f.mesh.rotation.z = f.age / 500
-        const intro = Math.min(1, f.age / 200)
-        f.mesh.scaling.setAll(1.7 * (1.4 - 0.4 * intro))
-        f.mesh.visibility = intro
-      }))
+      // Self-built meshes; a soft red floor glow drives them on the VFX clock (pause-aware)
+      const marker = new TankbusterMarker(this.vfx.sm.scene)
+      const driver = this.vfx.spawn('ground', 'glowDisc', color, Infinity, (f) => {
+        const e = this.vfx.entities.get(id)
+        if (!e) return
+        f.mesh.position.set(e.position.x, 0.05, e.position.y)
+        const s = Math.max(1.3, e.size + 0.8) * 3
+        f.mesh.scaling.set(s, 1, s)
+        f.mesh.visibility = 0.35
+        marker.update(e.position.x, e.position.y, this.vfx.heightOf(e), e.size, f.age)
+      })
+      driver.onDone = () => marker.dispose()
+      this.markers.set(zone.id, [driver])
+      return
     }
+    // Spread: four rotating arcs; stack: glow + chevrons pointing in
+    fx.push(this.vfx.spawn('billboard', kind === 'spread' ? 'spreadArcs' : 'shareGlow', color, Infinity, (f) => {
+      follow(f, 1.1)
+      f.mesh.rotation.z = f.age / 500
+      const intro = Math.min(1, f.age / 200)
+      f.mesh.scaling.setAll(1.7 * (1.4 - 0.4 * intro))
+      f.mesh.visibility = intro
+    }))
     // Ground ring under the marked entity so the marker reads from a top-down camera
     fx.push(this.vfx.spawn('ground', 'ringAll', color, Infinity, (f) => {
       const e = this.vfx.entities.get(id)
