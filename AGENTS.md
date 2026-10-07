@@ -56,6 +56,8 @@ Three decoupled layers:
 
 - **Event-driven**: All cross-system communication goes through EventBus (`damage:dealt`, `entity:created`, etc.)
 - **YAML encounters**: Boss fights defined in `public/encounters/*.yaml` — parsed by config layer, scheduled by TimelineScheduler
+- **Encounter mechanics**: timeline `mechanic: <name>` runs a module from `src/game/mechanics/` on the logic clock (pause-safe; never use script `ctx.wait` for timing). `choose:` = FFXIV pseudo-random set pieces (one option per group, re-rolled on loop); `when: { role }` / effect `when` gate by player role or `notBuff`. YAML `revive: true` enables the Weakness → Brink revive ladder.
+- **Practice tooling (dev)**: `~` terminal `seek <sec|checkpoint>` jumps the timeline and fast-forwards lasting state (visibility, positions, arena morphs); encounter YAML `checkpoints:` names positions.
 - **Visual hints are data, not logic**: `arena.theme`, entity `model:` and `SkillDef.vfx` only steer the renderer; players get `model: job:<jobId>`. Never branch gameplay on them.
 - **Effect materials**: unlit tinted textures use `renderer/vfx/vfx-material.ts`. StandardMaterial can't do it (with `disableLighting` the diffuse term is zero, and `emissiveTexture` is added to `emissiveColor`, not multiplied).
 - **Discriminated unions**: `src/core/types.ts` uses tagged unions extensively (Vec2/Vec3, AnchorType, AoeShapeDef, etc.)
