@@ -682,4 +682,5 @@ phases:
 
       # ===== 狂暴：之之之之 —— 四块地板全部变成「ろ」，无限复读红莲炎 =====
       - { at: 372000, use: scarlet_hymn_finale }
-      - { at: 378000, mechanic: scarlet_hymn, params: { enrage: true, interval: 1100, lead: 1500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
+      # 特殊伤害：无视无敌（含练习模式）、减伤与护盾——狂暴是真正的终点
+      - { at: 378000, mechanic: scarlet_hymn, params: { enrage: true, dmgType: special, interval: 1100, lead: 1500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }

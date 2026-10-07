@@ -3,7 +3,7 @@
 // column of icons on the west, then the east. Each icon it touches makes its floor quadrant erupt,
 // launching anyone standing there. The whole order is visible before the first eruption.
 // Quadrants (clockwise from north-east): 0 = NE 黑「り」, 1 = SE 黄「な」, 2 = SW 青「う」, 3 = NW 紫「ろ」.
-import type { AoeZoneDef, SkillEffectDef, Vec2 } from '@/core/types'
+import type { AoeZoneDef, DamageType, SkillEffectDef, Vec2 } from '@/core/types'
 import type { MechanicFactory } from './mechanic-host'
 
 export type Quadrant = 0 | 1 | 2 | 3
@@ -48,6 +48,8 @@ export interface ScarletHymnParams {
   /** Eruption telegraph time */
   windup?: number
   potency: number
+  /** 'special' bypasses invulnerability, mitigation and shields (enrage) */
+  dmgType?: DamageType
   launchBuff: string
   vulnBuff?: string
   radius?: number
@@ -83,7 +85,7 @@ export const scarletHymn: MechanicFactory = (ctx, raw, id) => {
   // which would keep them in the air forever during the enrage loop)
   const grounded = { notBuff: p.launchBuff }
   const effects: SkillEffectDef[] = [
-    { type: 'damage', potency: p.potency, when: grounded },
+    { type: 'damage', potency: p.potency, ...(p.dmgType ? { dmgType: p.dmgType } : {}), when: grounded },
     { type: 'apply_buff', buffId: p.launchBuff, target: 'target', when: grounded },
   ]
   if (p.vulnBuff) effects.push({ type: 'apply_buff', buffId: p.vulnBuff, target: 'target', when: { ...grounded, role: 'tank' } })
