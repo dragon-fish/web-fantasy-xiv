@@ -353,7 +353,7 @@ export class CharacterRenderer implements EntityVisuals {
 
     const locked = lockedTargetId ? this.views.get(lockedTargetId) : undefined
     const showLock = !!locked && locked.deadAt === null && locked.entity.visible && !locked.entity.dormant
-    this.targetRing.follow(showLock ? locked!.root : null, locked?.entity.size ?? 0, dt)
+    this.targetRing.follow(showLock ? locked!.root : null, locked?.entity.size ?? 0, locked?.entity.type ?? '', dt)
   }
 
   private updateView(v: CharacterView, dt: number): void {
