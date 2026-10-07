@@ -592,8 +592,8 @@ phases:
       - { at: 95000, use: eternal_flame }
       - { at: 98000, mechanic: move_along, params: { entity: boss, path: [{ x: 0, y: 14 }, { x: 0, y: 34 }], duration: 2200 } }
       - { at: 100200, action: set_visible, value: false }
-      - { at: 100500, action: show_dialog, text: 站进光圈。光球落下的瞬间，面朝箭头方向（朝哪个方向移动就面朝哪里）。 }
-      - { at: 100500, mechanic: dance, params: { center: { x: 0, y: -6 }, radius: 2.5, lead: 1800, successBuff: hymn_resonance, failBuff: hymn_fervor, beats: [7000, 8100, 9200, 16900, 19000, 20100, 21200, 23400, 25500, 26700] } }
+      - { at: 100500, action: show_dialog, text: 站进光圈。金色箭头落进圈里的瞬间，面朝地板上箭头的方向（朝哪个方向移动就面朝哪里）。 }
+      - { at: 100500, mechanic: dance, params: { center: { x: 0, y: -6 }, radius: 4, lead: 1800, successBuff: hymn_resonance, failBuff: hymn_fervor, beats: [7000, 8100, 9200, 16900, 19000, 20100, 21200, 23400, 25500, 26700] } }
       - { at: 112000, action: hide_dialog }
 
       # ===== 燃烬天火 → 场地破碎为环形 =====

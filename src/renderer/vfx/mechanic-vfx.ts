@@ -9,6 +9,19 @@ import type { VfxRenderer } from './vfx-renderer'
 
 type Fx = ReturnType<VfxRenderer['spawn']>
 
+interface DanceView {
+  ring: Fx[]
+  center: { x: number; y: number }
+  radius: number
+  /** Notes in flight: falling chevron + approach ring, keyed by note index */
+  notes: Map<number, { dir: number; fx: Fx[] }>
+  /** Floor arrow for the next note to be judged (only one at a time) */
+  floor: { index: number; fx: Fx } | null
+}
+
+/** Height a note chevron falls from */
+const DANCE_DROP = 6
+
 const MARKER_COLORS = {
   spread: Color3.FromHexString('#ff6fd8'),
   stack: Color3.FromHexString('#ffd36b'),
@@ -23,7 +36,7 @@ const CLASH_RED = Color3.FromHexString('#ff3b2f')
 export class MechanicVfx {
   private markers = new Map<string, Fx[]>()
   private clashes = new Map<string, Fx[]>()
-  private dances = new Map<string, { ring: Fx[]; center: { x: number; y: number }; radius: number; arrows: Map<number, Fx[]> }>()
+  private dances = new Map<string, DanceView>()
 
   constructor(private vfx: VfxRenderer, bus: EventBus) {
     bus.on('aoe:zone_created', ({ zone }: { zone: ActiveAoeZone }) => this.onZoneCreated(zone))
@@ -125,38 +138,64 @@ export class MechanicVfx {
         f.mesh.visibility = 0.45 * Math.min(1, f.age / 400)
       }),
     ]
-    this.dances.set(p.id, { ring, center, radius, arrows: new Map() })
+    this.dances.set(p.id, { ring, center, radius, notes: new Map(), floor: null })
   }
 
   private danceNote(p: { id: string; index: number; dir: number; lead: number }): void {
     const d = this.dances.get(p.id)
     if (!d) return
-    const { center } = d
+    const { center, radius } = d
     const rad = (p.dir * Math.PI) / 180
-    // Drawn in rendering group 1 so the player standing on it never hides the arrow
-    const arrow = this.vfx.spawn('flat', 'arrowRed', Color3.White(), Infinity, (f) => {
+    const lead = Math.max(1, p.lead)
+    // Chevron pointing the note's way drops into the ring, landing exactly on the beat.
+    // Group 1 so the player standing in the ring never hides it.
+    const chevron = this.vfx.spawn('flat', 'chevronUp', DANCE_GOLD, Infinity, (f) => {
+      f.mesh.renderingGroupId = 1
+      const k = Math.min(1, f.age / lead)
+      f.mesh.position.set(center.x, 0.15 + DANCE_DROP * (1 - k * k), center.y)
+      // 'chevron_up' points +X at rotation 0
+      f.mesh.rotation.y = rad - Math.PI / 2
+      const s = radius * 1.1
+      f.mesh.scaling.set(s, 1, s)
+      f.mesh.visibility = Math.min(1, f.age / 200)
+    })
+    // Approach ring closing onto the dance ring at the beat
+    const approach = this.vfx.spawn('ground', 'ringThin', DANCE_GOLD, Infinity, (f) => {
+      const k = Math.min(1, f.age / lead)
+      f.mesh.position.set(center.x, 0.08, center.y)
+      const s = radius * 2.2 * (1.8 - 0.8 * k)
+      f.mesh.scaling.set(s, 1, s)
+      f.mesh.visibility = 0.15 + 0.55 * k
+    })
+    d.notes.set(p.index, { dir: p.dir, fx: [chevron, approach] })
+    this.refreshDanceFloor(d)
+  }
+
+  /** The floor shows only the next note's direction, never the queue behind it. */
+  private refreshDanceFloor(d: DanceView): void {
+    const next = d.notes.size ? Math.min(...d.notes.keys()) : null
+    if (d.floor && d.floor.index === next) return
+    if (d.floor) d.floor.fx.life = 0
+    d.floor = null
+    if (next === null) return
+    const { center, radius } = d
+    const rad = (d.notes.get(next)!.dir * Math.PI) / 180
+    const fx = this.vfx.spawn('flat', 'arrowRed', Color3.White(), Infinity, (f) => {
       f.mesh.renderingGroupId = 1
       f.mesh.position.set(center.x, 0.1, center.y)
       f.mesh.rotation.y = rad
-      const pop = Math.min(1, f.age / 150)
-      f.mesh.scaling.set(3.6 * pop, 1, 3.6 * pop)
+      const s = radius * 1.45 * Math.min(1, f.age / 150)
+      f.mesh.scaling.set(s, 1, s)
     })
-    // A note orb flies in from outside and lands on the ring exactly at the beat
-    const from = Math.random() * Math.PI * 2
-    const start = { x: center.x + Math.sin(from) * 24, y: center.y + Math.cos(from) * 24 }
-    const orb = this.vfx.spawn('billboard', 'orbGold', DANCE_GOLD, Infinity, (f) => {
-      const k = Math.min(1, f.age / Math.max(1, p.lead))
-      f.mesh.position.set(start.x + (center.x - start.x) * k, 1.4 + Math.sin(k * Math.PI) * 3, start.y + (center.y - start.y) * k)
-      f.mesh.scaling.setAll(1.4)
-    })
-    d.arrows.set(p.index, [arrow, orb])
+    d.floor = { index: next, fx }
   }
 
   private danceJudge(p: { id: string; index: number; success: boolean }): void {
     const d = this.dances.get(p.id)
     if (!d) return
-    for (const f of d.arrows.get(p.index) ?? []) f.life = 0
-    d.arrows.delete(p.index)
+    for (const f of d.notes.get(p.index)?.fx ?? []) f.life = 0
+    d.notes.delete(p.index)
+    this.refreshDanceFloor(d)
     const pos = new Vector3(d.center.x, 1.2, d.center.y)
     if (p.success) {
       this.vfx.flash(pos, 'flashStar', DANCE_GOLD, 4, 320)
@@ -175,7 +214,8 @@ export class MechanicVfx {
     const d = this.dances.get(id)
     if (!d) return
     for (const f of d.ring) f.life = 0
-    for (const fx of d.arrows.values()) for (const f of fx) f.life = 0
+    for (const n of d.notes.values()) for (const f of n.fx) f.life = 0
+    if (d.floor) d.floor.fx.life = 0
     this.dances.delete(id)
   }
 
