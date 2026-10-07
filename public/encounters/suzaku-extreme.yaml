@@ -333,7 +333,7 @@ skills:
     zones:
       - anchor: { type: caster }
         direction: { type: none }
-        shape: { type: circle, radius: 9 }
+        shape: { type: circle, radius: 7.5 }
         resolveDelay: 20000
         telegraphBefore: 8000
         hitEffectDuration: 400
@@ -566,19 +566,21 @@ phases:
       - { at: 51000, action: disable_ai }
       - { at: 51000, action: teleport, position: { x: 0, y: 6 } }
       - { at: 51500, use: phoenix_down }
-      - { at: 51500, action: show_dialog, text: 苏生之羽：羽毛读条结束会复活范围内的火焰鸟尸体，尽快击破羽毛！复活的火焰鸟 15 秒后会放出高伤全场攻击。 }
+      - { at: 51500, action: show_dialog, text: 苏生之羽：每片羽毛对应同方向的一只火焰鸟尸体，读条结束就会把它复活，尽快击破羽毛！复活的火焰鸟 15 秒后会放出高伤全场攻击。 }
       - at: 54500
         choose:
-          - # 正点
-            - { action: teleport, entity: feather_1, position: { x: 0, y: 11 } }
-            - { action: teleport, entity: feather_2, position: { x: 11, y: 0 } }
-            - { action: teleport, entity: feather_3, position: { x: 0, y: -11 } }
-            - { action: teleport, entity: feather_4, position: { x: -11, y: 0 } }
-          - # 斜点
-            - { action: teleport, entity: feather_1, position: { x: 7.8, y: 7.8 } }
+          # 每片羽毛与同号火焰鸟（±3, ±3）同方位、一一对应：复活半径 7.5 只罩住自己那只（3.5 / 6.8），
+          # 离最近的别家尸体 8.9。两套预设远近交替，改变清羽毛的跑位路线。
+          - # 东北、西南近
+            - { action: teleport, entity: feather_1, position: { x: 5.5, y: 5.5 } }
             - { action: teleport, entity: feather_2, position: { x: 7.8, y: -7.8 } }
-            - { action: teleport, entity: feather_3, position: { x: -7.8, y: -7.8 } }
+            - { action: teleport, entity: feather_3, position: { x: -5.5, y: -5.5 } }
             - { action: teleport, entity: feather_4, position: { x: -7.8, y: 7.8 } }
+          - # 东南、西北近
+            - { action: teleport, entity: feather_1, position: { x: 7.8, y: 7.8 } }
+            - { action: teleport, entity: feather_2, position: { x: 5.5, y: -5.5 } }
+            - { action: teleport, entity: feather_3, position: { x: -7.8, y: -7.8 } }
+            - { action: teleport, entity: feather_4, position: { x: -5.5, y: 5.5 } }
       - { at: 55000, action: set_visible, entity: feather_1, value: true }
       - { at: 55000, action: set_visible, entity: feather_2, value: true }
       - { at: 55000, action: set_visible, entity: feather_3, value: true }
