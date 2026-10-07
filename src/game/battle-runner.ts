@@ -520,6 +520,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     bus: s.bus, entities: s.entityMgr, buffs: s.buffSystem, combat: s.combatResolver, input: s.input, player: s.player,
     arena: s.arena, deathZones: deathZoneMgr, zones: s.zoneMgr,
     buffDef: (id) => enc.localBuffs[id],
+    setQte: (prompt) => { s.qte = prompt },
     announce: (text, ms) => {
       const serial = ++announceSerial
       s.setAnnounce(text)

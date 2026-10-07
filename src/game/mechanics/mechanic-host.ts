@@ -7,6 +7,7 @@ import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { BuffDef } from '@/core/types'
 import type { CombatResolver } from '../combat-resolver'
+import type { QtePrompt } from '../game-scene'
 import type { InputManager } from '@/input/input-manager'
 import type { Arena } from '@/arena/arena'
 import type { DeathZoneManager } from '@/arena/death-zone-manager'
@@ -24,6 +25,8 @@ export interface MechanicContext {
   player: Entity
   buffDef(id: string): BuffDef | undefined
   announce(text: string, ms: number): void
+  /** HUD-facing prompt state for timed inputs (null clears it) */
+  setQte(prompt: QtePrompt | null): void
 }
 
 export interface Mechanic {

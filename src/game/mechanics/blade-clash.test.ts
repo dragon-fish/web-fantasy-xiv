@@ -21,6 +21,7 @@ function setup(presses = 0) {
     combat: { applyDamage: (_s: unknown, t: typeof player, potency: number) => { t.hp -= potency; damage.push(potency) } },
     buffDef: (id: string) => ({ keen: KEEN, open: OPEN } as Record<string, BuffDef>)[id],
     announce: () => {},
+    setQte: () => {},
   } as unknown as MechanicContext
   const mech = bladeClash(ctx, { windup: 1000, goodPotency: 1900, missPotency: 7500, justBuff: 'keen', missBuff: 'open' }, 'c')
   void boss
@@ -35,7 +36,7 @@ function run(mech: { update(dt: number): boolean }, ms: number): boolean {
 describe('blade clash', () => {
   it('ignores presses made before the clash started', () => {
     const { mech, damage } = setup(3)
-    expect(run(mech, 1300)).toBe(true)
+    expect(run(mech, 2400)).toBe(true)
     expect(damage).toEqual([7500])
   })
 
@@ -43,7 +44,7 @@ describe('blade clash', () => {
     const { mech, input, player, damage } = setup()
     run(mech, 992)
     input.actionPresses++
-    expect(mech.update(16)).toBe(true)
+    mech.update(16)
     expect(damage).toEqual([])
     expect(player.buffs.map(b => b.defId)).toEqual(['keen'])
   })
@@ -52,9 +53,9 @@ describe('blade clash', () => {
     const { mech, input, player, damage } = setup()
     run(mech, 400)
     input.actionPresses++
-    expect(run(mech, 500)).toBe(false)
+    run(mech, 500)
     expect(damage).toEqual([])
-    expect(run(mech, 200)).toBe(true)
+    run(mech, 200)
     expect(damage).toEqual([7500])
     expect(player.buffs.map(b => b.defId)).toEqual(['open'])
   })

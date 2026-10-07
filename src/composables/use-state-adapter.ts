@@ -71,6 +71,7 @@ export function useStateAdapter(scene: GameScene) {
       battleResult: scene.battleResult,
       announceText: scene.announceText,
       dialogText: scene.dialogText,
+      qte: scene.qte ? { ...scene.qte } : null,
       timelineEntries: scene.timelineEntries,
       currentPhaseInfo: scene.currentPhaseInfo,
       damageLog: scene.damageLog,

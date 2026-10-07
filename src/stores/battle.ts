@@ -1,3 +1,4 @@
+import type { QtePrompt } from '@/game/game-scene'
 import { defineStore } from 'pinia'
 import type { HealthBarSnapshot } from '@/renderer/health-bar-motion'
 import type { BuffDef } from '@/core/types'
@@ -62,6 +63,8 @@ export const useBattleStore = defineStore('battle', {
     // Announce
     announceText: null as string | null,
     dialogText: '',
+    // Timed-input prompt (blade clash)
+    qte: null as QtePrompt | null,
     // Control
     paused: false,
     battleOver: false,

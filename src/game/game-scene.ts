@@ -32,6 +32,17 @@ import type { TimelineEntry } from '@/timeline/types'
 import type { DamageLogEntry } from '@/game/types'
 import type { SkillBarEntry } from '@/jobs/shared'
 
+export interface QtePrompt {
+  /** ms elapsed since the prompt started */
+  elapsed: number
+  /** ms from start to the strike */
+  windup: number
+  /** Half-widths of the judgement windows (ms) */
+  windows: { just: number; perfect: number; good: number }
+  /** Set once judged; the HUD shows it briefly before the prompt clears */
+  grade: string | null
+}
+
 export interface GameSceneConfig {
   engine: Engine
   uiRoot: HTMLDivElement
@@ -109,6 +120,8 @@ export class GameScene {
   /** Reference entity for boss HP bar */
   bossEntity: Entity | null = null
   getBossCast: () => EntityCast | null = () => null
+  /** Active timed-input prompt (blade clash) for the HUD; null when none */
+  qte: QtePrompt | null = null
 
   constructor(config: GameSceneConfig) {
     this.config = config

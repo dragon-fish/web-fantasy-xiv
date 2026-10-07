@@ -29,9 +29,11 @@ export const bladeClash: MechanicFactory = (ctx, raw, id) => {
   let pressAt: number | null = null
   ctx.bus.emit('mechanic:clash_start', { id, sourceId: source?.id ?? null, targetId: player.id, windup: p.windup })
 
+  let shownUntil = -1
   const resolve = (grade: TimingGrade) => {
     ctx.bus.emit('mechanic:clash_result', { id, grade, sourceId: source?.id ?? null, targetId: player.id })
-    ctx.announce(LABEL[grade], 900)
+    ctx.setQte({ elapsed: t, windup: p.windup, windows: DEFAULT_WINDOWS, grade: LABEL[grade] })
+    shownUntil = t + 800
     if (!player.alive || !source) return
     const buff = (buffId?: string) => {
       const def = buffId ? ctx.buffDef(buffId) : undefined
@@ -50,17 +52,24 @@ export const bladeClash: MechanicFactory = (ctx, raw, id) => {
   return {
     update(dt) {
       t += dt
+      // Keep the judged prompt on screen briefly, then clear it
+      if (shownUntil >= 0) {
+        if (t < shownUntil) return false
+        ctx.setQte(null)
+        return true
+      }
+      ctx.setQte({ elapsed: t, windup: p.windup, windows: DEFAULT_WINDOWS, grade: null })
       if (pressAt === null && ctx.input.actionPresses > startPresses) pressAt = t
       if (pressAt !== null) {
         const grade = gradeTiming(pressAt - p.windup, DEFAULT_WINDOWS)
         // An early press is final, but the strike still lands on schedule
         if (grade === 'early' && t < p.windup) return false
         resolve(grade)
-        return true
+        return false
       }
       if (t > p.windup + DEFAULT_WINDOWS.good) {
         resolve('late')
-        return true
+        return false
       }
       return false
     },
