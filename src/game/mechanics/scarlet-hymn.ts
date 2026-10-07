@@ -79,11 +79,14 @@ export const scarletHymn: MechanicFactory = (ctx, raw, id) => {
   const skillId = p.enrage ? 'hotspot_enrage' : 'hotspot'
   ctx.combat.nameSkill(skillId, p.skillName ?? '红莲炎')
 
+  // Airborne players are out of reach: they dodge the next eruption entirely (and are not re-launched,
+  // which would keep them in the air forever during the enrage loop)
+  const grounded = { notBuff: p.launchBuff }
   const effects: SkillEffectDef[] = [
-    { type: 'damage', potency: p.potency },
-    { type: 'apply_buff', buffId: p.launchBuff, target: 'target' },
+    { type: 'damage', potency: p.potency, when: grounded },
+    { type: 'apply_buff', buffId: p.launchBuff, target: 'target', when: grounded },
   ]
-  if (p.vulnBuff) effects.push({ type: 'apply_buff', buffId: p.vulnBuff, target: 'target', when: { role: 'tank' } })
+  if (p.vulnBuff) effects.push({ type: 'apply_buff', buffId: p.vulnBuff, target: 'target', when: { ...grounded, role: 'tank' } })
   const erupt = (quadrant: Quadrant) => {
     const def: AoeZoneDef = {
       anchor: { type: 'position', x: 0, y: 0 },

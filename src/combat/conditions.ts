@@ -9,5 +9,6 @@ export function matchesCondition(cond: EffectCondition | undefined, entity: Enti
     const roles = Array.isArray(cond.role) ? cond.role : [cond.role]
     if (!entity?.role || !roles.includes(entity.role)) return false
   }
+  if (cond.notBuff !== undefined && entity?.buffs.some(b => b.defId === cond.notBuff)) return false
   return true
 }

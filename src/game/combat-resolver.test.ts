@@ -857,3 +857,13 @@ describe('revive effect', () => {
     expect(revived).toHaveBeenCalledWith({ entity: corpse, by: feather })
   })
 })
+
+describe('notBuff condition', () => {
+  it('skips effects on targets that already carry the buff', () => {
+    const { bus, buffSystem, boss, player } = setup()
+    const launch = { id: 'launch', name: '击飞', type: 'debuff' as const, duration: 3000, stackable: false, maxStacks: 1, effects: [] }
+    buffSystem.applyBuff(player, launch, 'boss')
+    castSkill(bus, boss, makeSkill({ id: 'erupt', effects: [{ type: 'damage', potency: 3000, when: { notBuff: 'launch' } }] }))
+    expect(player.hp).toBe(10000)
+  })
+})

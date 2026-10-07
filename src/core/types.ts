@@ -59,6 +59,8 @@ export type Role = 'tank' | 'healer' | 'dps'
 /** Optional gate on an effect or timeline entry, evaluated against the affected entity / player */
 export interface EffectCondition {
   role?: Role | Role[]
+  /** Skip when the entity currently has this buff (e.g. already launched airborne) */
+  notBuff?: string
 }
 
 export type SkillEffectDef = (

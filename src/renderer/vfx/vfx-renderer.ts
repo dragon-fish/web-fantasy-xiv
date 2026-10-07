@@ -19,6 +19,7 @@ import { ELEMENTS, QUARTER_TEXTURES, vfxTexture, preloadVfxTextures, type VfxTex
 import { ParticleBurster, type BurstPreset } from './particle-burster'
 import { createVfxMaterial } from './vfx-material'
 import { MechanicVfx } from './mechanic-vfx'
+import { HymnVfx } from './hymn-vfx'
 
 type QuadKind = 'ground' | 'billboard' | 'billboardY' | 'flat' | 'arc'
 
@@ -78,6 +79,7 @@ export class VfxRenderer {
     preloadVfxTextures(this.scene)
     this.arcTemplate = this.buildArcTemplate()
     new MechanicVfx(this, bus)
+    new HymnVfx(this, bus)
 
     bus.on('skill:cast_start', ({ caster, skill }: { caster: Entity; skill: SkillDef }) => {
       this.skills.set(skill.id, skill)
