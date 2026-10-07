@@ -28,7 +28,7 @@ export const PALADIN_SKILLS: SkillDef[] = [
     vfx: { element: 'holy' },
     icon: icon('skill_icons/19_PLD', 2514),
     type: 'spell',
-    castTime: 2500,
+    castTime: 1500,
     cooldown: 0,
     gcd: true,
     targetType: 'single',
@@ -63,13 +63,13 @@ export const PALADIN_SKILLS: SkillDef[] = [
       { type: 'apply_buff', buffId: 'pld_sheltron_shield', stacks: 1500 },
     ],
   },
-  // 4: Clemency — self-heal, cast 1.8s, MP 3500
+  // 4: Clemency — self-heal, cast 1.5s, MP 3500
   {
     id: 'pld_clemency',
     name: '深仁厚泽',
     icon: icon('skill_icons/19_PLD', 2509),
     type: 'spell',
-    castTime: 1800,
+    castTime: 1500,
     cooldown: 0,
     gcd: true,
     targetType: 'single',

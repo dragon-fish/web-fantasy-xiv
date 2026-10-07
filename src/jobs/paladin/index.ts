@@ -12,7 +12,7 @@ export const PALADIN_JOB: PlayerJob = {
   stats: {
     hp: 10000,
     mp: 10000,
-    attack: 900,
+    attack: 1000,
     speed: 5,
     autoAttackRange: 3.5,
   },
