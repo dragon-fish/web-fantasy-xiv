@@ -8,7 +8,7 @@ import {
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
-import type { SkillDef } from '@/core/types'
+import type { BuffDef, SkillDef } from '@/core/types'
 import type { EntityVisuals } from '../entity-visuals'
 import type { SceneManager } from '../scene-manager'
 import { buildModel, type ModelKind } from './procedural-models'
@@ -58,6 +58,9 @@ interface CharacterView {
   lastHitAnim: number
   deadAt: number | null
   baseEmissive: Map<StandardMaterial, Color3>
+  /** Airborne arc (launched by an 'airborne' buff) */
+  airFrom: number
+  airUntil: number
 }
 
 export class CharacterRenderer implements EntityVisuals {
@@ -82,6 +85,13 @@ export class CharacterRenderer implements EntityVisuals {
       const role: OneShot['role'] = skill.type === 'spell' ? 'castRelease'
         : v.spec.clips.shoot && skill.type !== 'ability' ? 'shoot' : 'attack'
       this.playOneShot(v, role)
+    })
+    bus.on('buff:applied', ({ target, buff }: { target: Entity; buff: BuffDef }) => {
+      if (buff.visual !== 'airborne') return
+      const v = this.views.get(target.id)
+      if (!v) return
+      v.airFrom = this.now
+      v.airUntil = this.now + Math.max(400, buff.duration)
     })
     bus.on('damage:dealt', (p: { target: Entity; amount: number; periodic?: boolean }) => {
       if (!(p.amount > 0)) return
@@ -144,6 +154,7 @@ export class CharacterRenderer implements EntityVisuals {
       clip: null, clipName: null, fades: [],
       flashUntil: 0, squashUntil: 0, lastHitAnim: -Infinity,
       deadAt: null, baseEmissive: new Map(),
+      airFrom: 0, airUntil: 0,
     }
     this.views.set(entity.id, v)
 
@@ -400,6 +411,15 @@ export class CharacterRenderer implements EntityVisuals {
     // Squash on hit (only the body, indicators stay put)
     const sq = v.squashUntil > this.now ? (v.squashUntil - this.now) / SQUASH_MS : 0
     v.body.scaling.set(1 + sq * 0.08, 1 - sq * 0.12, 1 + sq * 0.08)
+    // Launched: a fast rise, a hang and a drop back to the floor, tumbling slightly
+    if (v.airUntil > this.now) {
+      const k = (this.now - v.airFrom) / (v.airUntil - v.airFrom)
+      v.body.position.y = 3.2 * Math.sin(Math.PI * Math.min(1, k * 1.15))
+      v.body.rotation.x = Math.sin(k * Math.PI * 2) * 0.35
+    } else if (v.body.position.y !== 0) {
+      v.body.position.y = 0
+      v.body.rotation.x = 0
+    }
     // Emissive flash
     const fl = v.flashUntil > this.now ? (v.flashUntil - this.now) / FLASH_MS : 0
     for (const [mat, base] of v.baseEmissive) {

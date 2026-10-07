@@ -163,6 +163,11 @@ export class VfxRenderer {
 
   /** @internal shared with MechanicVfx */
   spawn(kind: QuadKind, tex: VfxTex, color: Color3, life: number, tick: Fx['tick']): Fx {
+    return this.spawnWith(kind, this.material(tex, color), life, tick)
+  }
+
+  /** @internal shared with MechanicVfx — same pooling, caller-provided material (e.g. canvas glyphs) */
+  spawnWith(kind: QuadKind, material: ShaderMaterial, life: number, tick: Fx['tick']): Fx {
     if (this.fx.length >= MAX_FX) {
       // Evict the oldest finite effect; infinite ones (cast circles, projectile heads) are owned elsewhere
       const i = this.fx.findIndex(f => Number.isFinite(f.life))
@@ -173,7 +178,7 @@ export class VfxRenderer {
       }
     }
     const mesh = this.acquire(kind)
-    mesh.material = this.material(tex, color)
+    mesh.material = material
     const f: Fx = { mesh, kind, age: 0, life, tick }
     tick(f, 0, 0)
     this.fx.push(f)
