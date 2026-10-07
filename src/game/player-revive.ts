@@ -53,10 +53,13 @@ export interface PlayerRevive {
   /** Call after the player has been marked dead. Returns false when no revive is left. */
   tryRevive(): boolean
   isPending(): boolean
+  /** From now on deaths are final (e.g. enrage) */
+  disable(): void
 }
 
 export function createPlayerRevive({ bus, player, buffSystem, schedule, relocate }: PlayerReviveDeps): PlayerRevive {
   let pending = false
+  let disabled = false
 
   // Transcendence breaks on any action, auto-attacks included
   const breakTranscendence = ({ caster }: { caster: Entity }) => {
@@ -67,7 +70,9 @@ export function createPlayerRevive({ bus, player, buffSystem, schedule, relocate
 
   return {
     isPending: () => pending,
+    disable: () => { disabled = true },
     tryRevive() {
+      if (disabled) return false
       const tier = nextReviveTier(player)
       if (!tier) return false
       pending = true

@@ -81,14 +81,14 @@ export const scarletHymn: MechanicFactory = (ctx, raw, id) => {
   const skillId = p.enrage ? 'hotspot_enrage' : 'hotspot'
   ctx.combat.nameSkill(skillId, p.skillName ?? '红莲炎')
 
-  // Airborne players are out of reach: they dodge the next eruption entirely (and are not re-launched,
-  // which would keep them in the air forever during the enrage loop)
-  const grounded = { notBuff: p.launchBuff }
+  // The eruption is a tall column: airborne players still take the damage (FFXIV hit volumes reach
+  // into the air). Being airborne only prevents a re-launch, so they always land on schedule
+  // instead of being juggled forever by the enrage loop.
   const effects: SkillEffectDef[] = [
-    { type: 'damage', potency: p.potency, ...(p.dmgType ? { dmgType: p.dmgType } : {}), when: grounded },
-    { type: 'apply_buff', buffId: p.launchBuff, target: 'target', when: grounded },
+    { type: 'damage', potency: p.potency, ...(p.dmgType ? { dmgType: p.dmgType } : {}) },
+    { type: 'apply_buff', buffId: p.launchBuff, target: 'target', when: { notBuff: p.launchBuff } },
   ]
-  if (p.vulnBuff) effects.push({ type: 'apply_buff', buffId: p.vulnBuff, target: 'target', when: { ...grounded, role: 'tank' } })
+  if (p.vulnBuff) effects.push({ type: 'apply_buff', buffId: p.vulnBuff, target: 'target', when: { role: 'tank' } })
   const erupt = (quadrant: Quadrant) => {
     const def: AoeZoneDef = {
       anchor: { type: 'position', x: 0, y: 0 },

@@ -507,7 +507,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   /** Timeline actions that restore lasting state when a seek fast-forwards past them */
   const FAST_FORWARD_ACTIONS = new Set([
     'set_visible', 'set_targetable', 'set_speed', 'teleport', 'enable_ai', 'disable_ai', 'lock_facing',
-    'add_death_zone', 'remove_death_zone', 'mechanic', 'run_script', 'hide_dialog',
+    'add_death_zone', 'remove_death_zone', 'mechanic', 'run_script', 'hide_dialog', 'disable_revive',
   ])
 
   /** `choose:` group → picked option index (decided when the group first fires; re-rolled on each loop) */
@@ -655,6 +655,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         break
       case 'set_visible':
         if (target) target.visible = action.value ?? true
+        break
+      case 'disable_revive':
+        revive?.disable()
         break
       case 'set_speed':
         if (target) target.speed = action.speed ?? 0

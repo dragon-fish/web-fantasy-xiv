@@ -104,13 +104,12 @@ local_buffs:
   hotspot_launch:
     name: 击飞
     icon: https://r2.epb.wiki/ffxiv/effects/015225_hr1.png
-    description: 被地板喷出的火焰击飞，无法移动与施放技能。空中时不会再被红莲炎命中。
+    description: 被地板喷出的火焰击飞，无法移动与施放技能。空中仍会受到红莲炎伤害，但不会被再次击飞。
     type: debuff
     visual: airborne
     duration: 3000
     effects:
       - { type: stun }
-      - { type: damage_immunity }
   piper_n: { name: 傀儡旋律：北, icon: https://r2.epb.wiki/ffxiv/effects/015933_hr1.png, description: 倒计时结束后被强制向北移动。, type: debuff, duration: 9000, effects: [] }
   piper_e: { name: 傀儡旋律：东, icon: https://r2.epb.wiki/ffxiv/effects/015933_hr1.png, description: 倒计时结束后被强制向东移动。, type: debuff, duration: 9000, effects: [] }
   piper_s: { name: 傀儡旋律：南, icon: https://r2.epb.wiki/ffxiv/effects/015933_hr1.png, description: 倒计时结束后被强制向南移动。, type: debuff, duration: 9000, effects: [] }
@@ -682,5 +681,6 @@ phases:
 
       # ===== 狂暴：之之之之 —— 四块地板全部变成「ろ」，无限复读红莲炎 =====
       - { at: 372000, use: scarlet_hymn_finale }
-      # 特殊伤害：无视无敌（含练习模式）、减伤与护盾——狂暴是真正的终点
+      # 特殊伤害：无视无敌（含练习模式）、减伤与护盾；狂暴期间死亡不再复活——狂暴是真正的终点
+      - { at: 378000, action: disable_revive }
       - { at: 378000, mechanic: scarlet_hymn, params: { enrage: true, dmgType: special, interval: 1100, lead: 1500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }

@@ -128,6 +128,8 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
     out.push({ at, action: 'teleport', position: entry.position, entity })
   } else if (entry.action === 'set_visible') {
     out.push({ at, action: 'set_visible', entity, value: entry.value ?? true })
+  } else if (entry.action === 'disable_revive') {
+    out.push({ at, action: 'disable_revive' })
   } else if (entry.action === 'set_speed') {
     out.push({ at, action: 'set_speed', entity, speed: entry.speed ?? 0 })
   } else if (entry.action === 'set_targetable') {

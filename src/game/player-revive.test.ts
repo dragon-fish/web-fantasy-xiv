@@ -43,6 +43,12 @@ describe('player revive ladder', () => {
     expect(player.target).toBeNull()
   })
 
+  it('no revive once disabled (enrage)', () => {
+    const { revive, die } = setup()
+    revive.disable()
+    expect(die()).toBe(false)
+  })
+
   it('stays dead until the scheduled revive fires', () => {
     const { player, revive, die, flush } = setup()
     die()
