@@ -100,7 +100,8 @@ export class SceneManager {
   }
 
   setAtmosphere(a: SceneAtmosphere): void {
-    // Image processing treats the clear colour as linear; convert so the authored sRGB hex shows as-is
+    // Materials linearise their own output for the post-process; the clear colour bypasses
+    // materials, so convert it here or the authored sRGB hex shows gamma-brightened.
     const clear = a.clearColor.toLinearSpace()
     this.scene.clearColor.set(clear.r, clear.g, clear.b, 1)
     this.ambient.diffuse = a.skyColor

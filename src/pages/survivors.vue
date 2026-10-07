@@ -5,6 +5,7 @@ import { useEngine } from '@/composables/use-engine'
 import { useStateAdapter } from '@/composables/use-state-adapter'
 import { useBattleStore } from '@/stores/battle'
 import { SKILL_TRIGGER_KEY } from '@/components/hud/skill-trigger-key'
+import { Color3 } from '@babylonjs/core'
 import { GameScene } from '@/game/game-scene'
 import { SurvivorRuntime, RUN_DURATION } from '@/survivors/runtime'
 import { SurvivorVisuals } from '@/survivors/visuals'
@@ -75,6 +76,12 @@ function boot() {
   })
   scene.createPlayer({ id: 'survivor-player', type: 'player', hp: 600, attack: 32, speed: 6, size: 0.45 })
   scene.sceneManager.camera.radius = 46
+  // Night-wasteland palette: dimmer than the themed encounters so emissive weapons carry the scene
+  scene.sceneManager.setAtmosphere({
+    clearColor: new Color3(0.027, 0.045, 0.065),
+    skyColor: new Color3(0.8, 0.9, 1), groundColor: new Color3(0.12, 0.14, 0.2), sunColor: new Color3(1, 0.96, 0.9),
+    ambientIntensity: 0.45, sunIntensity: 0.55,
+  })
   run = new SurvivorRuntime(scene)
   visuals!.bind(run)
   scene.buffDefs = new Map(CARDS.filter(c => c.buff).map(c => [c.buff!.id, c.buff!]))

@@ -64,7 +64,6 @@ export class SurvivorVisuals implements EntityVisuals {
     this.barrier.position.y = 0.75
     this.barrier.isPickable = false
     this.barrier.setEnabled(false)
-    this.scene.clearColor.set(0.027, 0.045, 0.065, 1)
     const ground = this.scene.getMeshByName('arena-ground')
     if (ground) ground.material = this.mat('#172c35', 0.12)
     const lines: Vector3[][] = []
