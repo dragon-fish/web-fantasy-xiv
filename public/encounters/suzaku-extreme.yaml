@@ -15,7 +15,7 @@ checkpoints:
   鸳鸯锅: 195
   傀儡旋律: 219
   组合: 243
-  狂暴: 370
+  狂暴: 390
 
 arena:
   name: 红莲狱火
@@ -60,7 +60,7 @@ entities:
   feather_3: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
   feather_4: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
   # 朱红旋律里绕场飞行、撞图标的火焰鸟（纯演出，不可选中）
-  hymn_bird: { type: mob, model: firebird, group: hymn, hp: 1, attack: 1, speed: 0, size: 0.8, visible: false, targetable: false, autoAttackRange: 0, position: { x: 0, y: -25, z: 0 } }
+  hymn_bird: { type: mob, model: phoenix, group: hymn, hp: 1, attack: 1, speed: 0, size: 0.8, visible: false, targetable: false, autoAttackRange: 0, position: { x: 0, y: -25, z: 0 } }
 
 player:
   position: { x: 0, y: -12, z: 0 }
@@ -634,19 +634,19 @@ phases:
       - { at: 187500, action: hide_dialog }
       - { at: 191000, use: southron_star }
 
-      # 朱红旋律（教学）：两种固定序列之一，间隔放慢
+      # 朱红旋律（教学）：两种固定序列之一。比原版（1.1s）慢：俯视角网页游戏优先可读性
       - { at: 196000, use: scarlet_hymn }
       - { at: 196000, action: show_dialog, text: 朱红旋律（鸳鸯锅）：火焰鸟从南侧起顺时针绕场，撞到哪个图标，对应颜色的地板就会喷火并把人击飞。先读出图标顺序，站进刚炸完的区域。 }
-      - { at: 209000, action: hide_dialog }
       - at: 197000
         choose:
-          - [{ mechanic: scarlet_hymn, params: { sequence: [1, 2, 3, 0, 1, 2, 3, 0], interval: 1500, lead: 6000, potency: 2300, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
-          - [{ mechanic: scarlet_hymn, params: { sequence: [2, 0, 1, 3, 3, 1, 0, 2], interval: 1500, lead: 6000, potency: 2300, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+          - [{ mechanic: scarlet_hymn, params: { sequence: [1, 2, 3, 0, 1, 2, 3, 0], interval: 2000, lead: 7000, potency: 2300, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+          - [{ mechanic: scarlet_hymn, params: { sequence: [2, 0, 1, 3, 3, 1, 0, 2], interval: 2000, lead: 7000, potency: 2300, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+      - { at: 218000, action: hide_dialog }
       # 傀儡旋律（教学）
-      - { at: 220000, use: close_quarter_crescendo }
-      - { at: 220000, action: show_dialog, text: 傀儡旋律：倒计时结束后你会被强制朝箭头方向走 3 秒——提前站到走完也不会掉下去的位置！ }
-      - { at: 230500, action: hide_dialog }
-      - { at: 221000, mechanic: forced_march, params: { delay: 9000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
+      - { at: 221000, use: close_quarter_crescendo }
+      - { at: 221000, action: show_dialog, text: 傀儡旋律：倒计时结束后你会被强制朝箭头方向走 3 秒——提前站到走完也不会掉下去的位置！ }
+      - { at: 222000, mechanic: forced_march, params: { delay: 9000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
+      - { at: 231500, action: hide_dialog }
       - { at: 238000, use: southron_star }
 
       # ===== P2（组合） =====
@@ -655,57 +655,57 @@ phases:
       - { at: 245000, use: close_quarter_crescendo, entity: helper }
       - at: 245000
         choose:
-          - [{ mechanic: scarlet_hymn, params: { pattern: rotate, start: random, length: 8, interval: 1100, lead: 5000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
-          - [{ mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 8, interval: 1100, lead: 5000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
-      - { at: 246000, mechanic: forced_march, params: { delay: 7000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
+          - [{ mechanic: scarlet_hymn, params: { pattern: rotate, start: random, length: 8, interval: 1600, lead: 6000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+          - [{ mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 8, interval: 1600, lead: 6000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+      - { at: 246000, mechanic: forced_march, params: { delay: 8000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
 
       # 死刑 → 前方刀 → 击退/吸引
-      - { at: 262000, use: phantom_flurry }
-      - { at: 262000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
-      - { at: 267500, use: phantom_half }
-      - at: 272000
+      - { at: 268000, use: phantom_flurry }
+      - { at: 268000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 273500, use: phantom_half }
+      - at: 278000
         choose:
           - [{ use: ruthless_refrain }]
           - [{ use: mesmerizing_melody }]
-      - { at: 281000, use: southron_star }
+      - { at: 287000, use: southron_star }
 
       # 击退接月环
-      - { at: 288000, use: ruthless_refrain }
-      - { at: 292300, use: crimson_ring }
-      - { at: 288000, action: show_dialog, text: 击退之后紧接着月环：被推到外沿后立刻跑回内圈！ }
-      - { at: 296000, action: hide_dialog }
-      - { at: 300000, use: well_of_flame }
-      - { at: 300000, use: rekindle, entity: helper }
+      - { at: 294000, use: ruthless_refrain }
+      - { at: 294000, action: show_dialog, text: 击退之后紧接着月环：被推到外沿后立刻跑回内圈！ }
+      - { at: 298300, use: crimson_ring }
+      - { at: 302000, action: hide_dialog }
+      - { at: 306000, use: well_of_flame }
+      - { at: 306000, use: rekindle, entity: helper }
 
-      # 4 连 ×2（对角型）穿插强制位移
-      - { at: 308000, use: scarlet_hymn }
-      - { at: 309000, mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 4, interval: 1100, lead: 4500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
-      - { at: 311000, use: close_quarter_crescendo, entity: helper }
-      - { at: 312000, mechanic: forced_march, params: { delay: 6000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
-      - { at: 316500, mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 4, interval: 1100, lead: 4500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
+      # 4 连 ×2（对角型），第一组穿插强制位移；同一只火焰鸟，两组不能重叠
+      - { at: 314000, use: scarlet_hymn }
+      - { at: 315000, mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 4, interval: 1600, lead: 5500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
+      - { at: 317000, use: close_quarter_crescendo, entity: helper }
+      - { at: 318000, mechanic: forced_march, params: { delay: 6000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
+      - { at: 328500, mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 4, interval: 1600, lead: 5500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
 
-      - { at: 326000, use: phantom_flurry }
-      - { at: 326000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
-      - { at: 331500, use: phantom_half }
-      - at: 336000
+      - { at: 344000, use: phantom_flurry }
+      - { at: 344000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 349500, use: phantom_half }
+      - at: 354000
         choose:
           - [{ use: ruthless_refrain }]
           - [{ use: mesmerizing_melody }]
-      - { at: 345000, use: southron_star }
+      - { at: 363000, use: southron_star }
 
       # 鸳鸯锅穿插井宿焰
-      - { at: 351000, use: scarlet_hymn }
-      - at: 352000
+      - { at: 369000, use: scarlet_hymn }
+      - at: 370000
         choose:
-          - [{ mechanic: scarlet_hymn, params: { pattern: rotate, start: random, length: 8, interval: 1100, lead: 5000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
-          - [{ mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 8, interval: 1100, lead: 5000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
-      - { at: 355000, use: well_of_flame }
-      - { at: 355000, use: rekindle, entity: helper }
+          - [{ mechanic: scarlet_hymn, params: { pattern: rotate, start: random, length: 8, interval: 1600, lead: 6000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+          - [{ mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 8, interval: 1600, lead: 6000, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
+      - { at: 373000, use: well_of_flame }
+      - { at: 373000, use: rekindle, entity: helper }
 
       # ===== 狂暴：之之之之 —— 四块地板全部变成「ろ」，无限复读红莲炎 =====
-      - { at: 372000, use: scarlet_hymn_finale }
-      - { at: 372000, action: show_dialog, text: 朱红旋律·终：四块地板全部化作「ろ」——再无安全之处。 }
-      - { at: 380000, action: hide_dialog }
+      - { at: 392000, use: scarlet_hymn_finale }
+      - { at: 392000, action: show_dialog, text: 朱红旋律·终：四块地板全部化作「ろ」——再无安全之处。 }
+      - { at: 398000, action: hide_dialog }
       # 特殊伤害：无视无敌（含练习模式）、减伤与护盾；狂暴期间死亡不再复活——狂暴是真正的终点
-      - { at: 378000, action: disable_revive }
-      - { at: 378000, mechanic: scarlet_hymn, params: { enrage: true, dmgType: special, interval: 1100, lead: 1500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
+      - { at: 398000, action: disable_revive }
+      - { at: 398000, mechanic: scarlet_hymn, params: { enrage: true, dmgType: special, interval: 1300, lead: 1500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
