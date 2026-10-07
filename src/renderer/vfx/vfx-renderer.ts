@@ -91,6 +91,8 @@ export class VfxRenderer {
     bus.on('damage:dealt', (p: { source?: Entity; target: Entity; amount: number; periodic?: boolean }) => this.onDamage(p))
     bus.on('aoe:zone_resolved', ({ zone }: { zone: ActiveAoeZone }) => this.onZoneResolved(zone))
     bus.on('entity:died', ({ entity }: { entity: Entity }) => this.onDeath(entity))
+    // The game loop stops at combat end, so casts never get their interrupt/complete event
+    bus.on('combat:ended', () => { for (const id of [...this.casts.keys()]) this.endCast(id) })
   }
 
   // --- Building blocks --------------------------------------------------------
@@ -158,9 +160,13 @@ export class VfxRenderer {
 
   private spawn(kind: QuadKind, tex: VfxTex, color: Color3, life: number, tick: Fx['tick']): Fx {
     if (this.fx.length >= MAX_FX) {
-      const old = this.fx.shift()!
-      old.onDone?.()
-      this.release(old)
+      // Evict the oldest finite effect; infinite ones (cast circles, projectile heads) are owned elsewhere
+      const i = this.fx.findIndex(f => Number.isFinite(f.life))
+      if (i >= 0) {
+        const [old] = this.fx.splice(i, 1)
+        old.onDone?.()
+        this.release(old)
+      }
     }
     const mesh = this.acquire(kind)
     mesh.material = this.material(tex, color)
@@ -442,6 +448,8 @@ export class VfxRenderer {
       return
     }
     if (p.periodic || !(p.amount > 0)) return
+    // Bosses reaching 0 HP end the fight without entity:died
+    if (target.hp <= 0 && target.type === 'boss' && !this.dead.has(target.id)) { this.endCast(target.id); this.onDeath(target) }
     const key = `${p.source?.id}>${target.id}`
     const delivered = this.deliveries.get(key)
     if (delivered !== undefined && this.now - delivered < DELIVERY_WINDOW) return
@@ -516,8 +524,12 @@ export class VfxRenderer {
     if (caster?.type !== 'player') this.sm.shake(Math.min(0.3, 0.06 + area / 900), 220)
   }
 
+  private dead = new Set<string>()
+
   private onDeath(entity: Entity): void {
-    if (entity.type === 'player') return
+    if (entity.type === 'player' || this.dead.has(entity.id)) return
+    this.dead.add(entity.id)
+    this.endCast(entity.id)
     const element = this.enemyElement
     const s = ELEMENTS[element]
     const big = entity.type === 'boss'

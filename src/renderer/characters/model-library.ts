@@ -2,7 +2,7 @@
 // Loads glTF models once per scene into AssetContainers and stamps out
 // independent instances (own skeleton, animation groups and materials).
 import {
-  LoadAssetContainerAsync, TransformNode, Color3, FresnelParameters, PBRMaterial, StandardMaterial,
+  LoadAssetContainerAsync, TransformNode, Color3, PBRMaterial, StandardMaterial,
   type AssetContainer, type Scene, type AbstractMesh, type AnimationGroup, type Node, type Material,
 } from '@babylonjs/core'
 // Static import registers the glTF plugin on the same @babylonjs/core instance Vite pre-bundles.
@@ -74,7 +74,6 @@ export class ModelLibrary {
       let std = converted.get(src)
       if (!std) {
         std = toStandard(src, `${name}-${src.name}`, this.scene)
-        std.emissiveFresnelParameters.isEnabled = false
         if (opts.recolor) {
           const c = std.diffuseColor
           const luma = std.diffuseTexture ? 0.55 : c.r * 0.3 + c.g * 0.59 + c.b * 0.11
@@ -209,10 +208,6 @@ export class ModelLibrary {
 
 function toStandard(src: Material, name: string, scene: Scene): StandardMaterial {
   const std = new StandardMaterial(name, scene)
-  // Soft rim light so silhouettes separate from the floor under a top-down camera
-  std.emissiveFresnelParameters = new FresnelParameters({
-    leftColor: new Color3(0.32, 0.3, 0.28), rightColor: Color3.Black(), bias: 0.1, power: 2.2,
-  })
   std.specularColor = new Color3(0.06, 0.06, 0.06)
   std.specularPower = 32
   if (src instanceof PBRMaterial) {

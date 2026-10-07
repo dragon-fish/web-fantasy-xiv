@@ -210,11 +210,15 @@ export class GameScene {
       const fallOffset = (this.player as any)?._fallOffset ?? 0
       this.sceneManager.setCameraTarget(camPos.x, camPos.y, fallOffset, delta)
       this.sceneManager.updateRoll(delta)
-      this.entityRenderer.updateAll(this.entityMgr.getAlive(), delta, this.player?.target)
+      // Presentation freezes with the logic while paused; battleOver keeps animating (death poses)
+      const frozen = this.paused || this.devTerminal.isVisible()
+      const visualDelta = frozen ? 0 : delta
+      this.sceneManager.scene.animationsEnabled = !frozen
+      this.entityRenderer.updateAll(this.entityMgr.getAlive(), visualDelta, this.player?.target)
       this.entityFeedback.update(this.entityMgr.getAlive(), this.player, this.bossEntity?.id ?? null,
-        this.paused || this.devTerminal.isVisible() ? 0 : delta, this.getBossCast())
+        visualDelta, this.getBossCast())
       this.aoeRenderer.update(now)
-      this.vfx?.update(this.paused || this.devTerminal.isVisible() ? 0 : delta)
+      this.vfx?.update(visualDelta)
 
       this.onRenderTick?.(delta)
     })

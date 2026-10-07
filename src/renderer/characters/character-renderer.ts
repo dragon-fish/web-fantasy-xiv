@@ -87,6 +87,8 @@ export class CharacterRenderer implements EntityVisuals {
       if (!(p.amount > 0)) return
       const v = this.views.get(p.target.id)
       if (!v) return
+      // Bosses reaching 0 HP end the battle without entity:died; treat it as death here
+      if (p.target.hp <= 0 && v.deadAt === null) v.deadAt = this.now
       v.flashUntil = this.now + FLASH_MS
       v.squashUntil = this.now + SQUASH_MS
       // Flinch only on meaningful direct hits, throttled so autos don't stun-lock the pose
@@ -110,6 +112,9 @@ export class CharacterRenderer implements EntityVisuals {
   }
 
   private create(entity: Entity): void {
+    // Same id respawned while the previous corpse is still fading
+    const existing = this.views.get(entity.id)
+    if (existing) this.remove(existing)
     const query = { type: entity.type, model: entity.model, size: entity.size }
     const spec = resolveModel(query)
     const scale = modelScaleFor(spec, query)
@@ -232,6 +237,12 @@ export class CharacterRenderer implements EntityVisuals {
   // --- Animation -------------------------------------------------------------
 
   private playOneShot(v: CharacterView, role: OneShot['role']): void {
+    if (role === 'hit') {
+      // A flinch never interrupts a swing/release, a cast or movement (see selectAnimation)
+      const busy = v.oneShot && v.oneShot.until > this.now && v.oneShot.role !== 'hit'
+      const casting = !!v.entity.casting && v.entity.casting.castTime > 0
+      if (busy || casting || v.velocity > 0.6 || v.deadAt !== null) return
+    }
     if (!v.model || v.deadAt !== null) {
       v.oneShot = { role, until: this.now + 350 }
       return
@@ -282,7 +293,7 @@ export class CharacterRenderer implements EntityVisuals {
   private animate(v: CharacterView, dt: number): void {
     const e = v.entity
     const role: AnimRole = selectAnimation({
-      alive: e.alive,
+      alive: e.alive && e.hp > 0,
       casting: !!e.casting && e.casting.castTime > 0,
       moving: v.velocity > 0.6,
       inCombat: e.inCombat,
@@ -324,10 +335,14 @@ export class CharacterRenderer implements EntityVisuals {
   private updateView(v: CharacterView, dt: number, lockedTargetId?: string | null): void {
     const entity = v.entity
     v.root.setEnabled(entity.visible)
-    if (!entity.visible) return
+    if (!entity.visible) {
+      v.lastX = entity.position.x
+      v.lastY = entity.position.y
+      return
+    }
 
     // Revived (death window): clear corpse state
-    if (v.deadAt !== null && entity.alive) {
+    if (v.deadAt !== null && entity.alive && entity.hp > 0) {
       v.deadAt = null
       this.restoreTint(v)
       v.root.setEnabled(true)
@@ -340,7 +355,9 @@ export class CharacterRenderer implements EntityVisuals {
     if (dt > 0) {
       const d = Math.hypot(entity.position.x - v.lastX, entity.position.y - v.lastY)
       const inst = (d / dt) * 1000
-      v.velocity += (inst - v.velocity) * Math.min(1, dt / 70)
+      // Teleports (>40 m/s) would read as a sprint in place; snap instead
+      if (inst > 40) v.velocity = 0
+      else v.velocity += (inst - v.velocity) * Math.min(1, dt / 70)
     }
     v.lastX = entity.position.x
     v.lastY = entity.position.y

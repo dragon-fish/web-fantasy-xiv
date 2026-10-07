@@ -9,6 +9,8 @@ import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import { createTelegraphMaterial, telegraphGeometry } from './aoe-shader'
 
 interface AoeMesh {
+  /** zone_removed arrived before the resolve flash finished */
+  removed: boolean
   mesh: Mesh
   material: ShaderMaterial
   zone: ActiveAoeZone
@@ -48,7 +50,10 @@ export class AoeRenderer {
     })
 
     bus.on('aoe:zone_removed', (payload: { zone: ActiveAoeZone }) => {
-      this.removeMesh(payload.zone.id)
+      const entry = this.meshes.get(payload.zone.id)
+      // Short hitEffectDuration removes the zone before the minimum flash has played out
+      if (entry?.phase === 'resolve') entry.removed = true
+      else this.removeMesh(payload.zone.id)
     })
   }
 
@@ -68,6 +73,7 @@ export class AoeRenderer {
         const t = Math.min(1, (time - entry.resolvedAt) / duration)
         material.setFloat('flash', 1 - t)
         material.setFloat('opacity', 1 - t * t)
+        if (t >= 1 && entry.removed) this.removeMesh(zone.id)
       }
     }
 
@@ -132,7 +138,7 @@ export class AoeRenderer {
     )
 
     const waveRing = zone.def.displacementHint ? this.createWaveRing(zone) : undefined
-    this.meshes.set(zone.id, { mesh, material, zone, phase: 'telegraph', resolvedAt: 0, waveRing, isPlayerZone: isPlayer })
+    this.meshes.set(zone.id, { mesh, material, zone, phase: 'telegraph', resolvedAt: 0, waveRing, isPlayerZone: isPlayer, removed: false })
   }
 
   /** Create wave mesh: torus for circle/ring, plane bar for rect */

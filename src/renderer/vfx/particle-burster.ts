@@ -23,10 +23,12 @@ interface Pending { x: number; y: number; z: number; dirY: number; spread: numbe
 
 export class ParticleBurster {
   private ps: ParticleSystem
+  private capacity: number
   private queue: Pending[] = []
   private current: Pending | null = null
 
   constructor(name: string, scene: Scene, p: BurstPreset, color: Color3, core: Color3) {
+    this.capacity = p.capacity
     const ps = this.ps = new ParticleSystem(name, p.capacity, scene)
     ps.particleTexture = p.texture
     ps.blendMode = ParticleSystem.BLENDMODE_ADD
@@ -76,9 +78,15 @@ export class ParticleBurster {
    * 0 = flat spray, -1 = down); `spread` widens the horizontal component; `jitter` scatters spawn points.
    */
   emit(x: number, y: number, z: number, count: number, opts: { dirY?: number; spread?: number; jitter?: number } = {}): void {
+    // Babylon zeroes manualEmitCount after emitting, even when capacity cut the batch short;
+    // leftover queued positions would then be consumed by later bursts at the wrong spot.
+    if (this.ps.manualEmitCount <= 0) this.queue.length = 0
+    const free = this.capacity - this.ps.getActiveCount() - this.queue.length
+    const n = Math.min(count, Math.max(0, free))
+    if (n === 0) return
     const p: Pending = { x, y, z, dirY: opts.dirY ?? 1, spread: opts.spread ?? 1, jitter: opts.jitter ?? 0.2 }
-    for (let i = 0; i < count; i++) this.queue.push(p)
-    this.ps.manualEmitCount = Math.max(0, this.ps.manualEmitCount) + count
+    for (let i = 0; i < n; i++) this.queue.push(p)
+    this.ps.manualEmitCount = this.queue.length
   }
 
   dispose(): void {
