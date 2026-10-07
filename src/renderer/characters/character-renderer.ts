@@ -390,6 +390,13 @@ export class CharacterRenderer implements EntityVisuals {
   }
 
   private applyFeedback(v: CharacterView): void {
+    // Dormant bodies read as ash-grey husks pressed flat; they spring back when revived
+    if (v.entity.dormant) {
+      this.applyCorpseTint(v, true)
+      v.body.scaling.set(1.15, 0.35, 1.15)
+      return
+    }
+    if (v.model?.materials.some(m => m.metadata?.corpse) && v.deadAt === null) this.restoreTint(v)
     // Squash on hit (only the body, indicators stay put)
     const sq = v.squashUntil > this.now ? (v.squashUntil - this.now) / SQUASH_MS : 0
     v.body.scaling.set(1 + sq * 0.08, 1 - sq * 0.12, 1 + sq * 0.08)
@@ -419,8 +426,8 @@ export class CharacterRenderer implements EntityVisuals {
     v.root.position.y = -t * 0.4
   }
 
-  private applyCorpseTint(v: CharacterView): void {
-    if (v.entity.type !== 'player') return
+  private applyCorpseTint(v: CharacterView, force = false): void {
+    if (v.entity.type !== 'player' && !force) return
     for (const mat of v.model?.materials ?? []) {
       if (!mat.metadata?.corpse) {
         mat.metadata = { ...(mat.metadata ?? {}), corpse: mat.diffuseColor.clone() }

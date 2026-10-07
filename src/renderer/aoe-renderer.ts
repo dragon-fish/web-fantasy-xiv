@@ -121,6 +121,7 @@ export class AoeRenderer {
   }
 
   private createMesh(zone: ActiveAoeZone): void {
+    if (zone.def.telegraph === false) return
     const isPlayer = this.isPlayerCaster(zone)
     const geo = telegraphGeometry(zone.def.shape)
     if (!geo) return

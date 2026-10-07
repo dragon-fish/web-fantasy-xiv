@@ -9,6 +9,7 @@ import { getJob, JobCategory } from '@/jobs'
 import { MechanicHost } from '@/game/mechanics/mechanic-host'
 import { MECHANICS } from '@/game/mechanics'
 import { matchesCondition } from '@/combat/conditions'
+import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
 import type { EventBus } from '@/core/event-bus'
 import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
@@ -448,28 +449,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         s.endBattle('victory')
       }
     }
-    // Check player dead — enter death window instead of ending combat immediately.
+    // Player dead → revive (if the encounter allows and a tier is left) or the death window.
     // Finalization (victory / wipe) happens from deathWindow.tick() in the logic loop.
-    if (payload.target.id === s.player.id && payload.target.hp <= 0) {
-      if (!s.battleOver && !deathWindow.isActive()) {
-        // Pre-combat death (e.g. dev `kill` before engagement) would lock up
-        // because scheduler.combatElapsed never advances pre-engage; force
-        // engage here so the tick loop can finalize the window normally.
-        if (!combatStarted) engageCombat()
-        // Flip alive + zero MP + interrupt any in-progress cast + emit
-        // entity:died so downstream systems (input-driver gate, target-clear,
-        // HUD) see the dead state consistently. entityMgr.destroy is NOT
-        // called — the player entity reference must stay valid for the death
-        // window (DoT ticks on enemies still reference it as caster).
-        if (s.player.alive) {
-          s.player.alive = false
-          s.player.mp = 0
-          if (s.player.casting) s.skillResolver.interruptCast(s.player)
-          s.bus.emit('entity:died', { entity: s.player })
-        }
-        deathWindow.enter()
-      }
-    }
+    if (payload.target.id === s.player.id && payload.target.hp <= 0) handlePlayerDeath()
     // Mob death: destroy entity when hp reaches 0
     if (payload.target.type === 'mob' && payload.target.hp <= 0 && payload.target.alive) {
       s.entityMgr.destroy(payload.target.id)
@@ -503,9 +485,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       s.bus.emit('target:released', { entity: s.player })
     }
     s.zoneMgr.cancelAllByCaster(dead.id)
-    if (dead.id === s.player.id && !deathWindow.isActive()) {
-      deathWindow.enter()
-    }
+    if (dead.id === s.player.id) handlePlayerDeath()
   })
 
   /** `choose:` group → picked option index (decided when the group first fires; re-rolled on each loop) */
@@ -523,6 +503,39 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       mechanics.after(ms, () => { if (serial === announceSerial) s.setAnnounce(null) })
     },
   }, MECHANICS)
+
+  const revive = enc.revive
+    ? createPlayerRevive({ bus: s.bus, player: s.player, buffSystem: s.buffSystem, schedule: (ms, fn) => mechanics.after(ms, fn) })
+    : null
+  if (revive) {
+    s.combatResolver.registerBuffs(REVIVE_BUFFS)
+    s.buffDefs = { ...s.buffDefs, ...REVIVE_BUFFS }
+    s.bus.on('player:revived', () => s.setAnnounce(null))
+  }
+
+  let handlingDeath = false
+  function handlePlayerDeath(): void {
+    // entity:died below re-enters through its listener; also ignore deaths while a revive is pending
+    if (handlingDeath || s.battleOver || deathWindow.isActive() || revive?.isPending()) return
+    handlingDeath = true
+    // Pre-combat death (e.g. dev `kill` before engagement) would lock up
+    // because scheduler.combatElapsed never advances pre-engage; force
+    // engage here so the tick loop can finalize the window normally.
+    if (!combatStarted) engageCombat()
+    // Flip alive + zero MP + interrupt any in-progress cast + emit
+    // entity:died so downstream systems (input-driver gate, target-clear,
+    // HUD) see the dead state consistently. entityMgr.destroy is NOT
+    // called — the player entity reference must stay valid for the death
+    // window (DoT ticks on enemies still reference it as caster).
+    if (s.player.alive) {
+      s.player.alive = false
+      s.player.mp = 0
+      if (s.player.casting) s.skillResolver.interruptCast(s.player)
+      s.bus.emit('entity:died', { entity: s.player })
+    }
+    if (!revive?.tryRevive()) deathWindow.enter()
+    handlingDeath = false
+  }
 
   // Revived dormant entities join the fight; optional per-entity follow-up skill
   s.bus.on('entity:revived', ({ entity }: { entity: Entity }) => {

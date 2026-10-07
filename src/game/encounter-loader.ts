@@ -25,6 +25,8 @@ export interface EncounterData {
   phases: PhaseDef[]
   /** Skill an entity uses a while after being revived from dormancy (YAML `onRevive: { use, after }`) */
   reviveHooks: Map<string, { use: string; after: number }>
+  /** Practice-friendly revival ladder (Weakness → Brink of Death), see game/player-revive.ts */
+  revive: boolean
   /** Battlefield condition ids to activate at the start of this encounter */
   conditions?: string[]
   /**
@@ -169,6 +171,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
 
   return {
     arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs, reviveHooks,
+    revive: raw.revive === true,
     ...(conditions !== undefined ? { conditions } : {}),
     ...(deathWindowMs !== undefined ? { deathWindowMs } : {}),
   }

@@ -478,6 +478,19 @@ export class VfxRenderer {
     const s = ELEMENTS[element]
     const shape = zone.def.shape
     const cx = zone.center.x, cz = zone.center.y
+
+    // Raidwide (no telegraph): one expanding wave from the caster instead of area-filling bursts
+    if (zone.def.telegraph === false) {
+      this.spawn('ground', 'ringThick', s.color, 700, (f, t) => {
+        f.mesh.position.set(cx, 0.12, cz)
+        const r = 2 + 46 * (1 - (1 - t) ** 2)
+        f.mesh.scaling.set(r, 1, r)
+        f.mesh.visibility = 1 - t
+      })
+      this.flash(new Vector3(cx, 2, cz), s.impact, s.core, 6, 380)
+      this.sm.shake(0.3, 300)
+      return
+    }
     const area = shape.type === 'circle' ? Math.PI * shape.radius ** 2
       : shape.type === 'fan' ? Math.PI * shape.radius ** 2 * (shape.angle / 360)
       : shape.type === 'ring' ? Math.PI * (shape.outerRadius ** 2 - shape.innerRadius ** 2)

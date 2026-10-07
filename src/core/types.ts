@@ -101,6 +101,8 @@ export interface AoeZoneDef {
   effects: SkillEffectDef[]
   /** Visual hint for displacement direction in telegraph */
   displacementHint?: 'knockback' | 'pull'
+  /** false = no ground telegraph (raidwides: FFXIV shows only the cast bar). Default true. */
+  telegraph?: boolean
   /** Overhead marker on the anchored entity while the zone is pending (renderer-only) */
   marker?: 'spread' | 'stack' | 'buster'
 }

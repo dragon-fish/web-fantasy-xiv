@@ -98,6 +98,7 @@ function parseZone(raw: any): AoeZoneDef {
     effects: raw.effects ?? [],
     displacementHint: raw.displacementHint,
     marker: raw.marker,
+    telegraph: raw.telegraph,
   }
 }
 
