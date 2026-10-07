@@ -67,8 +67,8 @@ export class SkillResolver {
     // GCD check (only for skills with gcd flag)
     if (skill.gcd && caster.gcdTimer > 0) return false
 
-    // Independent cooldown check
-    if (skill.cooldown > 0 && this.getCooldown(caster.id, skill.id) > 0) return false
+    // Independent cooldown check (charge-based skills: any charge left)
+    if (skill.cooldown > 0 && this.getCharges(caster.id, skill) <= 0) return false
 
     // MP check (buff can absorb cost)
     const mpAbsorbed = skill.mpCost > 0
@@ -192,7 +192,9 @@ export class SkillResolver {
     }
 
     if (skill.cooldown > 0) {
-      this.setCooldown(caster.id, skill.id, skill.cooldown)
+      // Charge-based skills queue their recharges back to back
+      const debt = (skill.charges ?? 1) > 1 ? this.rechargeDebt(caster.id, skill.id) : 0
+      this.setCooldown(caster.id, skill.id, debt + skill.cooldown)
     }
 
     // Auto-face target when using a targeted skill
@@ -356,7 +358,23 @@ export class SkillResolver {
     }
   }
 
+  /** Time until the skill is ready; for charge-based skills, until the next charge comes back. */
   getCooldown(entityId: string, skillId: string): number {
+    const debt = this.rechargeDebt(entityId, skillId)
+    const def = this.skillDefs.get(skillId)
+    if (!def || (def.charges ?? 1) <= 1 || debt <= 0) return debt
+    return ((debt - 1) % def.cooldown) + 1
+  }
+
+  /** Charges available now (1 / 0 for ordinary cooldown skills). */
+  getCharges(entityId: string, skill: SkillDef): number {
+    const max = skill.charges ?? 1
+    if (skill.cooldown <= 0) return max
+    return max - Math.ceil(this.rechargeDebt(entityId, skill.id) / skill.cooldown)
+  }
+
+  /** Time until every charge is back (plain remaining cooldown for ordinary skills) */
+  private rechargeDebt(entityId: string, skillId: string): number {
     return this.cooldowns.get(entityId)?.get(skillId) ?? 0
   }
 

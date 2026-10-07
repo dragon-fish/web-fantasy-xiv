@@ -62,6 +62,11 @@ export class CombatResolver {
       const revive = (payload.zone.def.effects as SkillEffectDef[]).find(e => e.type === 'revive')
       if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
     })
+
+    // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
+    bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
+      if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
+    })
   }
 
   registerBuffs(defs: Record<string, BuffDef>): void {

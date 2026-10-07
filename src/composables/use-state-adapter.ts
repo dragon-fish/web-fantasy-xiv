@@ -76,7 +76,10 @@ export function useStateAdapter(scene: GameScene) {
       currentPhaseInfo: scene.currentPhaseInfo,
       damageLog: scene.damageLog,
       practiceMode: scene.practiceMode,
-      skillBarEntries: scene.skillBarEntries,
+      // Charge-based skills: the bar reads live charge counts off the entry
+      skillBarEntries: scene.skillBarEntries.map((e) => (e.skill.charges ?? 1) > 1
+        ? { ...e, charges: scene.skillResolver.getCharges(player.id, e.skill), maxCharges: e.skill.charges }
+        : e),
       buffDefs: scene.buffDefs,
       combatElapsed: elapsed,
       playerHp: {

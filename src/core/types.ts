@@ -117,7 +117,9 @@ export interface SkillDef {
   icon?: string
   type: SkillType
   castTime: number // ms
-  cooldown: number // ms
+  cooldown: number // ms; with `charges`, the recharge time of one charge
+  /** Max charges (> 1 = charge-based skill: usable while any charge is left) */
+  charges?: number
   gcd: boolean
   targetType: TargetType
   requiresTarget: boolean  // true = must have a locked enemy target to cast
@@ -191,6 +193,9 @@ export interface BuffDef {
   /** Shield buff: stacks = shield HP, absorbs damage before HP.
    *  Re-application only replaces if new shield has both more stacks AND longer duration. */
   shield?: boolean
+  /** Effects resolved on the holder (as caster and target) whenever the buff ends — expired,
+   *  broken or consumed — while alive. Not on death clearing, nor on in-place refresh/replacement. */
+  onRemove?: SkillEffectDef[]
   /**
    * If true, this buff survives entity death and remains on the entity.
    * Default false (buff is cleared on death, matching FF14 Raise semantics).

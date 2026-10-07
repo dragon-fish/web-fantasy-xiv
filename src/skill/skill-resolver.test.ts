@@ -145,6 +145,30 @@ describe('SkillResolver', () => {
       expect(resolver.tryUse(player, ability)).toBe(true) // CD expired
     })
 
+    it('charge-based skills spend charges back to back and recharge them one at a time', () => {
+      const { resolver, player } = setup()
+      const charged: SkillDef = { ...ability, id: 'sheltron', cooldown: 20000, charges: 2 }
+      expect(resolver.tryUse(player, charged)).toBe(true)
+      expect(resolver.tryUse(player, charged)).toBe(true)
+      expect(resolver.tryUse(player, charged)).toBe(false) // out of charges
+      expect(resolver.getCooldown(player.id, 'sheltron')).toBe(20000) // next charge, not the full refill
+
+      resolver.updateCooldowns(player, 20000)
+      expect(resolver.getCharges(player.id, charged)).toBe(1)
+      expect(resolver.tryUse(player, charged)).toBe(true)
+      expect(resolver.tryUse(player, charged)).toBe(false)
+    })
+
+    it('a partly recharged charge keeps its progress when another is spent', () => {
+      const { resolver, player } = setup()
+      const charged: SkillDef = { ...ability, id: 'sheltron', cooldown: 20000, charges: 2 }
+      resolver.tryUse(player, charged)
+      resolver.updateCooldowns(player, 15000)
+      resolver.tryUse(player, charged) // second charge: 5s left on the first refill
+      expect(resolver.getCharges(player.id, charged)).toBe(0)
+      expect(resolver.getCooldown(player.id, 'sheltron')).toBe(5000)
+    })
+
     it('should not be usable during casting', () => {
       const { resolver, player } = setup()
       resolver.tryUse(player, spell) // start casting
