@@ -42,8 +42,8 @@ export const PALADIN_SKILLS: SkillDef[] = [
       { type: 'apply_buff', buffId: 'pld_fof' },
     ],
   },
-  // 3: Holy Sheltron — oGCD, spends 50 Oath (auto-attacks build it), 20% mitigation + 1500 shield for 8s.
-  // A full gauge allows two back to back: the mitigation refreshes, the shields stack.
+  // 3: Holy Sheltron — oGCD, 2 charges (20s each): 20% mitigation + 1500 shield for 8s; the shield heals
+  // when it breaks or runs out. Recasting refreshes the mitigation and the shield only replaces a weaker one.
   {
     id: 'pld_holy_sheltron',
     name: '圣盾阵',
@@ -51,17 +51,16 @@ export const PALADIN_SKILLS: SkillDef[] = [
     icon: icon('skill_icons/19_PLD', 2950),
     type: 'ability',
     castTime: 0,
-    cooldown: 5000,
+    cooldown: 20000,
+    charges: 2,
     gcd: false,
     targetType: 'single',
     requiresTarget: false,
     range: 0,
     mpCost: 0,
-    requiresBuffStacks: { buffId: 'pld_oath', stacks: 50 },
     effects: [
-      { type: 'consume_buff_stacks', buffId: 'pld_oath', stacks: 50 },
       { type: 'apply_buff', buffId: 'pld_holy_sheltron' },
-      { type: 'apply_buff', buffId: 'shield', stacks: 1500, duration: 8000 },
+      { type: 'apply_buff', buffId: 'pld_sheltron_shield', stacks: 1500 },
     ],
   },
   // 4: Clemency — self-heal, cast 1.8s, MP 3500
