@@ -22,10 +22,11 @@ export class TimelineScheduler {
       if (action.at > this.elapsed) break
 
       if (action.action === 'loop') {
-        // Reset timeline to target time
-        this.elapsed = action.loop ?? 0
-        this.pointer = 0
-        // Re-scan from beginning
+        // Jump back to the target time; earlier actions must not replay
+        const target = action.loop ?? 0
+        this.elapsed = target
+        this.pointer = this.actions.findIndex(a => a.at >= target)
+        if (this.pointer < 0) this.pointer = this.actions.length
         continue
       }
 

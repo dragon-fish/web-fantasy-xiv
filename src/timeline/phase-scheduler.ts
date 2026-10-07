@@ -87,8 +87,13 @@ export class PhaseScheduler {
         if (action.at > active.elapsed) break
 
         if (action.action === 'loop') {
-          active.elapsed = action.loop ?? 0
-          active.pointer = 0
+          // Jump back to the target time: resume at the first action scheduled at/after it.
+          // Resetting the pointer to 0 would replay every earlier action in one frame.
+          const target = action.loop ?? 0
+          active.elapsed = target
+          active.pointer = active.def.actions.findIndex(a => a.at >= target)
+          if (active.pointer < 0) active.pointer = active.def.actions.length
+          this.bus.emit('timeline:loop', { phaseId: active.def.id, to: target })
           continue
         }
 
