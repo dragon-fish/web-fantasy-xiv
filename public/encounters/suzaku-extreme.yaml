@@ -521,6 +521,8 @@ phases:
       - { at: 12500, action: set_visible, value: true }
       - { at: 12600, use: rout_tutorial }
       - { at: 13500, use: rekindle, entity: helper }
+      - { at: 11000, action: show_dialog, text: 猛进：朱雀会从场边冲锋横穿全场，避开那条直线。头顶的分散圈结算时，圈里不要有场地中央的火焰鸟尸体——碰到会把它复活。 }
+      - { at: 18500, action: hide_dialog }
       - { at: 18500, action: set_visible, value: false }
       - { at: 19000, action: teleport, position: { x: 0, y: 6 } }
       - { at: 19800, action: set_visible, value: true }
@@ -528,17 +530,23 @@ phases:
       - { at: 20000, action: enable_ai }
 
       - { at: 24000, use: fleeting_summer_tutorial }
+      - { at: 23500, action: show_dialog, text: 翼宿击：朝你释放的 90° 扇形，绕到侧面即可。 }
+      - { at: 28500, action: hide_dialog }
 
       # 鬼宿脚：死刑（坦克开减伤 / DPS 拼刀）→ 前方半场刀
       - { at: 32000, use: phantom_flurry }
       - { at: 32000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
       - { at: 37500, use: phantom_half_tutorial }
+      - { at: 32000, action: show_dialog, when: { role: tank }, text: 鬼宿脚：坦克死刑！读条结束前开启减伤。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
+      - { at: 32000, action: show_dialog, when: { role: dps }, text: 鬼宿脚：拼刀！屏幕中央的光圈转满时按 空格 接刀，越准收益越高。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
+      - { at: 43500, action: hide_dialog }
 
       # ===== 小怪战 =====
       - { at: 46000, use: screams }
       - { at: 51000, action: disable_ai }
       - { at: 51000, action: teleport, position: { x: 0, y: 6 } }
       - { at: 51500, use: phoenix_down }
+      - { at: 51500, action: show_dialog, text: 苏生之羽：羽毛读条结束会复活范围内的火焰鸟尸体，尽快击破羽毛！复活的火焰鸟 15 秒后会放出高伤全场攻击。 }
       - at: 54500
         choose:
           - # 正点
@@ -564,6 +572,8 @@ phases:
       - { at: 55200, use: feather_rebirth, entity: feather_3 }
       - { at: 55200, use: feather_rebirth, entity: feather_4 }
       - { at: 61000, use: rekindle, entity: helper }
+      - { at: 61000, action: show_dialog, text: 头顶又是苏生之炎：远离场地中央的火焰鸟尸体，别把它们炸醒。 }
+      - { at: 66500, action: hide_dialog }
       # 苏生神通力读条结束，羽毛随之消散
       - { at: 75400, action: set_visible, entity: feather_1, value: false }
       - { at: 75400, action: set_visible, entity: feather_2, value: false }
@@ -610,22 +620,32 @@ phases:
       # ===== P2（教学） =====
       - { at: 142000, use: southron_star_tutorial }
       - { at: 149000, use: mesmerizing_melody_tutorial }
+      - { at: 149000, action: show_dialog, text: 引诱旋律：朱雀会把所有人吸向中心深渊——站到场地外沿！ }
+      - { at: 154500, action: hide_dialog }
       - { at: 158000, use: well_of_flame_tutorial }
       - { at: 158000, use: rekindle, entity: helper }
+      - { at: 158000, action: show_dialog, text: 井宿焰：朝你劈下的超宽直线，横向闪开；同时头顶分散圈也会结算。 }
+      - { at: 163500, action: hide_dialog }
       - { at: 168000, use: phantom_flurry }
       - { at: 168000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
       - { at: 173500, use: phantom_half }
       - { at: 182000, use: ruthless_refrain_tutorial }
+      - { at: 182000, action: show_dialog, text: 拒绝旋律：朱雀会把所有人向外击退——贴着内沿站，别被推出场外！ }
+      - { at: 187500, action: hide_dialog }
       - { at: 191000, use: southron_star }
 
       # 朱红旋律（教学）：两种固定序列之一，间隔放慢
       - { at: 196000, use: scarlet_hymn }
+      - { at: 196000, action: show_dialog, text: 朱红旋律（鸳鸯锅）：火焰鸟从南侧起顺时针绕场，撞到哪个图标，对应颜色的地板就会喷火并把人击飞。先读出图标顺序，站进刚炸完的区域。 }
+      - { at: 209000, action: hide_dialog }
       - at: 197000
         choose:
           - [{ mechanic: scarlet_hymn, params: { sequence: [1, 2, 3, 0, 1, 2, 3, 0], interval: 1500, lead: 6000, potency: 2300, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
           - [{ mechanic: scarlet_hymn, params: { sequence: [2, 0, 1, 3, 3, 1, 0, 2], interval: 1500, lead: 6000, potency: 2300, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }]
       # 傀儡旋律（教学）
       - { at: 220000, use: close_quarter_crescendo }
+      - { at: 220000, action: show_dialog, text: 傀儡旋律：倒计时结束后你会被强制朝箭头方向走 3 秒——提前站到走完也不会掉下去的位置！ }
+      - { at: 230500, action: hide_dialog }
       - { at: 221000, mechanic: forced_march, params: { delay: 9000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
       - { at: 238000, use: southron_star }
 
@@ -652,6 +672,8 @@ phases:
       # 击退接月环
       - { at: 288000, use: ruthless_refrain }
       - { at: 292300, use: crimson_ring }
+      - { at: 288000, action: show_dialog, text: 击退之后紧接着月环：被推到外沿后立刻跑回内圈！ }
+      - { at: 296000, action: hide_dialog }
       - { at: 300000, use: well_of_flame }
       - { at: 300000, use: rekindle, entity: helper }
 
@@ -682,6 +704,8 @@ phases:
 
       # ===== 狂暴：之之之之 —— 四块地板全部变成「ろ」，无限复读红莲炎 =====
       - { at: 372000, use: scarlet_hymn_finale }
+      - { at: 372000, action: show_dialog, text: 朱红旋律·终：四块地板全部化作「ろ」——再无安全之处。 }
+      - { at: 380000, action: hide_dialog }
       # 特殊伤害：无视无敌（含练习模式）、减伤与护盾；狂暴期间死亡不再复活——狂暴是真正的终点
       - { at: 378000, action: disable_revive }
       - { at: 378000, mechanic: scarlet_hymn, params: { enrage: true, dmgType: special, interval: 1100, lead: 1500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
