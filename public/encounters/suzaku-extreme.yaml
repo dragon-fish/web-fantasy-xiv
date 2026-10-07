@@ -518,10 +518,12 @@ phases:
       - at: 137000
         action: run_script
         script: |
-          // 场地破碎时，没复活的火焰鸟尸体随碎片坠落
-          for (const id of ['bird_1', 'bird_2', 'bird_3', 'bird_4']) {
-            const e = ctx.getEntity(id)
-            if (e && e.dormant) { e.dormant = false; e.visible = false; e.targetable = false }
+          (ctx) => {
+            // 场地破碎时，没复活的火焰鸟尸体随碎片坠落
+            for (const id of ['bird_1', 'bird_2', 'bird_3', 'bird_4']) {
+              const e = ctx.getEntity(id)
+              if (e && e.dormant) { e.dormant = false; e.visible = false; e.targetable = false }
+            }
           }
       - { at: 138000, action: set_targetable, value: true }
       - { at: 138000, action: set_speed, speed: 0 }

@@ -129,6 +129,7 @@ export class VfxRenderer {
     const mesh = list?.pop() ?? this.createQuad(kind)
     mesh.setEnabled(true)
     mesh.visibility = 1
+    mesh.renderingGroupId = 0
     mesh.scaling.setAll(1)
     mesh.rotation.set(kind === 'ground' ? 0 : 0, 0, 0)
     mesh.position.setAll(0)
@@ -479,9 +480,16 @@ export class VfxRenderer {
     const shape = zone.def.shape
     const cx = zone.center.x, cz = zone.center.y
 
-    // Raidwide (no telegraph): one expanding wave from the caster instead of area-filling bursts
+    // Knockback / pull: the marker already showed direction; a short pulse sells the shove
+    if (zone.def.marker === 'knockback' || zone.def.marker === 'pull') {
+      this.flash(new Vector3(cx, 0.1, cz), 'knockbackEmblem', s.core, 9, 380, 'ground')
+      this.sm.shake(0.35, 260)
+      return
+    }
+
+    // Raidwide (no telegraph): one thin expanding wave from the caster instead of area-filling bursts
     if (zone.def.telegraph === false) {
-      this.spawn('ground', 'ringThick', s.color, 700, (f, t) => {
+      this.spawn('ground', 'ringThin', s.color, 700, (f, t) => {
         f.mesh.position.set(cx, 0.12, cz)
         const r = 2 + 46 * (1 - (1 - t) ** 2)
         f.mesh.scaling.set(r, 1, r)

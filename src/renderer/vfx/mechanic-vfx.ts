@@ -62,8 +62,9 @@ export class MechanicVfx {
             const k = kind === 'knockback' ? cyc : 1 - cyc
             const r = 3 + k * 8
             f.mesh.position.set(e.position.x + Math.sin(a) * r, 0.08, e.position.y + Math.cos(a) * r)
-            // Texture points to +V (north); turn it to face outward or inward
-            f.mesh.rotation.y = a + (kind === 'pull' ? Math.PI : 0)
+            // The 'chevron_up' texture actually points +X (east) at rotation 0, hence the -90°;
+            // then face outward (knockback) or inward (pull) along the radial angle `a`
+            f.mesh.rotation.y = a - Math.PI / 2 + (kind === 'pull' ? Math.PI : 0)
             f.mesh.scaling.set(1.6, 1, 1.6)
             f.mesh.visibility = Math.sin(cyc * Math.PI) * 0.9
           }))
@@ -132,11 +133,13 @@ export class MechanicVfx {
     if (!d) return
     const { center } = d
     const rad = (p.dir * Math.PI) / 180
+    // Drawn in rendering group 1 so the player standing on it never hides the arrow
     const arrow = this.vfx.spawn('flat', 'arrowRed', Color3.White(), Infinity, (f) => {
+      f.mesh.renderingGroupId = 1
       f.mesh.position.set(center.x, 0.1, center.y)
       f.mesh.rotation.y = rad
       const pop = Math.min(1, f.age / 150)
-      f.mesh.scaling.set(2.4 * pop, 1, 2.4 * pop)
+      f.mesh.scaling.set(3.6 * pop, 1, 3.6 * pop)
     })
     // A note orb flies in from outside and lands on the ring exactly at the beat
     const from = Math.random() * Math.PI * 2
