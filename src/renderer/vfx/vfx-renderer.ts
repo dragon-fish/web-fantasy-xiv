@@ -18,6 +18,7 @@ import { sampleZonePoints } from './zone-sampling'
 import { ELEMENTS, QUARTER_TEXTURES, vfxTexture, preloadVfxTextures, type VfxTex, type ElementStyle } from './vfx-assets'
 import { ParticleBurster, type BurstPreset } from './particle-burster'
 import { createVfxMaterial } from './vfx-material'
+import { MechanicVfx } from './mechanic-vfx'
 
 type QuadKind = 'ground' | 'billboard' | 'billboardY' | 'flat' | 'arc'
 
@@ -67,15 +68,16 @@ export class VfxRenderer {
   private now = 0
 
   constructor(
-    private sm: SceneManager,
+    readonly sm: SceneManager,
     bus: EventBus,
-    private entities: EntityManager,
-    private heightOf: (e: Entity) => number,
+    readonly entities: EntityManager,
+    readonly heightOf: (e: Entity) => number,
     private enemyElement: VfxElement,
   ) {
     this.scene = sm.scene
     preloadVfxTextures(this.scene)
     this.arcTemplate = this.buildArcTemplate()
+    new MechanicVfx(this, bus)
 
     bus.on('skill:cast_start', ({ caster, skill }: { caster: Entity; skill: SkillDef }) => {
       this.skills.set(skill.id, skill)
@@ -158,7 +160,8 @@ export class VfxRenderer {
     this.pool.set(f.kind, list)
   }
 
-  private spawn(kind: QuadKind, tex: VfxTex, color: Color3, life: number, tick: Fx['tick']): Fx {
+  /** @internal shared with MechanicVfx */
+  spawn(kind: QuadKind, tex: VfxTex, color: Color3, life: number, tick: Fx['tick']): Fx {
     if (this.fx.length >= MAX_FX) {
       // Evict the oldest finite effect; infinite ones (cast circles, projectile heads) are owned elsewhere
       const i = this.fx.findIndex(f => Number.isFinite(f.life))
@@ -176,7 +179,8 @@ export class VfxRenderer {
     return f
   }
 
-  private burster(preset: PresetId, element: VfxElement): ParticleBurster {
+  /** @internal shared with MechanicVfx */
+  burster(preset: PresetId, element: VfxElement): ParticleBurster {
     const key = `${preset}:${element}`
     let b = this.bursters.get(key)
     if (!b) {
@@ -195,7 +199,8 @@ export class VfxRenderer {
     return b
   }
 
-  private chest(e: Entity): Vector3 {
+  /** @internal shared with MechanicVfx */
+  chest(e: Entity): Vector3 {
     return new Vector3(e.position.x, this.heightOf(e) * 0.5, e.position.y)
   }
 
@@ -309,7 +314,8 @@ export class VfxRenderer {
   }
 
   private timers: { at: number; fn: () => void }[] = []
-  private later(ms: number, fn: () => void): void {
+  /** @internal shared with MechanicVfx */
+  later(ms: number, fn: () => void): void {
     this.timers.push({ at: this.now + ms, fn })
   }
 
@@ -417,7 +423,8 @@ export class VfxRenderer {
   }
 
   /** Camera-facing flash that pops and fades. `kind: 'ground'` lays it flat. */
-  private flash(pos: Vector3, tex: VfxTex, color: Color3, size: number, life: number, kind: QuadKind = 'billboard'): void {
+  /** @internal shared with MechanicVfx */
+  flash(pos: Vector3, tex: VfxTex, color: Color3, size: number, life: number, kind: QuadKind = 'billboard'): void {
     const rot = Math.random() * Math.PI * 2
     this.spawn(kind, tex, color, life, (f, t) => {
       f.mesh.position.copyFrom(pos)
@@ -428,7 +435,8 @@ export class VfxRenderer {
     })
   }
 
-  private impact(pos: Vector3, element: VfxElement, scale = 1, source?: Entity): void {
+  /** @internal shared with MechanicVfx */
+  impact(pos: Vector3, element: VfxElement, scale = 1, source?: Entity): void {
     const s = ELEMENTS[element]
     this.flash(pos, s.impact, s.color, 3 * scale, 240)
     this.flash(pos, 'sparkB', s.core, 2 * scale, 160)

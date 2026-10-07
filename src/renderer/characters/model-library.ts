@@ -181,7 +181,10 @@ export class ModelLibrary {
         if (tint) {
           const c = std.diffuseColor
           const luma = c.r * 0.3 + c.g * 0.59 + c.b * 0.11
-          if (spec.tintMode === 'replace') { if (luma > 0.15) std.diffuseColor = tint.scale(Math.min(1.2, 0.6 + luma)) }
+          if (spec.tintMode === 'replace') {
+            if (std.diffuseTexture || luma > 0.15) std.diffuseColor = tint.scale(Math.min(1.2, 0.6 + (std.diffuseTexture ? 0.5 : luma)))
+            std.diffuseTexture = null
+          }
           else std.diffuseColor = c.multiply(tint)
         }
         converted.set(src, std)

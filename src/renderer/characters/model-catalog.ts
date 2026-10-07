@@ -33,7 +33,7 @@ export interface ModelSpec {
   attach?: WeaponAttachment[]
   /** Albedo tint (CSS hex) for palette variants */
   tint?: string
-  /** multiply (default): keeps texture detail; replace: recolours flat-shaded materials, sparing near-black ones (eyes, mouths) */
+  /** multiply (default): keeps texture detail; replace: drops the texture and recolours, sparing near-black materials (eyes, mouths) */
   tintMode?: 'multiply' | 'replace'
   /** Extra hover above ground (meters) for flying models */
   hover?: number
@@ -151,6 +151,14 @@ export const MODELS: Record<string, ModelSpec> = {
   slime: {
     id: 'slime', url: 'models/monsters/slime.glb', height: 1.3, placeholder: 'imp',
     clips: { idle: ['Slime_Idle'], move: ['Slime_Walk'], attack: ['Slime_Attack'], castRelease: ['Slime_Attack'], death: ['Slime_Death'] },
+  },
+  firebird: {
+    id: 'firebird', url: 'models/monsters/dragon.glb', height: 2.6, hover: 0.6, placeholder: 'bat', tint: '#ff8a5c', nominalRadius: 0.8,
+    clips: { idle: ['Flying_Idle'], move: ['Fast_Flying'], attack: ['Headbutt', 'Punch'], castLoop: ['Flying_Idle'], castRelease: ['Punch'], hit: ['HitReact'], death: ['Death'] },
+  },
+  feather: {
+    id: 'feather', url: 'models/props/crystal.glb', height: 1.8, hover: 0.5, placeholder: 'bat', tint: '#ff9a52', tintMode: 'replace', nominalRadius: 0.6,
+    clips: {},
   },
   'slime-frost': {
     id: 'slime-frost', url: 'models/monsters/slime.glb', height: 1.3, placeholder: 'imp', tint: '#8fd0ff', tintMode: 'replace',

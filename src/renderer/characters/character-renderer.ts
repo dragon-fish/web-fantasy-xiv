@@ -293,7 +293,8 @@ export class CharacterRenderer implements EntityVisuals {
   private animate(v: CharacterView, dt: number): void {
     const e = v.entity
     const role: AnimRole = selectAnimation({
-      alive: e.alive && e.hp > 0,
+      // Dormant bodies (corpses awaiting revival) hold the death pose
+      alive: e.alive && e.hp > 0 && !e.dormant,
       casting: !!e.casting && e.casting.castTime > 0,
       moving: v.velocity > 0.6,
       inCombat: e.inCombat,
@@ -307,7 +308,10 @@ export class CharacterRenderer implements EntityVisuals {
       const name = resolveClip(role, v.spec.clips, c => v.model!.animations.has(c))
       if (name) {
         const speed = role === 'move' ? Math.max(0.7, Math.min(1.6, v.velocity / 5)) : 1
+        const fresh = v.clipName !== name
         this.switchClip(v, name, role !== 'death', speed)
+        // Dormant bodies start already lying down instead of replaying the fall
+        if (fresh && e.dormant && v.clip) { v.clip.goToFrame(v.clip.to); v.clip.weight = 1; v.fades = [] }
       }
     }
     this.tickFades(v, dt)
@@ -367,8 +371,12 @@ export class CharacterRenderer implements EntityVisuals {
     v.displayFacing = ((v.displayFacing + Math.sign(delta) * Math.min(Math.abs(delta), maxStep)) % 360 + 360) % 360
     v.root.rotation.y = (v.displayFacing * Math.PI) / 180
 
-    if (v.aggroFan) v.aggroFan.isVisible = !entity.inCombat
-    if (v.rangeRing) {
+    const dormant = !!entity.dormant
+    v.hitPoint.isVisible = !dormant
+    v.facingArrow.isVisible = !dormant
+    if (v.aggroFan) v.aggroFan.isVisible = !entity.inCombat && !dormant
+    if (v.rangeRing) v.rangeRing.isVisible = !dormant
+    if (v.rangeRing && !dormant) {
       const isLocked = entity.id === lockedTargetId
       const mat = v.rangeRing.material as StandardMaterial
       v.rangeRing.scaling.y = isLocked ? 0.6 : 0.2

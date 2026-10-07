@@ -64,6 +64,8 @@ export class AoeRenderer {
     for (const entry of this.meshes.values()) {
       const { zone, material } = entry
       material.setFloat('time', time / 1000)
+      // target_live zones move with their anchor until they resolve
+      if (entry.phase === 'telegraph' && zone.anchorEntityId) this.place(entry.mesh, zone)
       if (entry.phase === 'telegraph') {
         const span = Math.max(1, zone.def.resolveDelay - zone.telegraphAt)
         material.setFloat('progress', Math.min(1, Math.max(0, (zone.elapsed - zone.telegraphAt) / span)))
@@ -129,6 +131,14 @@ export class AoeRenderer {
     mesh.material = material
     mesh.isPickable = false
 
+    this.place(mesh, zone)
+
+    const waveRing = zone.def.displacementHint ? this.createWaveRing(zone) : undefined
+    this.meshes.set(zone.id, { mesh, material, zone, phase: 'telegraph', resolvedAt: 0, waveRing, isPlayerZone: isPlayer, removed: false })
+  }
+
+  private place(mesh: Mesh, zone: ActiveAoeZone): void {
+    const geo = telegraphGeometry(zone.def.shape)
     const facingRad = (zone.facing * Math.PI) / 180
     mesh.rotation.y = facingRad
     mesh.position.set(
@@ -136,9 +146,6 @@ export class AoeRenderer {
       0.03,
       zone.center.y + Math.cos(facingRad) * geo.forwardOffset,
     )
-
-    const waveRing = zone.def.displacementHint ? this.createWaveRing(zone) : undefined
-    this.meshes.set(zone.id, { mesh, material, zone, phase: 'telegraph', resolvedAt: 0, waveRing, isPlayerZone: isPlayer, removed: false })
   }
 
   /** Create wave mesh: torus for circle/ring, plane bar for rect */
