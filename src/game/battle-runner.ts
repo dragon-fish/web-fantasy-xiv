@@ -439,7 +439,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     s.bus.emit('combat:started', { entities: [s.player, boss] })
   }
 
-  s.bus.on('damage:dealt', (payload: { source: Entity; target: Entity; amount: number; skill: any }) => {
+  s.bus.on('damage:dealt', (payload: { source: Entity; target: Entity; amount: number; skill: any; noRevive?: boolean }) => {
     if (payload.target.id === boss.id && !combatStarted) engageCombat()
     // Check victory: boss dead
     if (payload.target.id === boss.id && payload.target.hp <= 0) {
@@ -451,7 +451,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     }
     // Player dead → revive (if the encounter allows and a tier is left) or the death window.
     // Finalization (victory / wipe) happens from deathWindow.tick() in the logic loop.
-    if (payload.target.id === s.player.id && payload.target.hp <= 0) handlePlayerDeath()
+    if (payload.target.id === s.player.id && payload.target.hp <= 0) handlePlayerDeath(payload.noRevive)
     // Mob death: destroy entity when hp reaches 0
     if (payload.target.type === 'mob' && payload.target.hp <= 0 && payload.target.alive) {
       s.entityMgr.destroy(payload.target.id)
@@ -561,7 +561,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   }
 
   let handlingDeath = false
-  function handlePlayerDeath(): void {
+  function handlePlayerDeath(noRevive = false): void {
     // entity:died below re-enters through its listener; also ignore deaths while a revive is pending
     if (handlingDeath || s.battleOver || deathWindow.isActive() || revive?.isPending()) return
     handlingDeath = true
@@ -580,7 +580,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       if (s.player.casting) s.skillResolver.interruptCast(s.player)
       s.bus.emit('entity:died', { entity: s.player })
     }
-    if (!revive?.tryRevive()) deathWindow.enter()
+    if (noRevive || !revive?.tryRevive()) deathWindow.enter()
     handlingDeath = false
   }
 

@@ -80,7 +80,7 @@ local_buffs:
     maxStacks: 8
     duration: 90000
     effects:
-      - { type: vulnerability, value: 0.25 }
+      - { type: vulnerability, value: 0.125 }
   keen_eye:
     name: 见切
     type: buff
@@ -141,7 +141,7 @@ skills:
     requiresTarget: true
     range: 6
     effects:
-      - { type: damage, potency: 900, when: { role: tank } }
+      - { type: damage, potency: 600, when: { role: tank } }
       - { type: damage, potency: 300, when: { role: dps } }
 
   # --- 全屏 ---
@@ -333,7 +333,8 @@ skills:
         telegraph: false
         resolveDelay: 3000
         hitEffectDuration: 400
-        effects: [{ type: damage, potency: 4200 }]
+        # 火焰鸟复活后的狂暴：被它打死不进入复活流程
+        effects: [{ type: damage, potency: 4200, noRevive: true }]
 
   # --- 跳舞机 → 燃烬天火 → 场地破碎 ---
   eternal_flame:

@@ -64,7 +64,8 @@ export interface EffectCondition {
 }
 
 export type SkillEffectDef = (
-  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[] }
+  /** `noRevive`: a player killed by this hit skips the revive ladder (e.g. add enrages) */
+  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[]; noRevive?: boolean }
   | { type: 'heal'; potency: number }
   | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number; target?: 'caster' | 'target' }
   | { type: 'consume_buffs'; buffIds: string[] }                         // remove listed buffs from caster on resolve

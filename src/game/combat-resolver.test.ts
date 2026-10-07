@@ -90,6 +90,19 @@ const smallMitigationBuff: BuffDef = {
   effects: [{ type: 'mitigation', value: 0.2 }],
 }
 
+// ─── Revive piercing ────────────────────────────────────
+
+describe('CombatResolver — noRevive damage', () => {
+  it('flags the damage event only for noRevive effects', () => {
+    const { bus, boss } = setup()
+    const flags: boolean[] = []
+    bus.on('damage:dealt', (p: { noRevive: boolean }) => flags.push(p.noRevive))
+    castSkill(bus, boss, makeSkill({ id: 'enrage', effects: [{ type: 'damage', potency: 100, noRevive: true }] }))
+    castSkill(bus, boss, makeSkill({ id: 'hit', effects: [{ type: 'damage', potency: 100 }] }))
+    expect(flags).toEqual([true, false])
+  })
+})
+
 // ─── Special damage ─────────────────────────────────────
 
 describe('CombatResolver — special damage', () => {
