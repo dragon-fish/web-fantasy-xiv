@@ -22,7 +22,7 @@ const QUADRANTS = [
 const ENRAGE = QUADRANTS[3]
 const QUADRANT_FACING = [45, 135, 225, 315]
 const FLOOR_RADIUS = 21
-const RING_INNER = 5.5
+const RING_INNER = 4
 const RING_OUTER = 20
 
 /** Unlit alpha-blended material: shows dark colours too (additive VFX materials can't) */

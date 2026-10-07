@@ -4,44 +4,11 @@ import { isPointInAoeShape } from '@/skill/aoe-shape'
 
 export class Arena {
   private wallZoneProvider: () => DeathZoneDef[] = () => []
-  private lethalZoneProvider: () => DeathZoneDef[] = () => []
 
   constructor(readonly def: ArenaDef) {}
 
   setWallZoneProvider(fn: () => DeathZoneDef[]): void {
     this.wallZoneProvider = fn
-  }
-
-  /** Dynamic lethal zones (e.g. a pit opened mid-fight) consulted by isLethal / safeAlong */
-  setLethalZoneProvider(fn: () => DeathZoneDef[]): void {
-    this.lethalZoneProvider = fn
-  }
-
-  /** Standing here kills: outside a lethal boundary, or inside a static/dynamic lethal zone. */
-  isLethal(point: Vec2): boolean {
-    if (this.isInDeathZone(point)) return true
-    return this.lethalZoneProvider().some(z => isPointInAoeShape(point, z.center, z.shape, z.facing))
-  }
-
-  /**
-   * Destination for a self-initiated move (gap closers, backsteps): if `to` is lethal, back off
-   * along the path toward `from` to the first safe spot, keeping `margin` from the edge.
-   * Enemy knockbacks/pulls must NOT use this — falling to those is the mechanic.
-   */
-  safeAlong(from: Vec2, to: Vec2, margin = 0.5): Vec2 {
-    if (!this.isLethal(to)) return to
-    const dx = from.x - to.x, dy = from.y - to.y
-    const len = Math.hypot(dx, dy)
-    if (len < 1e-6) return from
-    const ux = dx / len, uy = dy / len
-    for (let d = 0.25; d <= len; d += 0.25) {
-      const p = { x: to.x + ux * d, y: to.y + uy * d }
-      if (!this.isLethal(p)) {
-        const withMargin = { x: p.x + ux * Math.min(margin, len - d), y: p.y + uy * Math.min(margin, len - d) }
-        return this.isLethal(withMargin) ? p : withMargin
-      }
-    }
-    return from
   }
 
   isInBounds(point: Vec2): boolean {

@@ -602,7 +602,8 @@ phases:
       - { at: 128400, mechanic: move_along, params: { entity: boss, path: [{ x: 0, y: 0 }], duration: 1600, faceTravel: false } }
       - { at: 128400, action: lock_facing, facing: 180 }
       - { at: 130000, use: scarlet_fever }
-      - { at: 137000, mechanic: arena_ring, params: { inner: 5.5 } }
+      # 洞比朱雀判定圈（4.5）略小：突进落在圈内 0.1m 处正好踩在洞边地面上
+      - { at: 137000, mechanic: arena_ring, params: { inner: 4 } }
       - at: 137000
         action: run_script
         script: |

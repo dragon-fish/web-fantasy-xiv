@@ -152,20 +152,19 @@ export class CombatResolver {
           if (!caster) break
           const llCenter = caster.customData.leyLinesCenter as { x: number; y: number } | undefined
           if (!llCenter) break
-          this.applyDisplacement(caster, llCenter, 500, EASING.easeOut, true)
+          this.applyDisplacement(caster, llCenter, 500, EASING.easeOut)
           break
         }
 
         case 'dash':
           if (!caster || !target) break
-          // FFXIV gap closers land just inside the target ring (hitbox edge - 0.1m); a lethal landing
-          // spot (boss hovering over a pit) is pulled back to safe ground by the self-move check
+          // FFXIV gap closers land just inside the target ring (hitbox edge - 0.1m)
           this.applyDisplacement(caster, calcDash(
             { x: caster.position.x, y: caster.position.y },
             { x: target.position.x, y: target.position.y },
             // calcDash already stops 0.1m short of the given distance
             Math.max(0, (target.size ?? 0) + (effect.stopDistance ?? 0)),
-          ), undefined, undefined, true)
+          ))
           break
 
         case 'dash_forward': {
@@ -174,7 +173,7 @@ export class CombatResolver {
           this.applyDisplacement(caster, {
             x: caster.position.x + Math.sin(rad) * effect.distance,
             y: caster.position.y + Math.cos(rad) * effect.distance,
-          }, undefined, undefined, true)
+          })
           break
         }
 
@@ -184,7 +183,7 @@ export class CombatResolver {
             { x: caster.position.x, y: caster.position.y },
             { x: target.position.x, y: target.position.y },
             effect.distance,
-          ), undefined, undefined, true)
+          ))
           break
 
         case 'knockback': {
@@ -314,10 +313,8 @@ export class CombatResolver {
     }
   }
 
-  /** `self`: the entity moves itself (gap closer etc.) and must never land somewhere lethal */
-  private applyDisplacement(entity: Entity, newPos: { x: number; y: number }, duration?: number, easing?: EasingFn, self = false): void {
-    const target = self ? this.arena.safeAlong({ x: entity.position.x, y: entity.position.y }, newPos) : newPos
-    const clamped = this.arena.clampToWallZones(this.arena.clampPosition(target))
+  private applyDisplacement(entity: Entity, newPos: { x: number; y: number }, duration?: number, easing?: EasingFn): void {
+    const clamped = this.arena.clampToWallZones(this.arena.clampPosition(newPos))
 
     // Forced movement interrupts casting + cancels zones
     if (entity.casting) {
