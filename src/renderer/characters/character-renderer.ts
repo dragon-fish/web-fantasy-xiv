@@ -3,7 +3,7 @@
 // (feet hit point, facing arrow, auto-attack range ring, aggro fan).
 // Reads entity state + bus events only; never mutates game state.
 import {
-  MeshBuilder, StandardMaterial, Color3, TransformNode,
+  MeshBuilder, StandardMaterial, Color3, TransformNode, Vector3,
   type Mesh, type AnimationGroup, type Scene,
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
@@ -22,6 +22,8 @@ const FLASH_MS = 120
 const SQUASH_MS = 160
 const CORPSE_FADE_DELAY = 1400
 const CORPSE_FADE_MS = 700
+/** Fraction of an airborne buff spent flipping through the air; the rest is the landing rebound */
+const AIR_FLIGHT = 0.78
 
 /** Shortest signed angular distance from `from` to `to` in degrees. */
 function angleDelta(from: number, to: number): number {
@@ -411,12 +413,27 @@ export class CharacterRenderer implements EntityVisuals {
     // Squash on hit (only the body, indicators stay put)
     const sq = v.squashUntil > this.now ? (v.squashUntil - this.now) / SQUASH_MS : 0
     v.body.scaling.set(1 + sq * 0.08, 1 - sq * 0.12, 1 + sq * 0.08)
-    // Launched: a fast rise, a hang and a drop back to the floor, tumbling slightly
+    // Launched: one full forward flip around the body's middle while airborne, then a squash on
+    // touchdown and a small rebound hop.
     if (v.airUntil > this.now) {
       const k = (this.now - v.airFrom) / (v.airUntil - v.airFrom)
-      v.body.position.y = 3.2 * Math.sin(Math.PI * Math.min(1, k * 1.15))
-      v.body.rotation.x = Math.sin(k * Math.PI * 2) * 0.35
-    } else if (v.body.position.y !== 0) {
+      if (k < AIR_FLIGHT) {
+        const f = k / AIR_FLIGHT
+        v.body.setPivotPoint(new Vector3(0, v.spec.height * v.scale * 0.5, 0))
+        v.body.position.y = 3.2 * Math.sin(Math.PI * f)
+        const ease = f * f * (3 - 2 * f)
+        v.body.rotation.x = Math.PI * 2 * ease
+      } else {
+        const b = (k - AIR_FLIGHT) / (1 - AIR_FLIGHT)
+        v.body.setPivotPoint(Vector3.Zero())
+        v.body.rotation.x = 0
+        v.body.position.y = 0.5 * Math.sin(Math.PI * b)
+        // Squash right at touchdown, easing out as the rebound rises
+        const squash = Math.max(0, 1 - b * 3)
+        v.body.scaling.set(1 + squash * 0.18, 1 - squash * 0.3, 1 + squash * 0.18)
+      }
+    } else if (v.body.position.y !== 0 || v.body.rotation.x !== 0) {
+      v.body.setPivotPoint(Vector3.Zero())
       v.body.position.y = 0
       v.body.rotation.x = 0
     }
