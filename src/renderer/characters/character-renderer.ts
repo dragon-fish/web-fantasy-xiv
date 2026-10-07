@@ -15,6 +15,7 @@ import { buildModel, type ModelKind } from './procedural-models'
 import { resolveModel, modelScaleFor, MODELS, type ModelSpec, type AnimRole } from './model-catalog'
 import { ModelLibrary, type ModelInstance } from './model-library'
 import { selectAnimation, resolveClip, type OneShot } from './animation-state'
+import { TargetRing } from './target-ring'
 
 const ROTATION_SPEED = 720 // degrees per second
 const CROSSFADE_MS = 140
@@ -71,10 +72,12 @@ export class CharacterRenderer implements EntityVisuals {
   private placeholders = new Map<ModelKind, Mesh>()
   private scene: Scene
   private now = 0
+  private targetRing: TargetRing
 
   constructor(private sm: SceneManager, bus: EventBus) {
     this.scene = sm.scene
     this.library = ModelLibrary.for(this.scene)
+    this.targetRing = new TargetRing(this.scene)
 
     bus.on('entity:created', ({ entity }: { entity: Entity }) => this.create(entity))
     bus.on('entity:died', ({ entity }: { entity: Entity }) => {
@@ -339,7 +342,7 @@ export class CharacterRenderer implements EntityVisuals {
       const v = this.views.get(entity.id)
       if (!v) continue
       seen.add(entity.id)
-      this.updateView(v, dt, lockedTargetId)
+      this.updateView(v, dt)
     }
     // Dead entities drop out of getAlive(): keep animating their corpses
     for (const v of this.views.values()) {
@@ -347,9 +350,13 @@ export class CharacterRenderer implements EntityVisuals {
       if (v.deadAt === null && !v.entity.alive) v.deadAt = this.now
       if (v.deadAt !== null) this.updateCorpse(v, dt)
     }
+
+    const locked = lockedTargetId ? this.views.get(lockedTargetId) : undefined
+    const showLock = !!locked && locked.deadAt === null && locked.entity.visible && !locked.entity.dormant
+    this.targetRing.follow(showLock ? locked!.root : null, locked?.entity.size ?? 0, dt)
   }
 
-  private updateView(v: CharacterView, dt: number, lockedTargetId?: string | null): void {
+  private updateView(v: CharacterView, dt: number): void {
     const entity = v.entity
     v.root.setEnabled(entity.visible)
     if (!entity.visible) {
@@ -389,14 +396,6 @@ export class CharacterRenderer implements EntityVisuals {
     v.facingArrow.isVisible = !dormant
     if (v.aggroFan) v.aggroFan.isVisible = !entity.inCombat && !dormant
     if (v.rangeRing) v.rangeRing.isVisible = !dormant
-    if (v.rangeRing && !dormant) {
-      const isLocked = entity.id === lockedTargetId
-      const mat = v.rangeRing.material as StandardMaterial
-      v.rangeRing.scaling.y = isLocked ? 0.6 : 0.2
-      mat.alpha = isLocked ? 0.85 : 0.35
-      if (isLocked) mat.emissiveColor.set(1, 0.45, 0.2)
-      else mat.emissiveColor = this.indicatorColor(entity.type).scale(0.7)
-    }
 
     this.animate(v, dt)
     this.applyFeedback(v)
