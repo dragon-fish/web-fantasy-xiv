@@ -74,6 +74,8 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     duration: 0,
     stackable: false,
     maxStacks: 1,
+    // Falling off the arena still kills (fall damage ignores immunity); practice must survive the revive
+    preserveOnDeath: true,
     effects: [{ type: 'damage_immunity' }],
   },
   lucid_dreaming: {

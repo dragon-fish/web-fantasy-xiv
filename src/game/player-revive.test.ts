@@ -52,3 +52,13 @@ describe('player revive ladder', () => {
     expect(revive.isPending()).toBe(false)
   })
 })
+
+describe('revive keeps death-preserved buffs', () => {
+  it('practice immunity survives a fall death and the revive', async () => {
+    const { COMMON_BUFFS } = await import('@/jobs/commons/buffs')
+    const { buffs, player, die, flush } = setup()
+    buffs.applyBuff(player, COMMON_BUFFS.practice_immunity, player.id)
+    die(); flush()
+    expect(player.buffs.some(b => b.defId === 'practice_immunity')).toBe(true)
+  })
+})
