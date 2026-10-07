@@ -12,7 +12,7 @@ export const GCD_DURATION = 2500 // ms
  * Skill range is measured to the edge of the target's hitbox (FFXIV rules), so melee can
  * reach large bosses — e.g. one hovering over a pit — from the hitbox edge.
  */
-function rangeTo(from: Entity, target: Entity): number {
+export function rangeTo(from: Entity, target: Entity): number {
   return Math.max(0, distance(from.position, target.position) - (target.size ?? 0))
 }
 

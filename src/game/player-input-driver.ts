@@ -1,7 +1,7 @@
 import type { Entity } from '@/entity/entity'
 import type { SkillDef } from '@/core/types'
 import type { InputManager } from '@/input/input-manager'
-import type { SkillResolver } from '@/skill/skill-resolver'
+import { rangeTo, type SkillResolver } from '@/skill/skill-resolver'
 import type { BuffSystem } from '@/combat/buff'
 import type { EntityManager } from '@/entity/entity-manager'
 import type { EventBus } from '@/core/event-bus'
@@ -74,6 +74,7 @@ export class PlayerInputDriver {
     if (!p.alive) {
       this.input.consumeSkillPress()
       this.input.consumeEsc()
+      this.input.consumeClick()
       this.queuedSkill = null
       this.skillResolver.updateAll(dt)
       this.tickRegen(p, dt)
@@ -96,6 +97,7 @@ export class PlayerInputDriver {
     // During displacement animation: block all input, only tick regen/buffs/cooldowns
     if (this.displacer?.isAnimating(p.id)) {
       this.input.consumeSkillPress() // discard pending skill press
+      this.input.consumeClick()
       this.skillResolver.updateAll(dt)
       this.tickRegen(p, dt)
       return null
@@ -140,15 +142,19 @@ export class PlayerInputDriver {
       // else: keep last facing when stationary
     }
 
-    // Right click: lock nearest enemy
-    if (this.input.mouse.rightDown) {
-      const nearest = this.entityMgr.findNearest(
-        p.id,
-        (e) => e.type !== 'player' && e.type !== 'object' && e.alive && e.targetable,
-      )
-      if (nearest && p.target !== nearest.id) {
-        p.target = nearest.id
-        this.bus.emit('target:locked', { entity: p, target: nearest })
+    // Click (either button, FFXIV-style): lock the enemy closest to the cursor
+    if (this.input.consumeClick()) {
+      const cursor = this.input.mouse.worldPos
+      let best: Entity | null = null
+      let bestDist = Infinity
+      for (const e of this.entityMgr.getAlive()) {
+        if (!this.isEnemyTarget(e)) continue
+        const d = Math.hypot(e.position.x - cursor.x, e.position.y - cursor.y) - (e.size ?? 0)
+        if (d < bestDist) { bestDist = d; best = e }
+      }
+      if (best && p.target !== best.id) {
+        p.target = best.id
+        this.bus.emit('target:locked', { entity: p, target: best })
       }
     }
 
@@ -160,7 +166,7 @@ export class PlayerInputDriver {
         : this.config.extraSkills?.get(skillIdx) ?? null
 
       if (skill) {
-        if (skill.requiresTarget && !p.target) this.autoLockNearest()
+        if (skill.requiresTarget) this.ensureTargetFor(skill)
         this.tryUseOrQueue(skill)
       }
     }
@@ -207,7 +213,7 @@ export class PlayerInputDriver {
       : this.config.extraSkills?.get(skillIdx) ?? null
 
     if (skill) {
-      if (skill.requiresTarget && !p.target) this.autoLockNearest()
+      if (skill.requiresTarget) this.ensureTargetFor(skill)
       this.tryUseOrQueue(skill)
     }
   }
@@ -314,14 +320,26 @@ export class PlayerInputDriver {
     }
   }
 
-  private autoLockNearest(): void {
-    const nearest = this.entityMgr.findNearest(
-      this.entity.id,
-      (e) => e.type !== 'player' && e.type !== 'object' && e.alive && e.targetable,
-    )
-    if (nearest) {
-      this.entity.target = nearest.id
-      this.bus.emit('target:locked', { entity: this.entity, target: nearest })
+  /**
+   * Skills keep the locked target only while it can be hit; otherwise they switch to the
+   * nearest enemy within the skill's range. With nothing in range an existing lock is kept
+   * (so the out-of-range feedback still shows), and an empty lock falls back to the nearest enemy.
+   */
+  private ensureTargetFor(skill: SkillDef): void {
+    const p = this.entity
+    const inRange = (e: Entity) => skill.range <= 0 || rangeTo(p, e) <= skill.range
+    const current = p.target ? this.entityMgr.get(p.target) : undefined
+    if (current && this.isEnemyTarget(current) && inRange(current)) return
+
+    const next = this.entityMgr.findNearest(p.id, (e) => this.isEnemyTarget(e) && inRange(e))
+      ?? (current && this.isEnemyTarget(current) ? null : this.entityMgr.findNearest(p.id, (e) => this.isEnemyTarget(e)))
+    if (next && next.id !== p.target) {
+      p.target = next.id
+      this.bus.emit('target:locked', { entity: p, target: next })
     }
+  }
+
+  private isEnemyTarget(e: Entity): boolean {
+    return e.type !== 'player' && e.type !== 'object' && e.alive && e.targetable
   }
 }

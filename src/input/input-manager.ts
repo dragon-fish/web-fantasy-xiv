@@ -41,6 +41,7 @@ export class InputManager {
   private listeners = new AbortController()
   private pendingSkill: number | null = null
   private escPressed = false
+  private clicked = false
   /**
    * Monotonic count of action-key (Space) presses. Mechanics snapshot it when they start and
    * only react to newer presses — a latched flag would let a stray earlier press count.
@@ -60,6 +61,13 @@ export class InputManager {
     const skill = this.pendingSkill
     this.pendingSkill = null
     return skill
+  }
+
+  /** Returns and clears a pending click on the canvas (either button) */
+  consumeClick(): boolean {
+    const clicked = this.clicked
+    this.clicked = false
+    return clicked
   }
 
   /** Returns and clears ESC press */
@@ -107,6 +115,7 @@ export class InputManager {
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) this.mouse.leftDown = true
       if (e.button === 2) this.mouse.rightDown = true
+      if (e.button === 0 || e.button === 2) this.clicked = true
     }, options)
 
     this.canvas.addEventListener('mouseup', (e) => {
@@ -128,6 +137,7 @@ export class InputManager {
     this.mouse.leftDown = this.mouse.rightDown = false
     this.pendingSkill = null
     this.escPressed = false
+    this.clicked = false
   }
 
   dispose(): void {
