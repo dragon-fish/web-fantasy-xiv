@@ -8,6 +8,14 @@ import type { Entity } from '@/entity/entity'
 
 export const GCD_DURATION = 2500 // ms
 
+/**
+ * Skill range is measured to the edge of the target's hitbox (FFXIV rules), so melee can
+ * reach large bosses — e.g. one hovering over a pit — from the hitbox edge.
+ */
+function rangeTo(from: Entity, target: Entity): number {
+  return Math.max(0, distance(from.position, target.position) - (target.size ?? 0))
+}
+
 function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
   const dx = a.x - b.x
   const dy = a.y - b.y
@@ -98,7 +106,7 @@ export class SkillResolver {
     if (skill.requiresTarget) {
       const target = caster.target ? this.entityMgr.get(caster.target) : null
       if (!target || !target.alive) return false
-      if (skill.range > 0 && distance(caster.position, target.position) > skill.range) return false
+      if (skill.range > 0 && rangeTo(caster, target) > skill.range) return false
     }
 
     // Resolve actual cast time (may be overridden by buff, then reduced by haste)
@@ -299,7 +307,7 @@ export class SkillResolver {
         this.bus.emit('skill:cast_interrupted', { caster: entity, skillId, reason: 'target_lost' })
         return
       }
-      if (distance(entity.position, target.position) > skill.range) {
+      if (rangeTo(entity, target) > skill.range) {
         this.zoneMgr.cancelZones(entity.id, skillId)
         this.bus.emit('skill:cast_interrupted', { caster: entity, skillId, reason: 'out_of_range' })
         return

@@ -269,3 +269,19 @@ describe('SkillResolver', () => {
     })
   })
 })
+
+describe('hitbox-aware range', () => {
+  it('measures range to the edge of the target hitbox', () => {
+    const bus = new EventBus()
+    const entityMgr = new EntityManager(bus)
+    const resolver = new SkillResolver(bus, entityMgr, new BuffSystem(bus), new AoeZoneManager(bus, entityMgr))
+    const player = entityMgr.create({ id: 'p', type: 'player', hp: 100, position: { x: 0, y: 0, z: 0 } })
+    const boss = entityMgr.create({ id: 'b', type: 'boss', hp: 100, size: 2, position: { x: 0, y: 6.5, z: 0 } })
+    player.target = boss.id
+    // 6.5 apart, hitbox 2 → 4.5 to the edge: inside range 5
+    expect(resolver.tryUse(player, weaponskill)).toBe(true)
+    boss.position.y = 7.5
+    player.gcdTimer = 0
+    expect(resolver.tryUse(player, { ...weaponskill, gcd: false })).toBe(false)
+  })
+})
