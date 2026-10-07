@@ -29,7 +29,7 @@ entities:
     type: boss
     model: dragon
     group: boss
-    # DPS 检测：理论满输出约 20 万（~1200 DPS × 约 60% 可攻击时间）；按机制处理干净、跳舞机叠层可达设定
+    # DPS 检测：试玩几乎全程不停手约打出 23 万；16 万（约 70%）给吃机制、死亡与跳舞机叠层不满留余量
     hp: 160000
     attack: 1
     speed: 5
