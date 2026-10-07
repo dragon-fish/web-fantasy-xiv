@@ -30,7 +30,7 @@
 
 ## 角色（`renderer/characters/`）
 
-- `model-catalog.ts`：模型、身高、权重名称、挂载武器、染色（multiply / replace）、动画角色→片段名映射；`resolveModel` 按 `entity.model` → type/size 选择；非玩家按命中半径缩放；全体视觉放大 1.3 倍（判定不变）。
+- `model-catalog.ts`：模型、身高、保留的武器节点、外挂武器、染色（multiply / replace）、动画角色→片段名映射；`resolveModel` 按 `entity.model` → type/size 选择；非玩家按命中半径缩放；全体视觉放大 1.3 倍（判定不变）。
 - `animation-state.ts`：死亡 > 攻击/释放 > 读条 > 受击 > 移动 > 待机；受击不打断读条与攻击，移动可取消受击。
 - `model-library.ts`：每场景单例，AssetContainer 缓存；角色实例克隆骨骼/动画/材质，PBR 转 StandardMaterial 并加 Fresnel 轮廓光；道具实例支持重着色。
 - `character-renderer.ts`：平滑转向、动画交叉淡入、受击闪白与挤压、死亡动画后淡出（玩家保留灰色尸体，复活恢复）。
