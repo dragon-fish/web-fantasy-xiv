@@ -38,6 +38,8 @@ export interface GameSceneConfig {
   /** Called to restart this scene (for retry) */
   restart: () => void
   createEntityRenderer?: (scene: Scene, bus: EventBus) => EntityVisuals
+  /** Themed floor, surroundings and props. Default true; modes that dress the scene themselves turn it off. */
+  arenaDecor?: boolean
 }
 
 /**
@@ -116,7 +118,7 @@ export class GameScene {
 
     // Rendering
     this.sceneManager = new SceneManager(config.engine)
-    new ArenaRenderer(this.sceneManager.scene, config.arena, this.bus)
+    new ArenaRenderer(this.sceneManager, config.arena, this.bus, { decor: config.arenaDecor ?? true })
     this.entityRenderer = config.createEntityRenderer?.(this.sceneManager.scene, this.bus)
       ?? new EntityRenderer(this.sceneManager.scene, this.bus)
     this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)

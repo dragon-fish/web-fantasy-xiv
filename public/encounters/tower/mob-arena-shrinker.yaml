@@ -6,6 +6,7 @@ arena:
   shape: circle
   radius: 15
   boundary: lethal
+  theme: void
 
 entities:
   boss:

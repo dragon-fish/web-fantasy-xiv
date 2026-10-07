@@ -8,6 +8,7 @@ arena:
   width: 21    # 船身长轴（左右）
   height: 9    # 船身短轴（上下=port/starboard）
   boundary: lethal
+  theme: water
 
 entities:
   boss:

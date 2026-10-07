@@ -17,3 +17,16 @@ it('renders donut telegraphs flat and at their actual damage center', () => {
   expect(bounds.maximumWorld.y - bounds.minimumWorld.y).toBeLessThan(0.2)
   scene.dispose(); engine.dispose()
 })
+
+it('extends rect telegraphs forward from the zone origin along facing', () => {
+  const engine = new NullEngine(), scene = new Scene(engine), bus = new EventBus()
+  const entities = new EntityManager(bus), zones = new AoeZoneManager(bus, entities)
+  new AoeRenderer(scene, bus, entities)
+  const zone = zones.spawn({ anchor: { type: 'position', x: 0, y: 0 }, direction: { type: 'fixed', angle: 90 }, shape: { type: 'rect', width: 4, length: 10 }, resolveDelay: 2000, hitEffectDuration: 100, effects: [] }, 'line', { x: 0, y: 0 }, 90, null)
+  const mesh = scene.getMeshByName(`aoe-${zone.id}`)!
+  mesh.computeWorldMatrix(true)
+  const bounds = mesh.getBoundingInfo().boundingBox
+  expect(bounds.minimumWorld.x).toBeCloseTo(0, 3)
+  expect(bounds.maximumWorld.x).toBeCloseTo(10, 3)
+  scene.dispose(); engine.dispose()
+})

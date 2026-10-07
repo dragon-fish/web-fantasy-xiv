@@ -9,6 +9,7 @@ arena:
   shape: circle
   radius: 17
   boundary: wall
+  theme: wind
 
 entities:
   boss:

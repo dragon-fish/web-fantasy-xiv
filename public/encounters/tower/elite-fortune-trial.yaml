@@ -9,6 +9,7 @@ arena:
   shape: circle
   radius: 16
   boundary: wall
+  theme: default
 
 entities:
   boss:

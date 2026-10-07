@@ -1,9 +1,27 @@
-import { Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight, Vector3, Matrix, Quaternion, Plane } from '@babylonjs/core'
+import {
+  Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight, Vector3, Matrix, Plane,
+  ShadowGenerator, GlowLayer, DefaultRenderingPipeline, ImageProcessingConfiguration, Color3,
+  type AbstractMesh,
+} from '@babylonjs/core'
+
+export interface SceneAtmosphere {
+  clearColor: Color3
+  skyColor: Color3
+  groundColor: Color3
+  sunColor: Color3
+  ambientIntensity: number
+  sunIntensity: number
+}
 
 export class SceneManager {
   readonly engine: Engine
   readonly scene: Scene
   readonly camera: ArcRotateCamera
+  readonly ambient: HemisphericLight
+  readonly sun: DirectionalLight
+  readonly shadows: ShadowGenerator
+  readonly pipeline: DefaultRenderingPipeline
+  private glowLayer: GlowLayer | null = null
 
   // Camera roll animation state (applied as CSS transform on canvas)
   private rollAngle = 0          // current roll in degrees
@@ -31,14 +49,87 @@ export class SceneManager {
     this.camera.attachControl(canvas, false)
     this.camera.inputs.clear()
 
-    const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene)
-    ambient.intensity = 0.5
+    this.ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene)
+    this.ambient.intensity = 0.5
 
-    const sun = new DirectionalLight('sun', new Vector3(-1, -2, -1).normalize(), this.scene)
-    sun.intensity = 0.6
+    this.sun = new DirectionalLight('sun', new Vector3(-0.8, -2, 0.9).normalize(), this.scene)
+    this.sun.position = new Vector3(16, 40, -18)
+    this.sun.intensity = 0.6
+    this.sun.shadowMinZ = 1
+    this.sun.shadowMaxZ = 120
+
+    this.shadows = new ShadowGenerator(2048, this.sun)
+    this.shadows.usePercentageCloserFiltering = true
+    this.shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM
+    this.shadows.bias = 0.002
+    this.shadows.normalBias = 0.02
+    this.shadows.darkness = 0.35
+
+    this.pipeline = new DefaultRenderingPipeline('main', true, this.scene, [this.camera])
+    this.pipeline.samples = 4
+    this.pipeline.fxaaEnabled = true
+    this.pipeline.bloomEnabled = true
+    this.pipeline.bloomThreshold = 0.82
+    this.pipeline.bloomWeight = 0.35
+    this.pipeline.bloomKernel = 48
+    this.pipeline.bloomScale = 0.5
+    this.pipeline.imageProcessingEnabled = true
+    const ip = this.pipeline.imageProcessing
+    ip.toneMappingEnabled = true
+    ip.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES
+    ip.exposure = 1.25
+    ip.contrast = 1.12
+    ip.vignetteEnabled = true
+    ip.vignetteWeight = 1.6
+    ip.vignetteStretch = 0.4
+    ip.vignetteColor.set(0, 0, 0, 0)
+    this.setAtmosphere({
+      clearColor: new Color3(0.07, 0.07, 0.09),
+      skyColor: new Color3(0.85, 0.88, 1),
+      groundColor: new Color3(0.25, 0.22, 0.28),
+      sunColor: new Color3(1, 0.95, 0.86),
+      ambientIntensity: 0.55,
+      sunIntensity: 1.1,
+    })
 
     this.canvas = canvas
     this.setupRollModifier()
+  }
+
+  setAtmosphere(a: SceneAtmosphere): void {
+    this.scene.clearColor.set(a.clearColor.r, a.clearColor.g, a.clearColor.b, 1)
+    this.ambient.diffuse = a.skyColor
+    this.ambient.groundColor = a.groundColor
+    this.ambient.specular = Color3.Black()
+    this.ambient.intensity = a.ambientIntensity
+    this.sun.diffuse = a.sunColor
+    this.sun.intensity = a.sunIntensity
+  }
+
+  /** Register a mesh (and its descendants) as a shadow caster. */
+  addShadowCaster(mesh: AbstractMesh): void {
+    this.shadows.addShadowCaster(mesh, true)
+  }
+
+  removeShadowCaster(mesh: AbstractMesh): void {
+    this.shadows.removeShadowCaster(mesh, true)
+  }
+
+  /**
+   * Opt a mesh into the glow layer. The layer is include-only: meshes never
+   * registered here do not glow, so emissive-heavy scenes (survivors) are not
+   * washed out by accident.
+   */
+  addGlow(mesh: AbstractMesh): void {
+    if (!this.glowLayer) {
+      this.glowLayer = new GlowLayer('glow', this.scene, { mainTextureSamples: 4, blurKernelSize: 48 })
+      this.glowLayer.intensity = 0.9
+    }
+    this.glowLayer.addIncludedOnlyMesh(mesh as any)
+  }
+
+  removeGlow(mesh: AbstractMesh): void {
+    this.glowLayer?.removeIncludedOnlyMesh(mesh as any)
   }
 
   /** Set camera target directly (used by CameraController) */

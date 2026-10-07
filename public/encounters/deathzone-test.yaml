@@ -11,6 +11,7 @@ arena:
   width: 10
   height: 40
   boundary: lethal
+  theme: void
   deathZones:
     # 地图 x: -5~5, y: -20~20
     # 玩家从 y=-18 出发，boss 在 y=18

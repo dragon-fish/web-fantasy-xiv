@@ -71,6 +71,7 @@ function boot() {
     arena: { name: '以太荒原', shape: { type: 'rect', width: 120, height: 120 }, boundary: 'wall' },
     playerInputConfig: { skills: [], autoAttackInterval: 1000, noMpRegen: true }, restart: boot,
     createEntityRenderer: (s, bus) => { visuals = new SurvivorVisuals(s, bus); return visuals },
+    arenaDecor: false,
   })
   scene.createPlayer({ id: 'survivor-player', type: 'player', hp: 600, attack: 32, speed: 6, size: 0.45 })
   scene.sceneManager.camera.radius = 46

@@ -11,6 +11,7 @@ arena:
   shape: circle
   radius: 15
   boundary: wall
+  theme: default
 
 entities:
   boss:

@@ -1,66 +1,34 @@
 // src/renderer/aoe-renderer.ts
 import {
-  MeshBuilder, StandardMaterial, Color3, Color4,
-  type Scene, type Mesh,
+  MeshBuilder, StandardMaterial, Color3,
+  type Scene, type Mesh, type ShaderMaterial,
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { EntityManager } from '@/entity/entity-manager'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
+import { createTelegraphMaterial, telegraphGeometry } from './aoe-shader'
 
 interface AoeMesh {
   mesh: Mesh
+  material: ShaderMaterial
   zone: ActiveAoeZone
   phase: 'telegraph' | 'resolve'
+  resolvedAt: number
   waveRing?: Mesh
   isPlayerZone: boolean
 }
 
+const ENEMY_FILL = new Color3(1.0, 0.42, 0.06)
+const ENEMY_RIM = new Color3(1.0, 0.8, 0.4)
+const PLAYER_FILL = new Color3(0.2, 0.5, 1.0)
+const PLAYER_RIM = new Color3(0.65, 0.88, 1.0)
+const MIN_FLASH_MS = 260
+
 export class AoeRenderer {
   private meshes = new Map<string, AoeMesh>()
-
-  // Enemy (orange)
-  private enemyTelegraphMat: StandardMaterial
-  private enemyKbMat: StandardMaterial
-  private enemyResolveMat: StandardMaterial
-  private enemyEdgeColor: Color4
-
-  // Player (blue)
-  private playerTelegraphMat: StandardMaterial
-  private playerResolveMat: StandardMaterial
-  private playerEdgeColor: Color4
+  private now = 0
 
   constructor(private scene: Scene, bus: EventBus, private entityMgr: EntityManager) {
-    // Enemy telegraph: orange
-    this.enemyTelegraphMat = new StandardMaterial('aoe-enemy-tel', scene)
-    this.enemyTelegraphMat.diffuseColor = new Color3(0.95, 0.45, 0.0)
-    this.enemyTelegraphMat.emissiveColor = new Color3(0.5, 0.2, 0.0)
-    this.enemyTelegraphMat.alpha = 0.3
-
-    this.enemyKbMat = new StandardMaterial('aoe-enemy-kb', scene)
-    this.enemyKbMat.diffuseColor = new Color3(0.95, 0.5, 0.05)
-    this.enemyKbMat.emissiveColor = new Color3(0.4, 0.15, 0.0)
-    this.enemyKbMat.alpha = 0.15
-
-    this.enemyResolveMat = new StandardMaterial('aoe-enemy-resolve', scene)
-    this.enemyResolveMat.diffuseColor = new Color3(1.0, 0.0, 0.0)
-    this.enemyResolveMat.emissiveColor = new Color3(0.8, 0.0, 0.0)
-    this.enemyResolveMat.alpha = 0.5
-
-    this.enemyEdgeColor = new Color4(0.95, 0.4, 0.0, 0.7)
-
-    // Player telegraph: blue
-    this.playerTelegraphMat = new StandardMaterial('aoe-player-tel', scene)
-    this.playerTelegraphMat.diffuseColor = new Color3(0.2, 0.5, 0.95)
-    this.playerTelegraphMat.emissiveColor = new Color3(0.1, 0.25, 0.5)
-    this.playerTelegraphMat.alpha = 0.3
-
-    this.playerResolveMat = new StandardMaterial('aoe-player-resolve', scene)
-    this.playerResolveMat.diffuseColor = new Color3(0.3, 0.5, 1.0)
-    this.playerResolveMat.emissiveColor = new Color3(0.2, 0.3, 0.8)
-    this.playerResolveMat.alpha = 0.5
-
-    this.playerEdgeColor = new Color4(0.3, 0.5, 1.0, 0.7)
-
     bus.on('aoe:zone_created', (payload: { zone: ActiveAoeZone }) => {
       this.createMesh(payload.zone)
     })
@@ -69,9 +37,10 @@ export class AoeRenderer {
       const entry = this.meshes.get(payload.zone.id)
       if (entry) {
         entry.phase = 'resolve'
-        entry.mesh.material = entry.isPlayerZone ? this.playerResolveMat : this.enemyResolveMat
-        entry.mesh.disableEdgesRendering()
+        entry.resolvedAt = this.now
+        entry.material.setFloat('progress', 1)
         if (entry.waveRing) {
+          entry.waveRing.material?.dispose()
           entry.waveRing.dispose()
           entry.waveRing = undefined
         }
@@ -84,10 +53,23 @@ export class AoeRenderer {
   }
 
   update(time: number): void {
-    const pulse = 0.2 + Math.sin(time * 0.005) * 0.1
-    this.enemyTelegraphMat.alpha = pulse
-    this.enemyKbMat.alpha = pulse * 0.5
-    this.playerTelegraphMat.alpha = pulse
+    this.now = time
+    const pulse = 0.92 + Math.sin(time * 0.005) * 0.08
+
+    for (const entry of this.meshes.values()) {
+      const { zone, material } = entry
+      material.setFloat('time', time / 1000)
+      if (entry.phase === 'telegraph') {
+        const span = Math.max(1, zone.def.resolveDelay - zone.telegraphAt)
+        material.setFloat('progress', Math.min(1, Math.max(0, (zone.elapsed - zone.telegraphAt) / span)))
+        material.setFloat('opacity', (zone.def.displacementHint && !entry.isPlayerZone ? 0.6 : 1) * pulse)
+      } else {
+        const duration = Math.max(MIN_FLASH_MS, zone.def.hitEffectDuration)
+        const t = Math.min(1, (time - entry.resolvedAt) / duration)
+        material.setFloat('flash', 1 - t)
+        material.setFloat('opacity', 1 - t * t)
+      }
+    }
 
     // Animate displacement waves
     for (const entry of this.meshes.values()) {
@@ -105,20 +87,20 @@ export class AoeRenderer {
         // knockback: bar moves outward (along facing), pull: bar moves inward
         const t = hint === 'knockback' ? cycle : 1 - cycle
         const offset = -halfLen + t * shape.length
-        const cx = entry.zone.center.x + Math.sin(facingRad) * offset
-        const cz = entry.zone.center.y + Math.cos(facingRad) * offset
+        const cx = entry.zone.center.x + Math.sin(facingRad) * (halfLen + offset)
+        const cz = entry.zone.center.y + Math.cos(facingRad) * (halfLen + offset)
         entry.waveRing.position.set(cx, 0.04, cz)
-        ;(entry.waveRing.material as StandardMaterial).alpha = (hint === 'knockback' ? 1 - cycle : cycle) * 0.35
+        ;(entry.waveRing.material as StandardMaterial).alpha = (hint === 'knockback' ? 1 - cycle : cycle) * 0.45
       } else {
         // Circular wave: scale ring in/out
         if (hint === 'knockback') {
           const scale = 0.2 + cycle * 0.8
           entry.waveRing.scaling.set(scale, 1, scale)
-          ;(entry.waveRing.material as StandardMaterial).alpha = (1 - cycle) * 0.3
+          ;(entry.waveRing.material as StandardMaterial).alpha = (1 - cycle) * 0.45
         } else {
           const scale = 1.0 - cycle * 0.8
           entry.waveRing.scaling.set(scale, 1, scale)
-          ;(entry.waveRing.material as StandardMaterial).alpha = cycle * 0.3
+          ;(entry.waveRing.material as StandardMaterial).alpha = cycle * 0.45
         }
       }
     }
@@ -131,81 +113,26 @@ export class AoeRenderer {
   }
 
   private createMesh(zone: ActiveAoeZone): void {
-    const { shape } = zone.def
     const isPlayer = this.isPlayerCaster(zone)
-    const hasDisplacement = !!zone.def.displacementHint
-    let mesh: Mesh
+    const geo = telegraphGeometry(zone.def.shape)
+    if (!geo) return
 
-    const telegraphMat = isPlayer
-      ? this.playerTelegraphMat
-      : (hasDisplacement ? this.enemyKbMat : this.enemyTelegraphMat)
-    const edgeColor = isPlayer ? this.playerEdgeColor : this.enemyEdgeColor
+    const mesh = MeshBuilder.CreateGround(`aoe-${zone.id}`, { width: geo.quadWidth, height: geo.quadLength }, this.scene)
+    const material = createTelegraphMaterial(this.scene, `aoe-mat-${zone.id}`, geo,
+      isPlayer ? PLAYER_FILL : ENEMY_FILL, isPlayer ? PLAYER_RIM : ENEMY_RIM)
+    mesh.material = material
+    mesh.isPickable = false
 
-    switch (shape.type) {
-      case 'circle':
-        mesh = MeshBuilder.CreateDisc(`aoe-${zone.id}`, {
-          radius: shape.radius, tessellation: 48,
-        }, this.scene)
-        break
+    const facingRad = (zone.facing * Math.PI) / 180
+    mesh.rotation.y = facingRad
+    mesh.position.set(
+      zone.center.x + Math.sin(facingRad) * geo.forwardOffset,
+      0.03,
+      zone.center.y + Math.cos(facingRad) * geo.forwardOffset,
+    )
 
-      case 'fan':
-        mesh = MeshBuilder.CreateDisc(`aoe-${zone.id}`, {
-          radius: shape.radius, tessellation: 48,
-          arc: shape.angle / 360,
-        }, this.scene)
-        break
-
-      case 'ring':
-        mesh = MeshBuilder.CreateTorus(`aoe-${zone.id}`, {
-          diameter: shape.innerRadius + shape.outerRadius,
-          thickness: shape.outerRadius - shape.innerRadius,
-          tessellation: 48,
-        }, this.scene)
-        mesh.position.set(zone.center.x, 0.02, zone.center.y)
-        // Wide rings are ground telegraphs, not tall 3D obstacles hiding the safe zone.
-        mesh.scaling.y = 0.005
-        mesh.material = telegraphMat
-        mesh.enableEdgesRendering()
-        mesh.edgesWidth = 2.0
-        mesh.edgesColor = edgeColor
-        const waveRing = hasDisplacement ? this.createWaveRing(zone) : undefined
-        this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing, isPlayerZone: isPlayer })
-        return
-
-      case 'rect':
-        mesh = MeshBuilder.CreatePlane(`aoe-${zone.id}`, {
-          width: shape.width, height: shape.length,
-        }, this.scene)
-        break
-
-      default:
-        return
-    }
-
-    mesh.rotation.x = Math.PI / 2
-
-    if (shape.type === 'rect') {
-      const facingRad = (zone.facing * Math.PI) / 180
-      const offsetX = Math.sin(facingRad) * (shape.length / 2)
-      const offsetZ = Math.cos(facingRad) * (shape.length / 2)
-      mesh.position.set(zone.center.x + offsetX, 0.02, zone.center.y + offsetZ)
-    } else {
-      mesh.position.set(zone.center.x, 0.02, zone.center.y)
-    }
-
-    if (shape.type === 'fan') {
-      mesh.rotation.y = ((zone.facing - 90 + shape.angle / 2) * Math.PI) / 180
-    } else {
-      mesh.rotation.y = (zone.facing * Math.PI) / 180
-    }
-
-    mesh.material = telegraphMat
-    mesh.enableEdgesRendering()
-    mesh.edgesWidth = 2.0
-    mesh.edgesColor = edgeColor
-
-    const waveRing = hasDisplacement ? this.createWaveRing(zone) : undefined
-    this.meshes.set(zone.id, { mesh, zone, phase: 'telegraph', waveRing, isPlayerZone: isPlayer })
+    const waveRing = zone.def.displacementHint ? this.createWaveRing(zone) : undefined
+    this.meshes.set(zone.id, { mesh, material, zone, phase: 'telegraph', resolvedAt: 0, waveRing, isPlayerZone: isPlayer })
   }
 
   /** Create wave mesh: torus for circle/ring, plane bar for rect */
@@ -249,6 +176,7 @@ export class AoeRenderer {
   private removeMesh(zoneId: string): void {
     const entry = this.meshes.get(zoneId)
     if (!entry) return
+    entry.material.dispose()
     entry.mesh.dispose()
     if (entry.waveRing) {
       entry.waveRing.material?.dispose()

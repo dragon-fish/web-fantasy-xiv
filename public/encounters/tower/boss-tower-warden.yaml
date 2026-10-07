@@ -11,6 +11,7 @@ arena:
   shape: circle
   radius: 20
   boundary: wall
+  theme: stone
 
 entities:
   boss:

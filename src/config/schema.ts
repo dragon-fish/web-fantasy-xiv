@@ -8,6 +8,7 @@ export interface RawArenaConfig {
   width?: number
   height?: number
   boundary: string
+  theme?: string
   deathZones?: { id?: string; center: { x: number; y: number }; facing?: number; shape?: any; radius?: number }[]
 }
 
@@ -22,7 +23,7 @@ export function parseArenaConfig(raw: RawArenaConfig): ArenaDef {
     shape: z.shape ?? { type: 'circle' as const, radius: z.radius ?? 1 },
     behavior: (z as any).behavior ?? 'lethal',
   }))
-  return { name: raw.name, shape, boundary: raw.boundary as ArenaDef['boundary'], deathZones }
+  return { name: raw.name, shape, boundary: raw.boundary as ArenaDef['boundary'], theme: raw.theme, deathZones }
 }
 
 // --- Entity ---

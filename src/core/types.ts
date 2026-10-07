@@ -191,6 +191,8 @@ export interface ArenaDef {
   name: string
   shape: ArenaShape
   boundary: BoundaryType
+  /** Visual theme id (renderer-only; see renderer/arena-theme.ts) */
+  theme?: string
   /** Initial death zones loaded from encounter YAML */
   deathZones?: DeathZoneDef[]
 }
