@@ -27,9 +27,6 @@ const PLAYER_RIM = new Color3(0.65, 0.88, 1.0)
 /** Markers riding on a party member (spread): FFXIV's purple circle */
 const SPREAD_FILL = new Color3(0.7, 0.25, 1.0)
 const SPREAD_RIM = new Color3(0.92, 0.75, 1.0)
-/** Shared damage (stacks, line stacks): gather inside */
-const SHARE_FILL = new Color3(1.0, 0.82, 0.12)
-const SHARE_RIM = new Color3(1.0, 0.97, 0.7)
 const MIN_FLASH_MS = 260
 
 export class AoeRenderer {
@@ -127,16 +124,16 @@ export class AoeRenderer {
   }
 
   private createMesh(zone: ActiveAoeZone): void {
-    if (zone.def.telegraph === false) return
+    // Shared damage shows FFXIV's stack chevrons instead (MechanicVfx), never a danger fill
+    if (zone.def.telegraph === false || zone.def.share) return
     const isPlayer = this.isPlayerCaster(zone)
     const geo = telegraphGeometry(zone.def.shape)
     if (!geo) return
 
     const mesh = MeshBuilder.CreateGround(`aoe-${zone.id}`, { width: geo.quadWidth, height: geo.quadLength }, this.scene)
     const [fill, rim] = isPlayer ? [PLAYER_FILL, PLAYER_RIM]
-      : zone.def.share ? [SHARE_FILL, SHARE_RIM]
-        : zone.def.anchor.type === 'party' && zone.def.marker !== 'buster' ? [SPREAD_FILL, SPREAD_RIM]
-          : [ENEMY_FILL, ENEMY_RIM]
+      : zone.def.anchor.type === 'party' && zone.def.marker !== 'buster' ? [SPREAD_FILL, SPREAD_RIM]
+        : [ENEMY_FILL, ENEMY_RIM]
     const material = createTelegraphMaterial(this.scene, `aoe-mat-${zone.id}`, geo, fill, rim)
     mesh.material = material
     mesh.isPickable = false

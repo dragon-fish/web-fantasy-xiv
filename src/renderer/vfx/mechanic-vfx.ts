@@ -7,6 +7,7 @@ import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import type { ClashGrade } from '@/game/parry-prompt'
 import type { VfxRenderer } from './vfx-renderer'
 import { TankbusterMarker } from './tankbuster-marker'
+import { StackMarker, STACK_CIRCLE_CHEVRONS, STACK_LINE_CHEVRONS } from './stack-marker'
 
 type Fx = ReturnType<VfxRenderer['spawn']>
 
@@ -56,6 +57,7 @@ export class MechanicVfx {
   // --- Overhead markers --------------------------------------------------------
 
   private onZoneCreated(zone: ActiveAoeZone): void {
+    if (zone.def.share) this.stackFloor(zone)
     const kind = zone.def.marker
     if (!kind || !zone.anchorEntityId) return
     const id = zone.anchorEntityId
@@ -123,10 +125,41 @@ export class MechanicVfx {
     this.markers.set(zone.id, fx)
   }
 
+  /** Shared damage gets FFXIV's stack floor marker instead of a danger fill (see AoeRenderer) */
+  private stackFloor(zone: ActiveAoeZone): void {
+    const shape = zone.def.shape
+    const line = shape.type === 'rect'
+    const marker = new StackMarker(this.vfx.sm.scene, line ? STACK_LINE_CHEVRONS : STACK_CIRCLE_CHEVRONS)
+    const color = Color3.FromHexString('#ffb040')
+    const driver = this.vfx.spawn('ground', shape.type === 'circle' ? 'ringThin' : 'glowDisc', color, Infinity, (f) => {
+      const intro = Math.min(1, f.age / 250)
+      const { x, y } = zone.center
+      if (shape.type === 'rect') {
+        f.mesh.visibility = 0
+        marker.updateLine(x, y, zone.facing, shape.length, shape.width, f.age, intro)
+        return
+      }
+      const radius = shape.type === 'circle' ? shape.radius : 3
+      f.mesh.position.set(x, 0.07, y)
+      // ringThin peaks at ~0.78 of the quad's half-width
+      const s = (radius * 2) / 0.78
+      f.mesh.scaling.set(s, 1, s)
+      f.mesh.visibility = 0.85 * intro
+      marker.updateCircle(x, y, radius, f.age, intro)
+    })
+    driver.onDone = () => marker.dispose()
+    this.markers.set(`${zone.id}:stack`, [driver])
+  }
+
   private endMarker(zoneId: string): void {
-    const fx = this.markers.get(zoneId)
+    this.endFx(`${zoneId}:stack`)
+    this.endFx(zoneId)
+  }
+
+  private endFx(key: string): void {
+    const fx = this.markers.get(key)
     if (!fx) return
-    this.markers.delete(zoneId)
+    this.markers.delete(key)
     for (const f of fx) f.life = 0
   }
 
