@@ -26,6 +26,8 @@ const TANK_HEAL_BELOW = 0.85
 const SINGLE_HEAL_BELOW = 0.75
 const AOE_HEAL_BELOW = 0.85
 const ARRIVED = 0.4
+/** The tank drags the boss back once it has drifted this far off the tank spot (m) */
+const PULL_TOLERANCE = 1.5
 
 export interface NpcWorld {
   now(): number
@@ -311,9 +313,20 @@ export class NpcBrain {
     // Pull the boss to the tank spot only once it is on this tank; until then go and get it
     if (target === w.boss && target.target === e.id) {
       const face = dirOf(w.config.tankSpot.facing)
-      const anchor = w.boss.speed > 0 ? w.config.tankSpot : pos(w.boss)
-      const reach = w.boss.speed > 0 ? Math.max(w.boss.size + 1, w.bossChaseRange - 0.3) : w.boss.size + 1.5
-      return { x: anchor.x + face.x * reach, y: anchor.y + face.y * reach }
+      if (w.boss.speed <= 0) {
+        const reach = w.boss.size + 1.5
+        return { x: w.boss.position.x + face.x * reach, y: w.boss.position.y + face.y * reach }
+      }
+      // The boss stops a chase range short of whoever it follows. Off the spot: walk past the spot,
+      // one chase range beyond it, so the boss comes to rest on it; then step round to the facing side.
+      const spot = w.config.tankSpot
+      const reach = Math.max(w.boss.size + 1, w.bossChaseRange - 0.3)
+      const off = { x: spot.x - w.boss.position.x, y: spot.y - w.boss.position.y }
+      const away = Math.hypot(off.x, off.y)
+      if (away > PULL_TOLERANCE) {
+        return { x: spot.x + (off.x / away) * reach, y: spot.y + (off.y / away) * reach }
+      }
+      return { x: spot.x + face.x * reach, y: spot.y + face.y * reach }
     }
     const away = { x: e.position.x - target.position.x, y: e.position.y - target.position.y }
     const len = Math.hypot(away.x, away.y) || 1
