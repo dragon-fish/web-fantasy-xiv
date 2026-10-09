@@ -99,10 +99,10 @@ export class VfxRenderer {
       if (castTime > 0) this.startCast(caster, skill)
     })
     bus.on('skill:cast_interrupted', ({ caster }: { caster: Entity }) => this.endCast(caster.id))
-    bus.on('skill:cast_complete', ({ caster, skill }: { caster: Entity; skill: SkillDef }) => {
+    bus.on('skill:cast_complete', ({ caster, skill, allyTargetId }: { caster: Entity; skill: SkillDef; allyTargetId?: string | null }) => {
       this.skills.set(skill.id, skill)
       this.endCast(caster.id)
-      this.deliver(caster, skill)
+      this.deliver(caster, skill, allyTargetId ? this.entities.get(allyTargetId) : undefined)
     })
     bus.on('damage:dealt', (p: { source?: Entity; target: Entity; amount: number; periodic?: boolean }) => this.onDamage(p))
     bus.on('combat:flurry', (p: { sourceId?: string; targetId: string; hits: number; guard: FlurryGuard }) => {
@@ -293,7 +293,8 @@ export class VfxRenderer {
 
   // --- Delivery ---------------------------------------------------------------
 
-  private deliver(caster: Entity, skill: SkillDef): void {
+  /** `ally`: the party member a friendly single-target skill landed on (its aura plays there) */
+  private deliver(caster: Entity, skill: SkillDef, ally?: Entity): void {
     const style = this.elementFor(caster, skill)!
     const s = ELEMENTS[style.element]
     const small = skill.id.endsWith('_auto')
@@ -325,7 +326,7 @@ export class VfxRenderer {
         }
         break
       case 'buff':
-        this.aura(caster, style.element)
+        this.aura(ally ?? caster, style.element)
         break
       case 'burst':
         // Zone visuals play on aoe:zone_resolved; a small flourish marks the release

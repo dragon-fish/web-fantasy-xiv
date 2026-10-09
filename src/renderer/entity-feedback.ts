@@ -47,10 +47,10 @@ export class EntityFeedback {
     if (!Number.isFinite(event.amount) || event.amount === 0) return
     if (!this.health.has(event.target)) this.health.set(event.target, new HealthBarMotion(Math.min(event.target.maxHp, event.target.hp + event.amount), event.target.maxHp))
     this.health.get(event.target)!.update(event.target.hp, event.target.maxHp, 0)
-    // As in FFXIV, allies' own exchanges show no numbers; only what the player deals or takes
-    const mine = event.source?.id === this.playerId || event.target.id === this.playerId
-    if (!mine && (event.source?.npc || event.target.npc)) return
     const heal = event.amount < 0
+    // Allies' blows and the hits they take stay quiet (only the player's own show); every heal shows
+    const mine = event.source?.id === this.playerId || event.target.id === this.playerId
+    if (!heal && !mine && (event.source?.npc || event.target.npc)) return
     const critical = !heal && !!event.isCritical
     const color = heal ? COLORS.heal : event.target.type === 'player' ? COLORS.incoming
       : event.source?.type === 'player' ? COLORS.outgoing : COLORS.neutral
