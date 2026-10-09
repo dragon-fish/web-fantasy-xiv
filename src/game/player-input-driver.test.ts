@@ -1,9 +1,9 @@
 import { EventBus } from '@/core/event-bus'
 import { EntityManager } from '@/entity/entity-manager'
-import type { SkillDef } from '@/core/types'
+import type { BuffDef, SkillDef } from '@/core/types'
+import { BuffSystem } from '@/combat/buff'
 import type { InputManager } from '@/input/input-manager'
 import type { SkillResolver } from '@/skill/skill-resolver'
-import type { BuffSystem } from '@/combat/buff'
 import type { Arena } from '@/arena/arena'
 import { PlayerInputDriver } from './player-input-driver'
 
@@ -73,5 +73,35 @@ describe('PlayerInputDriver targeting', () => {
     input.clicked = true
     driver.update(16)
     expect(player.target).toBe('crystal')
+  })
+})
+
+describe('PlayerInputDriver passive stacks', () => {
+  it('pauses a passive buff at its stack cap instead of banking progress', () => {
+    const bus = new EventBus()
+    const mgr = new EntityManager(bus)
+    const buffs = new BuffSystem(bus)
+    const player = mgr.create({ id: 'p', type: 'player', hp: 100, position: { x: 0, y: 0, z: 0 } })
+    player.inCombat = true
+    const lily: BuffDef = { id: 'lily', name: 'Lily', type: 'buff', duration: 0, stackable: true, maxStacks: 3, effects: [] }
+    const input = {
+      keys: { w: false, a: false, s: false, d: false },
+      mouse: { worldPos: { x: 0, y: 0 }, leftDown: false, rightDown: false },
+      consumeSkillPress: () => null, consumeEsc: () => false, consumeClick: () => false,
+    }
+    const resolver = { tryUse: () => true, updateAll: () => {}, getCooldown: () => 0 }
+    const driver = new PlayerInputDriver(
+      player, input as unknown as InputManager, resolver as unknown as SkillResolver, buffs, mgr, bus, {} as Arena,
+      { skills: [], autoAttackInterval: 3000, passiveBuffs: [{ buffId: 'lily', interval: 1000, stacks: 1 }], buffDefs: new Map([['lily', lily]]) },
+    )
+    buffs.applyBuff(player, lily, 'p', 3)
+    for (let i = 0; i < 45; i++) driver.update(100) // not a whole number of intervals
+    expect(driver.passiveProgress('lily')).toBe(0)
+
+    buffs.removeStacks(player, 'lily', 1)
+    for (let i = 0; i < 9; i++) driver.update(100)
+    expect(buffs.getStacks(player, 'lily')).toBe(2)
+    driver.update(100)
+    expect(buffs.getStacks(player, 'lily')).toBe(3)
   })
 })

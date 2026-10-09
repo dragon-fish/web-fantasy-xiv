@@ -313,10 +313,12 @@ export class PlayerInputDriver {
           this.passiveBuffTimers.set(pb.buffId, 0)
           continue
         }
+        // At the stack cap the timer pauses (no banking a stack for later)
+        const def = this.config.buffDefs?.get(pb.buffId)
+        if (def && this.buffSystem.getStacks(p, pb.buffId) >= def.maxStacks) continue
         const timer = (this.passiveBuffTimers.get(pb.buffId) ?? 0) + dt
         if (timer >= pb.interval) {
           this.passiveBuffTimers.set(pb.buffId, timer - pb.interval)
-          const def = this.config.buffDefs?.get(pb.buffId)
           if (def) {
             this.buffSystem.applyBuff(p, def, p.id, pb.stacks)
           }
