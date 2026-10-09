@@ -142,7 +142,7 @@ export class MechanicVfx {
   private stackFloor(zone: ActiveAoeZone): void {
     const shape = zone.def.shape
     const line = shape.type === 'rect'
-    const marker = new StackMarker(this.vfx.sm.scene, line ? STACK_LINE_CHEVRONS : STACK_CIRCLE_CHEVRONS)
+    const marker = new StackMarker(this.vfx.sm.scene, line ? STACK_LINE_CHEVRONS : STACK_CIRCLE_CHEVRONS, line)
     const color = Color3.FromHexString('#ffb040')
     const driver = this.vfx.spawn('ground', shape.type === 'circle' ? 'ringThin' : 'glowDisc', color, Infinity, (f) => {
       const intro = Math.min(1, f.age / 250)
@@ -150,6 +150,9 @@ export class MechanicVfx {
       if (shape.type === 'rect') {
         f.mesh.visibility = 0
         marker.updateLine(x, y, zone.facing, shape.length, shape.width, f.age, intro)
+        // The member the line is aimed at carries the arrow
+        const aimed = zone.targetId ? this.vfx.entities.get(zone.targetId) : undefined
+        if (aimed) marker.updateHead(aimed.position.x, aimed.position.y, this.vfx.heightOf(aimed), f.age, intro)
         return
       }
       const radius = shape.type === 'circle' ? shape.radius : 3

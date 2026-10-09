@@ -50,8 +50,21 @@ export function useStateAdapter(scene: GameScene) {
 
   const partyMode = () => scene.entityMgr.getAll().some(e => e.npc)
 
+  /** Enmity on the player's current enemy, falling back to the boss (FFXIV shows your target's) */
+  function enmityView(): Map<string, { rank: number; ratio: number }> {
+    const out = new Map<string, { rank: number; ratio: number }>()
+    const locked = scene.player.target ? scene.entityMgr.get(scene.player.target) : undefined
+    const enemy = locked && locked.alive && locked.team !== scene.player.team ? locked : scene.bossEntity
+    if (!enemy || !scene.enmityStandings) return out
+    const standings = scene.enmityStandings(enemy).filter(s => s.value > 0)
+    const top = standings[0]?.value ?? 0
+    standings.forEach((s, i) => out.set(s.id, { rank: i + 1, ratio: top > 0 ? s.value / top : 0 }))
+    return out
+  }
+
   function partyList(): PartyMemberView[] {
     if (!partyMode()) return []
+    const enmity = enmityView()
     return scene.partyMembers().map((e) => {
       const skill = e.casting ? scene.skillResolver.getSkill(e.casting.skillId) : undefined
       return {
@@ -68,6 +81,7 @@ export function useStateAdapter(scene: GameScene) {
           const def = scene.buffSystem.getDef(b.defId)
           return def && !def.hidden && def.icon ? [{ icon: def.icon, name: def.name, debuff: def.type === 'debuff' }] : []
         }).slice(0, 6),
+        enmity: enmity.get(e.id) ?? null,
       }
     })
   }

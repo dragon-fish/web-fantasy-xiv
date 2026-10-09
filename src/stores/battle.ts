@@ -86,6 +86,8 @@ export interface PartyMemberView {
   selected: boolean
   cast: { name: string; progress: number } | null
   buffs: { icon?: string; name: string; debuff: boolean }[]
+  /** Standing on the player's current enemy (or the boss): rank 1 = holds aggro; ratio vs the top */
+  enmity: { rank: number; ratio: number } | null
 }
 
 /** Name (and HP when hurt or down) over an NPC ally's head, CSS px within the canvas box */

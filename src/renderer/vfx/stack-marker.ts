@@ -1,15 +1,15 @@
 // src/renderer/vfx/stack-marker.ts
-// FFXIV stack (shared damage) floor markers: no danger fill, glowing orange chevrons that press
-// inward. Circle stacks: four chevrons closing in from the diagonals. Line stacks: chevron pairs
-// along both edges pointing at the line, and a big arrow down its length from the origin.
+// FFXIV stack (shared damage) markers: no danger fill, glowing orange chevrons that press inward.
+// Circle stacks: four chevrons closing in from the diagonals. Line stacks: chevron pairs along
+// both edges pointing at the line, and a downward arrow over the head of the member it targets.
 import {
-  Color3, DynamicTexture, MeshBuilder, StandardMaterial,
+  Color3, DynamicTexture, MeshBuilder, StandardMaterial, TransformNode,
   type Mesh, type Scene,
 } from '@babylonjs/core'
 
 const cache = new WeakMap<Scene, StandardMaterial>()
 
-/** A thick glowing chevron pointing to the canvas top (= mesh −Z once laid flat as a ground) */
+/** A thick glowing chevron pointing to the canvas top (= mesh +Z once laid flat as a ground) */
 function chevronMaterial(scene: Scene): StandardMaterial {
   const cached = cache.get(scene)
   if (cached) return cached
@@ -61,8 +61,10 @@ const CYCLE_MS = 1100
 
 export class StackMarker {
   private meshes: Mesh[] = []
+  /** Line stacks: the arrow over the targeted member's head */
+  private head: Mesh | null = null
 
-  constructor(private scene: Scene, count: number) {
+  constructor(scene: Scene, count: number, withHead = false) {
     const mat = chevronMaterial(scene)
     for (let i = 0; i < count; i++) {
       const m = MeshBuilder.CreateGround(`stack-chevron-${i}`, { width: 1, height: 1 }, scene)
@@ -71,14 +73,23 @@ export class StackMarker {
       m.renderingGroupId = 1
       this.meshes.push(m)
     }
+    if (withHead) {
+      const h = MeshBuilder.CreatePlane('stack-head-arrow', { size: 1 }, scene)
+      // Full billboard (seen edge-on otherwise from the overhead camera), turned to point down
+      h.billboardMode = TransformNode.BILLBOARDMODE_ALL
+      h.rotation.z = Math.PI
+      h.material = mat
+      h.isPickable = false
+      h.renderingGroupId = 1
+      this.head = h
+    }
   }
 
   /** Place chevron `i` at (x, z) pointing along `angle` (degrees, 0 = +Z) */
   private place(i: number, x: number, z: number, angle: number, size: number, alpha: number): void {
     const m = this.meshes[i]!
     m.position.set(x, 0.09, z)
-    // The canvas top lands on −Z: turn half a circle so the tip points along `angle`
-    m.rotation.y = ((angle + 180) * Math.PI) / 180
+    m.rotation.y = (angle * Math.PI) / 180
     m.scaling.set(size, 1, size)
     m.visibility = alpha
   }
@@ -96,10 +107,7 @@ export class StackMarker {
     }
   }
 
-  /**
-   * Line stack from (ox, oz) along `facing`: one big arrow down the line near the origin, then
-   * chevron pairs on both edges pointing in at it.
-   */
+  /** Line stack from (ox, oz) along `facing`: chevron pairs on both edges pointing in at it */
   updateLine(ox: number, oz: number, facing: number, length: number, width: number, ageMs: number, intro: number): void {
     const f = (facing * Math.PI) / 180
     const fwd = { x: Math.sin(f), z: Math.cos(f) }
@@ -110,24 +118,32 @@ export class StackMarker {
       x: ox + fwd.x * length * t + right.x * side,
       z: oz + fwd.z * length * t + right.z * side,
     })
-    const head = along(0.12 + 0.04 * k, 0)
-    this.place(0, head.x, head.z, facing, Math.max(2.4, width * 0.9), pulse)
     const rows = [0.3, 0.45, 0.6]
     const edge = width / 2 + 0.6 - 0.35 * k
     const size = Math.max(1.2, width * 0.42)
     rows.forEach((t, i) => {
       const l = along(t, -edge)
       const r = along(t, edge)
-      this.place(1 + i * 2, l.x, l.z, facing + 90, size, pulse)
-      this.place(2 + i * 2, r.x, r.z, facing - 90, size, pulse)
+      this.place(i * 2, l.x, l.z, facing + 90, size, pulse)
+      this.place(i * 2 + 1, r.x, r.z, facing - 90, size, pulse)
     })
+  }
+
+  /** The down arrow bobbing over the targeted member's head */
+  updateHead(x: number, z: number, headY: number, ageMs: number, intro: number): void {
+    if (!this.head) return
+    this.head.position.set(x, headY + 1.4 + Math.abs(Math.sin(ageMs / 260)) * 0.35, z)
+    this.head.scaling.setAll(2.2 * (1.3 - 0.3 * intro))
+    this.head.visibility = intro
   }
 
   dispose(): void {
     for (const m of this.meshes) m.dispose()
+    this.head?.dispose()
     this.meshes = []
+    this.head = null
   }
 }
 
-export const STACK_LINE_CHEVRONS = 7
+export const STACK_LINE_CHEVRONS = 6
 export const STACK_CIRCLE_CHEVRONS = 4

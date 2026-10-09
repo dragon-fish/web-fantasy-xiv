@@ -329,7 +329,10 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     : null
   /** Whom an enemy goes for: its enmity top in party mode, otherwise the player */
   const targetIdFor = (enemy: Entity): string => party?.targetFor(enemy)?.id ?? s.player.id
-  if (party && import.meta.env.DEV) s.devCommands.register('party', '[dev] party — NPC damage budget and party state', () => party.status())
+  if (party) {
+    s.enmityStandings = enemy => party.enmity.ranking(enemy).map(m => ({ id: m.id, value: party.enmity.get(enemy, m) }))
+    if (import.meta.env.DEV) s.devCommands.register('party', '[dev] party — NPC damage budget and party state', () => party.status())
+  }
 
   const scriptRunner = new ScriptRunner({
     bus: s.bus,

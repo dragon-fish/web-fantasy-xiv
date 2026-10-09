@@ -123,6 +123,9 @@ export class GameScene {
   /** Custom hook for combat elapsed time display. Return ms or null. */
   getCombatElapsed: (() => number | null) = () => null
 
+  /** Party mode: an enemy's enmity standings, top first (null in solo encounters) */
+  enmityStandings: ((enemy: Entity) => { id: string; value: number }[]) | null = null
+
   /** Reference entity for boss HP bar */
   bossEntity: Entity | null = null
   getBossCast: () => EntityCast | null = () => null
