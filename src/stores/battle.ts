@@ -82,7 +82,7 @@ export interface PartyMemberView {
   maxHp: number
   alive: boolean
   isPlayer: boolean
-  /** The player's picked ally (friendly skills land here) */
+  /** The player's current target */
   selected: boolean
   cast: { name: string; progress: number } | null
   buffs: { icon?: string; name: string; debuff: boolean }[]

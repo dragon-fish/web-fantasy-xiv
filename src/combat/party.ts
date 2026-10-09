@@ -32,17 +32,18 @@ export function partyMembersNear(center: Entity, entities: Iterable<Entity>, rad
 }
 
 /**
- * Friendly target for a skill with `allyTarget`. The caster's own pick (`caster.allyTarget`) wins
- * when it fits the mode and is in range; otherwise:
+ * Friendly target for a skill with `allyTarget`. The caster's pick wins when it fits the mode and
+ * is in range — an NPC's `allyTarget`, or the player's current target when that is a party member; otherwise:
  * - 'lowest-hp': living member in range with the lowest HP ratio; the caster when alone
  * - 'fallen': nearest fallen member in range; null when there is none
  */
 export function pickAllyTarget(caster: Entity, entities: Iterable<Entity>, mode: 'lowest-hp' | 'fallen', range: number): Entity | null {
   const fits = (e: Entity) => isPartyMember(e) && distance(caster, e) <= range && (mode === 'fallen' ? !e.alive : e.alive)
+  const picked = caster.allyTarget ?? caster.target
   let best: Entity | null = null
   let bestScore = Infinity
   for (const e of entities) {
-    if (e.id === caster.allyTarget && fits(e)) return e
+    if (e.id === picked && fits(e)) return e
     if (!fits(e)) continue
     const score = mode === 'fallen' ? distance(caster, e) : e.hp / Math.max(1, e.maxHp)
     if (score < bestScore) { bestScore = score; best = e }

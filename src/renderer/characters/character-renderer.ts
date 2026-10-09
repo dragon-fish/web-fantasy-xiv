@@ -85,8 +85,6 @@ export class CharacterRenderer implements EntityVisuals {
   private scene: Scene
   private now = 0
   private targetRing: TargetRing
-  /** The player's picked ally (party list / F1–F4) */
-  private allyRing: TargetRing
   /** Beats of multi-hit attacks still to play (render clock) */
   private strikes: { at: number; sourceId?: string; targetId: string; guard: FlurryGuard }[] = []
 
@@ -94,7 +92,6 @@ export class CharacterRenderer implements EntityVisuals {
     this.scene = sm.scene
     this.library = ModelLibrary.for(this.scene)
     this.targetRing = new TargetRing(this.scene)
-    this.allyRing = new TargetRing(this.scene)
 
     bus.on('entity:created', ({ entity }: { entity: Entity }) => this.create(entity))
     bus.on('player:reviving', ({ entity, delay }: { entity: Entity; delay: number }) => {
@@ -370,7 +367,7 @@ export class CharacterRenderer implements EntityVisuals {
 
   // --- Per-frame -------------------------------------------------------------
 
-  updateAll(entities: Entity[], dt: number, lockedTargetId?: string | null, allyTargetId?: string | null): void {
+  updateAll(entities: Entity[], dt: number, lockedTargetId?: string | null): void {
     this.now += dt
     if (this.strikes.length) this.playStrikes()
     const seen = new Set<string>()
@@ -390,8 +387,6 @@ export class CharacterRenderer implements EntityVisuals {
     const locked = lockedTargetId ? this.views.get(lockedTargetId) : undefined
     const showLock = !!locked && locked.deadAt === null && locked.entity.visible && !locked.entity.dormant
     this.targetRing.follow(showLock ? locked!.root : null, locked?.entity.size ?? 0, locked?.entity.type ?? '', dt)
-    const ally = allyTargetId ? this.views.get(allyTargetId) : undefined
-    this.allyRing.follow(ally?.root ?? null, ally?.entity.size ?? 0, 'player', dt)
   }
 
   private updateView(v: CharacterView, dt: number): void {

@@ -184,8 +184,9 @@ export class PlayerInputDriver {
       }
     }
 
-    // Auto-attack when target locked (haste reduces interval)
-    if (p.target && p.inCombat && this.config.autoAttackSkill) {
+    // Auto-attack when an enemy is locked (haste reduces interval)
+    const locked = p.target ? this.entityMgr.get(p.target) : undefined
+    if (locked && this.isEnemyTarget(locked) && p.inCombat && this.config.autoAttackSkill) {
       const haste = this.buffSystem.getHaste(p)
       const aaInterval = haste > 0
         ? this.config.autoAttackInterval * (1 - haste)

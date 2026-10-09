@@ -867,11 +867,10 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
 
     if (party) {
       party.update(dt)
-      if (combatStarted && !s.battleOver && party.allDown() && !revive?.isPending()) {
+      // Everyone down: the death window still lets lingering DoTs finish the boss before the wipe
+      if (combatStarted && !s.battleOver && party.allDown() && !revive?.isPending() && !deathWindow.isActive()) {
         s.setAnnounce(null)
-        scriptRunner.disposeAll()
-        s.bus.emit('combat:ended', { result: 'wipe', elapsed: scheduler.combatElapsed })
-        s.endBattle('wipe')
+        deathWindow.enter()
       }
     }
 

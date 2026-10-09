@@ -62,7 +62,7 @@ export function useStateAdapter(scene: GameScene) {
         maxHp: scene.buffSystem.getMaxHp(e),
         alive: e.alive,
         isPlayer: e === scene.player,
-        selected: scene.player.allyTarget === e.id,
+        selected: scene.player.target === e.id,
         cast: e.casting && skill ? { name: skill.name, progress: Math.min(1, e.casting.elapsed / e.casting.castTime) } : null,
         buffs: e.buffs.flatMap((b) => {
           const def = scene.buffSystem.getDef(b.defId)

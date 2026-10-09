@@ -20,13 +20,15 @@ const select = (id: string) => getActiveScene()?.selectAlly(id)
     img.party-list__icon(v-if="m.icon" :src="m.icon" alt="")
     .party-list__main
       .party-list__head
-        span.party-list__name {{ m.name }}
+        span.party-list__name {{ m.isPlayer ? `Player (${m.name})` : m.name }}
         span.party-list__hp.tabular-nums {{ m.alive ? m.hp : '倒地' }}
       .party-list__bar
         .party-list__bar-fill(:style="{ width: pct(m.hp, m.maxHp) }")
-      .party-list__cast(v-if="m.cast")
-        .party-list__cast-fill(:style="{ width: `${m.cast.progress * 100}%` }")
-        span.party-list__cast-name {{ m.cast.name }}
+      //- The cast line is always laid out so rows keep their height when casts come and go
+      .party-list__cast(:class="{ 'is-idle': !m.cast }")
+        template(v-if="m.cast")
+          .party-list__cast-fill(:style="{ width: `${m.cast.progress * 100}%` }")
+          span.party-list__cast-name {{ m.cast.name }}
     .party-list__buffs
       img.party-list__buff(v-for="(b, k) in m.buffs" :key="k" :src="b.icon" :alt="b.name" :title="b.name")
 </template>
@@ -120,6 +122,10 @@ const select = (id: string) => getActiveScene()?.selectAlly(id)
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
+}
+
+.party-list__cast.is-idle {
+  visibility: hidden;
 }
 
 .party-list__cast-fill {

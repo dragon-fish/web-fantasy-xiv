@@ -173,15 +173,19 @@ export class GameScene {
     if (import.meta.env.DEV) (globalThis as any).__gameScene = this
   }
 
-  /** The player's party in list order: the player first, then allies as they joined */
+  /** The player's party in list order (FFXIV): the player first, then tanks, healers, DPS */
   partyMembers(): Entity[] {
-    return [this.player, ...this.entityMgr.getAll().filter(e => isPartyMember(e) && e !== this.player)]
+    const order = { tank: 0, healer: 1, dps: 2 }
+    const others = this.entityMgr.getAll().filter(e => isPartyMember(e) && e !== this.player)
+    return [this.player, ...others.sort((a, b) => order[a.role ?? 'dps'] - order[b.role ?? 'dps'])]
   }
 
-  /** Pick (or, picked again, drop) the ally that friendly single-target skills land on */
-  selectAlly(id: string | null): void {
-    if (!this.player) return
-    this.player.allyTarget = id && this.player.allyTarget !== id ? id : null
+  /** Target a party member (party list / F1–F4); there is one target, so this replaces an enemy lock */
+  selectAlly(id: string): void {
+    const member = this.player && this.entityMgr.get(id)
+    if (!member || this.player.target === id) return
+    this.player.target = id
+    this.bus.emit('target:locked', { entity: this.player, target: member })
   }
 
   /** Create player entity and bind input driver + camera */
@@ -259,7 +263,7 @@ export class GameScene {
       const frozen = this.paused || this.devTerminal.isVisible()
       const visualDelta = frozen ? 0 : delta
       this.sceneManager.scene.animationsEnabled = !frozen
-      this.entityRenderer.updateAll(this.entityMgr.getAlive(), visualDelta, this.player?.target, this.player?.allyTarget)
+      this.entityRenderer.updateAll(this.entityMgr.getAlive(), visualDelta, this.player?.target)
       this.entityFeedback.update(this.entityMgr.getAlive(), this.player, this.bossEntity?.id ?? null,
         visualDelta, this.getBossCast())
       this.aoeRenderer.update(now)

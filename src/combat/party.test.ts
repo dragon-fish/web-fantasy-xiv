@@ -42,6 +42,18 @@ describe('pickAllyTarget', () => {
     expect(pickAllyTarget(healer, mgr.getAll(), 'lowest-hp', 30)?.id).toBe('dps')
   })
 
+  it("the player's current target counts as the pick when it is a party member", () => {
+    const { mgr, at } = setup()
+    const healer = at('healer', 0, 1000)
+    at('tank', 5, 900)
+    at('dps', 10, 400)
+    at('boss', 3, 10, { type: 'mob' })
+    healer.target = 'tank'
+    expect(pickAllyTarget(healer, mgr.getAll(), 'lowest-hp', 30)?.id).toBe('tank')
+    healer.target = 'boss'
+    expect(pickAllyTarget(healer, mgr.getAll(), 'lowest-hp', 30)?.id).toBe('dps')
+  })
+
   it('fallen picks the nearest fallen member, or nothing', () => {
     const { mgr, at } = setup()
     const healer = at('healer', 0, 1000)

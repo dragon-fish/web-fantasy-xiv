@@ -63,7 +63,8 @@ export interface Entity {
   team: string
   /** Party member driven by NPC AI rather than the human player */
   npc?: boolean
-  /** Ally picked for friendly single-target skills (heals, raise); null = the skill picks one itself */
+  /** NPC AI's pick for its friendly single-target skills (heals, raise); null = the skill picks one.
+   *  The player has no separate ally pick: their one `target` may be an ally. */
   allyTarget: string | null
   /** Lying dormant (e.g. a corpse awaiting revival): untargetable, inert, revived by `revive` effects */
   dormant?: boolean
