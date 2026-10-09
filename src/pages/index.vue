@@ -18,7 +18,6 @@ onMounted(() => {
 <template lang="pug">
 MenuShell
   RouterLink.menu-btn.primary(to="/encounters") ▶ &nbsp;开始关卡
-  RouterLink.menu-btn.primary(to="/tower") ◈ &nbsp;爬塔模式
   RouterLink.menu-btn.primary(to="/survivors") ✦ &nbsp;以太幸存者
   RouterLink.menu-btn.secondary(to="/job")
     | ⚔ &nbsp;查看职业

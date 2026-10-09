@@ -34,6 +34,16 @@ export function getJob(id: string): PlayerJob {
   return JOBS.find((j) => j.id === id) ?? WARRIOR_JOB
 }
 
+/** Jobs offered in normal play. Base jobs belong to the (shelved) tower mode only. */
+export const PLAYABLE_JOBS: PlayerJob[] = [
+  WARRIOR_JOB, PALADIN_JOB, DARK_KNIGHT_JOB, SAMURAI_JOB, BLACK_MAGE_JOB, BARD_JOB,
+]
+
+/** Resolve a saved job id for normal play; anything else (incl. base jobs) falls back to Warrior */
+export function getPlayableJob(id: string): PlayerJob {
+  return PLAYABLE_JOBS.find((j) => j.id === id) ?? WARRIOR_JOB
+}
+
 /** Get only the 3 base jobs (for tower JobPicker UI) */
 export function getBaseJobs(): PlayerJob[] {
   return [SWORDSMAN_JOB, ARCHER_JOB, THAUMATURGE_JOB]

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { JOBS, JOB_CATEGORY_LABELS, classJobIcon } from '@/jobs'
+import { PLAYABLE_JOBS, JOB_CATEGORY_LABELS, classJobIcon } from '@/jobs'
 import { useJobStore } from '@/stores/job'
 
 const jobStore = useJobStore()
-const viewId = ref(jobStore.selectedJobId)
-const job = computed(() => JOBS.find((j) => j.id === viewId.value) ?? JOBS[0])
-const isActive = computed(() => viewId.value === jobStore.selectedJobId)
+const viewId = ref(jobStore.job.id)
+const job = computed(() => PLAYABLE_JOBS.find((j) => j.id === viewId.value) ?? PLAYABLE_JOBS[0])
+const isActive = computed(() => viewId.value === jobStore.job.id)
 
 function onTrial() {
   jobStore.select(job.value.id)
@@ -19,13 +19,13 @@ MenuShell
   .job-layout
     .job-list
       button.job-item(
-        v-for="j in JOBS"
+        v-for="j in PLAYABLE_JOBS"
         :key="j.id"
         :class="{ selected: j.id === viewId }"
         @click="viewId = j.id"
       )
         span {{ j.name }}
-        span.job-equipped-marker(v-if="j.id === jobStore.selectedJobId") ✓
+        span.job-equipped-marker(v-if="j.id === jobStore.job.id") ✓
     .job-detail
       .job-detail-header
         img.job-icon(:src="classJobIcon(job.category)" :alt="JOB_CATEGORY_LABELS[job.category]")

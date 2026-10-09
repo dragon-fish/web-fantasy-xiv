@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLocalStorage } from '@vueuse/core'
 import { useJobStore } from '@/stores/job'
-import { getJob, COMMON_BUFFS } from '@/jobs'
+import { COMMON_BUFFS } from '@/jobs'
 import type { BattleInitCallback } from '@/game/battle-runner'
 import type { GameScene } from '@/game/game-scene'
 
@@ -26,11 +26,7 @@ const encounterUrl = computed(() => {
 
 const jobId = computed(() => {
   if (isTutorial.value) return 'default'
-  const j = getJob(jobStore.selectedJobId)
-  if (j.id === 'default' && jobStore.selectedJobId !== 'default') {
-    jobStore.select('default')
-  }
-  return jobStore.selectedJobId
+  return jobStore.job.id
 })
 
 const onInit = computed<BattleInitCallback | undefined>(() => {
