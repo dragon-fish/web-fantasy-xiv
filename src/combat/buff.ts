@@ -131,6 +131,8 @@ export class BuffSystem {
     for (let i = entity.buffs.length - 1; i >= 0; i--) {
       const inst = entity.buffs[i]
       if (inst.remaining === 0) continue // permanent
+      // Time past the end of the buff within this tick (lets staged buffs hand over without drift)
+      const overshoot = Math.max(0, dt - inst.remaining)
       inst.remaining = Math.max(0, inst.remaining - dt)
       if (inst.remaining <= 0) {
         entity.buffs.splice(i, 1)
@@ -139,6 +141,7 @@ export class BuffSystem {
           target: entity,
           buff: this.defs.get(inst.defId),
           reason: 'expired',
+          overshoot,
         })
       }
     }
@@ -164,6 +167,14 @@ export class BuffSystem {
   }
 
   /** One entry per buff, scaled by its stacks (a 10% buff at 10 stacks contributes 100%) */
+  /** The parry stance currently held, if any */
+  getParry(entity: Entity): { defId: string; guard: 'perfect' | 'deflect' | 'block'; damageTaken: number; grantBuff?: string } | null {
+    for (const { def, effect } of this.collectEffects(entity)) {
+      if (effect.type === 'parry') return { defId: def.id, guard: effect.guard, damageTaken: effect.damageTaken, grantBuff: effect.grantBuff }
+    }
+    return null
+  }
+
   getDamageIncreases(entity: Entity): number[] {
     return this.collectEffects(entity)
       .filter((e) => e.effect.type === 'damage_increase')

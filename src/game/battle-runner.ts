@@ -10,6 +10,7 @@ import { MechanicHost } from '@/game/mechanics/mechanic-host'
 import { MECHANICS, FAST_FORWARD } from '@/game/mechanics'
 import { matchesCondition } from '@/combat/conditions'
 import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
+import { PARRY_BUFFS } from '@/game/parry'
 import type { EventBus } from '@/core/event-bus'
 import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
@@ -277,6 +278,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
 
   const boss = entityMap.get('boss')!
   s.combatResolver.registerBuffs(job.buffs)
+  // Parry stances step down through registered defs; available in every encounter
+  s.combatResolver.registerBuffs(PARRY_BUFFS)
+  s.buffDefs = { ...s.buffDefs, ...PARRY_BUFFS }
 
   // Register encounter-local buffs (from YAML local_buffs section)
   if (enc.localBuffs && Object.keys(enc.localBuffs).length > 0) {

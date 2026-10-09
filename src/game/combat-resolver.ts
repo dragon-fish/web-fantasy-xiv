@@ -63,9 +63,11 @@ export class CombatResolver {
       if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
     })
 
-    // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
-    bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
-      if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
+    // Buff end hooks (e.g. a shield that heals when it breaks or runs out; staged buffs stepping down)
+    bus.on('buff:removed', ({ target, buff, reason, overshoot }: { target: Entity; buff?: BuffDef; reason?: string; overshoot?: number }) => {
+      if (!buff || !target.alive) return
+      if (buff.onRemove) this.resolveEffects(buff.onRemove, target, target, buff.name)
+      if (reason === 'expired' && buff.expiresInto) this.stepDown(target, buff, overshoot ?? 0)
     })
   }
 
@@ -88,6 +90,10 @@ export class CombatResolver {
       switch (effect.type) {
         case 'damage':
           if (!caster || !target) break
+          if (normalizeDmgType(effect.dmgType).includes('tankbuster')) {
+            this.resolveTankbuster(caster, target, effect, effect.potency + potencyBonus, skillName, extraIncreases)
+            break
+          }
           this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
           break
 
@@ -255,6 +261,41 @@ export class CombatResolver {
       caster.mp = Math.min(caster.maxMp, caster.mp + restoreMp)
     }
     return damageIncrease
+  }
+
+  /** Enter the stage after `buff`, minus the time already spent past its end (skipping stages it covers). */
+  private stepDown(target: Entity, buff: BuffDef, overshoot: number): void {
+    let next = buff.expiresInto ? this.buffDefs.get(buff.expiresInto) : undefined
+    let over = overshoot
+    while (next && over >= next.duration) {
+      over -= next.duration
+      next = next.expiresInto ? this.buffDefs.get(next.expiresInto) : undefined
+    }
+    if (next) this.buffSystem.applyBuff(target, next, target.id, 1, next.duration - over)
+  }
+
+  /**
+   * A tankbuster is spent on the target's parry stance when it holds one (the stance decides the
+   * damage, guard and reward); otherwise it lands in full and the tankbuster's own `onUnparried` applies.
+   */
+  private resolveTankbuster(caster: Entity, target: Entity, effect: Extract<SkillEffectDef, { type: 'damage' }>, potency: number, skillName: string | undefined, extraIncreases: number[]): void {
+    const dmgTypes = normalizeDmgType(effect.dmgType)
+    const parry = this.buffSystem.getParry(target)
+    if (!parry) {
+      this.bus.emit('combat:parry', { sourceId: caster.id, targetId: target.id, guard: 'none' })
+      this.applyDamage(caster, target, potency, skillName, dmgTypes, extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
+      if (effect.onUnparried) this.resolveEffects(effect.onUnparried, caster, target, skillName)
+      return
+    }
+    this.buffSystem.removeBuff(target, parry.defId, 'consumed')
+    this.bus.emit('combat:parry', { sourceId: caster.id, targetId: target.id, guard: parry.guard })
+    if (parry.damageTaken > 0) {
+      this.applyDamage(caster, target, potency * parry.damageTaken, skillName, dmgTypes, extraIncreases, { noRevive: effect.noRevive, hits: effect.hits, guard: parry.guard })
+    } else if ((effect.hits ?? 1) > 1) {
+      this.bus.emit('combat:flurry', { sourceId: caster.id, targetId: target.id, hits: effect.hits, guard: parry.guard })
+    }
+    const reward = parry.grantBuff ? this.buffDefs.get(parry.grantBuff) : undefined
+    if (reward) this.buffSystem.applyBuff(target, reward, caster.id)
   }
 
   /**

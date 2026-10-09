@@ -55,6 +55,7 @@ export type DamageType =
   | 'water'      // 水
   | 'earth'      // 土
   | 'wind'       // 风
+  | 'tankbuster' // 死刑: can be parried (see game/parry.ts)
 
 /** Combat role, derived from the player's job category; encounters branch on it */
 export type Role = 'tank' | 'healer' | 'dps'
@@ -68,8 +69,10 @@ export interface EffectCondition {
 
 export type SkillEffectDef = (
   /** `noRevive`: a player killed by this hit skips the revive ladder (e.g. add enrages).
-   *  `hits`: presentation only — show the damage as N quick hits; it still resolves in one frame. */
-  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[]; noRevive?: boolean; hits?: number }
+   *  `hits`: presentation only — show the damage as N quick hits; it still resolves in one frame.
+   *  `onUnparried` (resolved on the target, `tankbuster` damage only) is the encounter's own penalty
+   *  for not parrying it — the parry system adds none. */
+  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[]; noRevive?: boolean; hits?: number; onUnparried?: SkillEffectDef[] }
   | { type: 'heal'; potency: number }
   | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number; target?: 'caster' | 'target' }
   | { type: 'consume_buffs'; buffIds: string[] }                         // remove listed buffs from caster on resolve
@@ -172,6 +175,8 @@ export type BuffEffectDef =
   | { type: 'next_cast_instant'; consumeOnCast: boolean }
   | { type: 'attack_modifier'; value: number }   // base attack × (1 + sum)
   | { type: 'max_hp_modifier'; value: number }   // base maxHp × (1 + sum)
+  /** Parry stance: a tankbuster landing now is spent on it — damage × damageTaken, optional reward buff */
+  | { type: 'parry'; guard: Exclude<FlurryGuard, 'none'>; damageTaken: number; grantBuff?: string }
 
 export interface BuffDef {
   id: string
@@ -200,6 +205,10 @@ export interface BuffDef {
   /** Effects resolved on the holder (as caster and target) whenever the buff ends — expired,
    *  broken or consumed — while alive. Not on death clearing, nor on in-place refresh/replacement. */
   onRemove?: SkillEffectDef[]
+  /** On natural expiry only (not when consumed or removed), turn into this buff. Needs a registered def. */
+  expiresInto?: string
+  /** Internal state: kept out of the buff bar and status fly text */
+  hidden?: boolean
   /**
    * If true, this buff survives entity death and remains on the entity.
    * Default false (buff is cleared on death, matching FF14 Raise semantics).
