@@ -100,6 +100,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     })
     e.customData.displayName = job.name
     e.customData.jobId = job.id
+    e.customData.jobCategory = job.category
     kits.set(e.id, buildNpcKit(job))
     return e
   })

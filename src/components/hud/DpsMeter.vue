@@ -23,6 +23,9 @@ function formatDamage(n: number): string {
   .dps-meter__footer
     span Total {{ formatDamage(battle.dpsMeter.totalDamage) }}
     span.tabular-nums {{ formatDamage(Math.floor(battle.dpsMeter.dps)) }} DPS
+  .dps-meter__footer.dps-meter__allies(v-if="battle.dpsMeter.allies")
+    span 队友 {{ formatDamage(battle.dpsMeter.allies.totalDamage) }}
+    span.tabular-nums {{ formatDamage(Math.floor(battle.dpsMeter.allies.dps)) }} DPS
 </template>
 
 <style lang="scss" scoped>
@@ -85,5 +88,9 @@ function formatDamage(n: number): string {
   font-size: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   color: #999;
+}
+
+.dps-meter__allies {
+  color: #8fc4e8;
 }
 </style>

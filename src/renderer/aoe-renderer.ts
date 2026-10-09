@@ -135,7 +135,7 @@ export class AoeRenderer {
     const mesh = MeshBuilder.CreateGround(`aoe-${zone.id}`, { width: geo.quadWidth, height: geo.quadLength }, this.scene)
     const [fill, rim] = isPlayer ? [PLAYER_FILL, PLAYER_RIM]
       : zone.def.share ? [SHARE_FILL, SHARE_RIM]
-        : zone.def.anchor.type === 'party' ? [SPREAD_FILL, SPREAD_RIM]
+        : zone.def.anchor.type === 'party' && zone.def.marker !== 'buster' ? [SPREAD_FILL, SPREAD_RIM]
           : [ENEMY_FILL, ENEMY_RIM]
     const material = createTelegraphMaterial(this.scene, `aoe-mat-${zone.id}`, geo, fill, rim)
     mesh.material = material

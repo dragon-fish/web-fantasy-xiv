@@ -41,11 +41,15 @@ export class EntityFeedback {
   private pool: Sprite[] = []
   private health = new WeakMap<Entity, HealthBarMotion>()
   private serial = 0
+  private playerId: string | null = null
   private orderDirty = false
   private onDamage = (event: DamageFeedback) => {
     if (!Number.isFinite(event.amount) || event.amount === 0) return
     if (!this.health.has(event.target)) this.health.set(event.target, new HealthBarMotion(Math.min(event.target.maxHp, event.target.hp + event.amount), event.target.maxHp))
     this.health.get(event.target)!.update(event.target.hp, event.target.maxHp, 0)
+    // As in FFXIV, allies' own exchanges show no numbers; only what the player deals or takes
+    const mine = event.source?.id === this.playerId || event.target.id === this.playerId
+    if (!mine && (event.source?.npc || event.target.npc)) return
     const heal = event.amount < 0
     const critical = !heal && !!event.isCritical
     const color = heal ? COLORS.heal : event.target.type === 'player' ? COLORS.incoming
@@ -105,6 +109,7 @@ export class EntityFeedback {
     return motion.snapshot
   }
   update(entities: Entity[], player: Entity, mainBossId: string | null, dt: number, bossCast: EntityCast | null = null) {
+    this.playerId = player.id
     for (const entity of entities) this.motion(entity).update(entity.hp, entity.maxHp, dt)
     if (this.queued.length && dt > 0) {
       this.queued = this.queued.filter((q) => {

@@ -42,6 +42,7 @@ export class InputManager {
   private pendingSkill: number | null = null
   private escPressed = false
   private clicked = false
+  private partySlot: number | null = null
   /**
    * Monotonic count of action-key (Space) presses. Mechanics snapshot it when they start and
    * only react to newer presses — a latched flag would let a stray earlier press count.
@@ -70,6 +71,13 @@ export class InputManager {
     return clicked
   }
 
+  /** Returns and clears a party-list key press (F1–F4 → slot 0–3) */
+  consumePartySlot(): number | null {
+    const slot = this.partySlot
+    this.partySlot = null
+    return slot
+  }
+
   /** Returns and clears ESC press */
   consumeEsc(): boolean {
     const esc = this.escPressed
@@ -95,6 +103,11 @@ export class InputManager {
         case 'KeyQ': this.pendingSkill = 100; break  // special: dash
         case 'KeyE': this.pendingSkill = 101; break  // special: backstep
         case 'Escape': this.escPressed = true; break
+        case 'F1': case 'F2': case 'F3': case 'F4':
+          // Browser help / address-bar shortcuts would steal these otherwise
+          e.preventDefault()
+          this.partySlot = Number(e.code.slice(1)) - 1
+          break
         case 'Space':
           e.preventDefault()
           if (!e.repeat) this.actionPresses++

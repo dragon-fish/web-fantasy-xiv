@@ -69,6 +69,34 @@ export interface DpsMeterState {
   skills: DpsSkillEntry[]
   totalDamage: number
   dps: number
+  /** Party mode: all NPC allies' damage as one row */
+  allies?: { totalDamage: number; dps: number }
+}
+
+/** One row of the party list (party mode) */
+export interface PartyMemberView {
+  id: string
+  name: string
+  icon?: string
+  hp: number
+  maxHp: number
+  alive: boolean
+  isPlayer: boolean
+  /** The player's picked ally (friendly skills land here) */
+  selected: boolean
+  cast: { name: string; progress: number } | null
+  buffs: { icon?: string; name: string; debuff: boolean }[]
+}
+
+/** Name (and HP when hurt or down) over an NPC ally's head, CSS px within the canvas box */
+export interface AllyTag {
+  id: string
+  name: string
+  x: number
+  y: number
+  hp: number
+  maxHp: number
+  alive: boolean
 }
 
 export const useBattleStore = defineStore('battle', {
@@ -94,6 +122,8 @@ export const useBattleStore = defineStore('battle', {
     // Timed-input prompt (blade clash)
     qte: null as QtePrompt | null,
     overhead: null as OverheadStatus | null,
+    party: [] as PartyMemberView[],
+    allyTags: [] as AllyTag[],
     gauge: [] as GaugeView[],
     gaugeArt: null as 'whm-lily' | null,
     /** Stacks of every buff on the player, hidden ones included (skill usability checks) */

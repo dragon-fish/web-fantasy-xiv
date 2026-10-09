@@ -1,9 +1,10 @@
-import { useBattleStore } from '@/stores/battle'
+import { useBattleStore, type AllyTag, type PartyMemberView } from '@/stores/battle'
 import type { GameScene } from '@/game/game-scene'
 import type { Entity } from '@/entity/entity'
 import type { BuffDef } from '@/core/types'
 import { pickControlStatus } from '@/game/control-status'
 import { REVIVE_BUFFS, type ReviveTier } from '@/game/player-revive'
+import { classJobIcon } from '@/jobs'
 
 /** How long the new Weakness / Brink icon flashes over the head after a revive */
 const REVIVE_FLASH_MS = 2600
@@ -14,6 +15,7 @@ const MAX_POPUPS = 6
 export function useStateAdapter(scene: GameScene) {
   const battle = useBattleStore()
   const playerDamageBySkill = new Map<string, number>()
+  let allyDamage = 0
 
   const onDamage = (payload: {
     target: Entity
@@ -21,29 +23,65 @@ export function useStateAdapter(scene: GameScene) {
     source?: Entity
     skill?: { name: string } | null
   }) => {
-    if (payload.source?.type === 'player' && payload.amount > 0 && payload.skill?.name) {
+    if (!payload.source || payload.amount <= 0) return
+    if (payload.source.id === scene.player.id && payload.skill?.name) {
       const name = payload.skill.name
       playerDamageBySkill.set(name, (playerDamageBySkill.get(name) ?? 0) + payload.amount)
+    } else if (payload.source.npc) {
+      allyDamage += payload.amount
     }
   }
 
   const onCastStart = (payload: { caster: Entity; skill: { name: string } }) => {
     const name = payload.skill?.name ?? 'Casting...'
-    if (payload.caster.type === 'player') {
-      battle.playerCast = { name, elapsed: 0, total: 0 }
-    } else {
-      battle.bossCast = { name, elapsed: 0, total: 0 }
-    }
+    if (payload.caster.id === scene.player.id) battle.playerCast = { name, elapsed: 0, total: 0 }
+    else if (payload.caster.id === scene.bossEntity?.id) battle.bossCast = { name, elapsed: 0, total: 0 }
   }
 
   const onCastComplete = (payload: { caster: Entity }) => {
-    if (payload.caster.type === 'player') battle.playerCast = null
-    else battle.bossCast = null
+    if (payload.caster.id === scene.player.id) battle.playerCast = null
+    else if (payload.caster.id === scene.bossEntity?.id) battle.bossCast = null
   }
 
   const onCastInterrupted = (payload: { caster: Entity }) => {
-    if (payload.caster?.type === 'player') battle.playerCast = null
-    else battle.bossCast = null
+    if (payload.caster?.id === scene.player.id) battle.playerCast = null
+    else if (payload.caster?.id === scene.bossEntity?.id) battle.bossCast = null
+  }
+
+  const partyMode = () => scene.entityMgr.getAll().some(e => e.npc)
+
+  function partyList(): PartyMemberView[] {
+    if (!partyMode()) return []
+    return scene.partyMembers().map((e) => {
+      const skill = e.casting ? scene.skillResolver.getSkill(e.casting.skillId) : undefined
+      return {
+        id: e.id,
+        name: e.customData.displayName ?? e.id,
+        icon: e.customData.jobCategory ? classJobIcon(e.customData.jobCategory) : undefined,
+        hp: e.hp,
+        maxHp: scene.buffSystem.getMaxHp(e),
+        alive: e.alive,
+        isPlayer: e === scene.player,
+        selected: scene.player.allyTarget === e.id,
+        cast: e.casting && skill ? { name: skill.name, progress: Math.min(1, e.casting.elapsed / e.casting.castTime) } : null,
+        buffs: e.buffs.flatMap((b) => {
+          const def = scene.buffSystem.getDef(b.defId)
+          return def && !def.hidden && def.icon ? [{ icon: def.icon, name: def.name, debuff: def.type === 'debuff' }] : []
+        }).slice(0, 6),
+      }
+    })
+  }
+
+  function allyTags(): AllyTag[] {
+    const out: AllyTag[] = []
+    for (const e of scene.entityMgr.getAll()) {
+      if (!e.npc) continue
+      const height = scene.entityRenderer.getHeight?.(e) ?? 1.8
+      const pos = scene.sceneManager.worldToCss(e.position.x, e.position.y, height + 0.35)
+      if (!pos) continue
+      out.push({ id: e.id, name: e.customData.displayName ?? e.id, ...pos, hp: e.hp, maxHp: scene.buffSystem.getMaxHp(e), alive: e.alive })
+    }
+    return out
   }
 
   let reviveFlash: { icon?: string; name: string; until: number } | null = null
@@ -101,7 +139,8 @@ export function useStateAdapter(scene: GameScene) {
 
     const totalDamage = [...playerDamageBySkill.values()].reduce((s, v) => s + v, 0)
     const elapsed = scene.getCombatElapsed()
-    const dps = elapsed && elapsed > 0 ? totalDamage / (elapsed / 1000) : 0
+    const perSecond = (n: number) => (elapsed && elapsed > 0 ? n / (elapsed / 1000) : 0)
+    const dps = perSecond(totalDamage)
     const sortedSkills = [...playerDamageBySkill.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -178,7 +217,12 @@ export function useStateAdapter(scene: GameScene) {
       cooldowns: cdMap,
       tooltipContext: { gcdDuration: player.gcdDuration, haste },
       debugPlayerPos: { x: player.position.x, y: player.position.y },
-      dpsMeter: { skills: sortedSkills, totalDamage, dps },
+      dpsMeter: {
+        skills: sortedSkills, totalDamage, dps,
+        ...(partyMode() ? { allies: { totalDamage: allyDamage, dps: perSecond(allyDamage) } } : {}),
+      },
+      party: partyList(),
+      allyTags: allyTags(),
     })
   }
 
@@ -191,6 +235,7 @@ export function useStateAdapter(scene: GameScene) {
     scene.bus.off('skill:cast_complete', onCastComplete)
     scene.bus.off('skill:cast_interrupted', onCastInterrupted)
     playerDamageBySkill.clear()
+    allyDamage = 0
     battle.$reset()
   }
 

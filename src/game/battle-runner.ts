@@ -258,6 +258,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     gcdDuration: job.stats.gcdDuration,
   })
 
+  s.player.customData.displayName = job.name
+  s.player.customData.jobCategory = job.category
+
   // Create all entities from encounter data
   const entityMap = new Map<string, Entity>()
   entityMap.set('player', s.player)

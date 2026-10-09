@@ -151,6 +151,8 @@ watch(
   HudDialogBox
   HudQtePrompt
   HudOverheadStatus
+  HudAllyTags
+  HudPartyList
   HudDebugInfo
   HudTimelineDisplay
   HudTooltip

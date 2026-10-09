@@ -510,7 +510,7 @@ export class VfxRenderer {
     const source = p.source?.id ? this.entities.get(p.source.id) : undefined
     const element = source?.type === 'player' ? 'physical' : this.enemyElement
     this.impact(this.chest(target), element, 0.8)
-    if (target.type === 'player') {
+    if (target.type === 'player' && !target.npc) {
       const heavy = p.amount >= target.maxHp * 0.08
       this.sm.shake(heavy ? 0.35 : 0.12, heavy ? 260 : 140)
     }
@@ -536,7 +536,7 @@ export class VfxRenderer {
       this.flash(contact, 'flashStar', color, big ? 3.6 : 2.5, 140)
       this.burster('spark', 'physical').emit(contact.x, contact.y, contact.z, guard === 'block' ? 20 : big ? 56 : 34, { dirY: 0.4, spread: 2.4, jitter: 0.2 })
       if (last) this.flash(new Vector3(e.position.x, 0.08, e.position.y), 'ringThick', color, 6, 480, 'ground')
-      if (e.type === 'player') this.sm.shake(guard === 'block' ? 0.12 : last ? 0.3 : 0.06, last ? 260 : 60)
+      if (e.type === 'player' && !e.npc) this.sm.shake(guard === 'block' ? 0.12 : last ? 0.3 : 0.06, last ? 260 : 60)
       playClang(guard, { accent: last })
       return
     }
@@ -546,7 +546,7 @@ export class VfxRenderer {
     this.flash(feet, 'waveRing', s.core, last ? 5 : 2.4, 220, 'ground')
     this.flash(chest, Math.random() < 0.5 ? 'spark' : 'crescent', s.core, last ? 4 : 2.2, 160)
     this.impact(chest, this.enemyElement, last ? 1.3 : 0.5)
-    if (e.type === 'player') this.sm.shake(last ? 0.5 : 0.14, last ? 320 : 80)
+    if (e.type === 'player' && !e.npc) this.sm.shake(last ? 0.5 : 0.14, last ? 320 : 80)
   }
 
   private onZoneResolved(zone: ActiveAoeZone): void {

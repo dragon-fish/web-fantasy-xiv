@@ -31,6 +31,7 @@ import type { CreateEntityOptions } from '@/entity/entity'
 import type { TimelineEntry } from '@/timeline/types'
 import type { DamageLogEntry } from '@/game/types'
 import type { JobGaugeItem, SkillBarEntry } from '@/jobs/shared'
+import { isPartyMember } from '@/combat/party'
 
 export interface QtePrompt {
   /** ms elapsed since the prompt started */
@@ -172,6 +173,17 @@ export class GameScene {
     if (import.meta.env.DEV) (globalThis as any).__gameScene = this
   }
 
+  /** The player's party in list order: the player first, then allies as they joined */
+  partyMembers(): Entity[] {
+    return [this.player, ...this.entityMgr.getAll().filter(e => isPartyMember(e) && e !== this.player)]
+  }
+
+  /** Pick (or, picked again, drop) the ally that friendly single-target skills land on */
+  selectAlly(id: string | null): void {
+    if (!this.player) return
+    this.player.allyTarget = id && this.player.allyTarget !== id ? id : null
+  }
+
   /** Create player entity and bind input driver + camera */
   createPlayer(opts: CreateEntityOptions): Entity {
     this.player = this.entityMgr.create(opts)
@@ -210,6 +222,11 @@ export class GameScene {
 
       const result = this.playerDriver.update(dt)
       if (result === 'pause') { this.pause(); return }
+      const slot = this.input.consumePartySlot()
+      if (slot !== null) {
+        const member = this.partyMembers()[slot]
+        if (member) this.selectAlly(member.id)
+      }
 
       // Tick all alive entities' buff durations + periodic effects in one pass
       const alive = this.entityMgr.getAlive()
@@ -242,7 +259,7 @@ export class GameScene {
       const frozen = this.paused || this.devTerminal.isVisible()
       const visualDelta = frozen ? 0 : delta
       this.sceneManager.scene.animationsEnabled = !frozen
-      this.entityRenderer.updateAll(this.entityMgr.getAlive(), visualDelta, this.player?.target)
+      this.entityRenderer.updateAll(this.entityMgr.getAlive(), visualDelta, this.player?.target, this.player?.allyTarget)
       this.entityFeedback.update(this.entityMgr.getAlive(), this.player, this.bossEntity?.id ?? null,
         visualDelta, this.getBossCast())
       this.aoeRenderer.update(now)
