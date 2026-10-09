@@ -239,6 +239,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   const s = scene
   s.skillBarEntries = job.skillBar
   s.jobGauge = job.gauge ?? []
+  s.jobGaugeArt = job.gaugeArt ?? null
   s.buffDefs = job.buffMap
 
   s.createPlayer({

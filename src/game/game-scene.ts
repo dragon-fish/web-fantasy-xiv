@@ -108,6 +108,7 @@ export class GameScene {
   skillBarEntries: SkillBarEntry[] = []
   /** The player's job gauge layout (empty = no gauge) */
   jobGauge: JobGaugeItem[] = []
+  jobGaugeArt: 'whm-lily' | null = null
   buffDefs: Map<string, BuffDef> = new Map()
   private lastTime = performance.now()
   readonly config: GameSceneConfig

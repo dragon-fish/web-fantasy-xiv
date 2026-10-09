@@ -72,6 +72,8 @@ export interface PlayerJob {
   buffMap: Map<string, BuffDef>
   /** Simplified job gauge, top to bottom */
   gauge?: JobGaugeItem[]
+  /** Full art gauge drawn from the same items; players can switch to the simplified one */
+  gaugeArt?: 'whm-lily'
   /** Buffs applied when combat starts (make them `preserveOnDeath` to outlive deaths) */
   combatBuffs?: string[]
   /** Buffs that passively accumulate during combat */

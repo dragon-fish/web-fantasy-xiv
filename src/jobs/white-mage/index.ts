@@ -27,8 +27,9 @@ export const WHITE_MAGE_JOB: PlayerJob = {
   combatBuffs: ['healer_lucid_dreaming', 'whm_free_raise'],
   passiveBuffs: [{ buffId: 'whm_lily', interval: 20000, stacks: 1 }],
   gauge: [
-    { kind: 'timer', label: '百合积攒', buffId: 'whm_lily', max: 3, color: '#7fc4ff' },
-    { kind: 'stacks', label: '治疗百合', buffId: 'whm_lily', max: 3, shape: 'diamond', color: '#6fb8ff' },
-    { kind: 'stacks', label: '血百合', buffId: 'whm_blood_lily', max: 3, shape: 'chevron', color: '#ff5a6a' },
+    { kind: 'stacks', label: '治疗百合', buffId: 'whm_lily', max: 3, shape: 'diamond', color: '#d2f0ff' },
+    { kind: 'timer', label: '百合积攒', buffId: 'whm_lily', max: 3, color: '#8fd4ff' },
+    { kind: 'stacks', label: '血百合', buffId: 'whm_blood_lily', max: 3, shape: 'chevron', color: '#ff9aa4' },
   ],
+  gaugeArt: 'whm-lily',
 }

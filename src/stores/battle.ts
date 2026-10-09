@@ -34,8 +34,8 @@ export interface BuffSnapshot {
 
 /** One rendered element of the job gauge */
 export type GaugeView =
-  | { kind: 'stacks'; label: string; count: number; max: number; shape: 'diamond' | 'chevron'; color: string }
-  | { kind: 'timer'; label: string; progress: number; color: string }
+  | { kind: 'stacks'; buffId: string; label: string; count: number; max: number; shape: 'diamond' | 'chevron'; color: string }
+  | { kind: 'timer'; buffId: string; label: string; progress: number; color: string }
 
 /** Status shown over the player's head (CSS px within the canvas box) */
 export interface OverheadStatus {
@@ -95,6 +95,7 @@ export const useBattleStore = defineStore('battle', {
     qte: null as QtePrompt | null,
     overhead: null as OverheadStatus | null,
     gauge: [] as GaugeView[],
+    gaugeArt: null as 'whm-lily' | null,
     /** Stacks of every buff on the player, hidden ones included (skill usability checks) */
     buffStacks: {} as Record<string, number>,
     // Control

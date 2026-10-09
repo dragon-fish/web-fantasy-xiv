@@ -119,12 +119,13 @@ export function useStateAdapter(scene: GameScene) {
       dialogText: scene.dialogText,
       qte: scene.qte ? { ...scene.qte } : null,
       overhead: overhead(player),
+      gaugeArt: scene.jobGaugeArt,
       buffStacks: Object.fromEntries(player.buffs.map((b) => [b.defId, b.stacks])),
       gauge: scene.jobGauge.map((item) => {
         const stacks = scene.buffSystem.getStacks(player, item.buffId)
         return item.kind === 'stacks'
-          ? { kind: 'stacks' as const, label: item.label, count: stacks, max: item.max, shape: item.shape, color: item.color }
-          : { kind: 'timer' as const, label: item.label, color: item.color,
+          ? { kind: 'stacks' as const, buffId: item.buffId, label: item.label, count: stacks, max: item.max, shape: item.shape, color: item.color }
+          : { kind: 'timer' as const, buffId: item.buffId, label: item.label, color: item.color,
               progress: stacks >= item.max ? 1 : scene.playerDriver.passiveProgress(item.buffId) }
       }),
       timelineEntries: scene.timelineEntries,
