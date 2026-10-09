@@ -392,7 +392,13 @@ export class NpcBrain {
   private attack(target: Entity, moving: boolean): void {
     const w = this.world
     const e = this.entity
-    if (e.casting || rangeTo(e, target) > this.kit.range) return
+    if (e.casting) return
+    if (rangeTo(e, target) > this.kit.range) {
+      // Melee out of reach (mid-mechanic, walking in): a ranged GCD instead of nothing
+      const ranged = this.kit.rangedGcd
+      if (ranged && e.gcdTimer <= 0 && rangeTo(e, target) <= ranged.range) w.skills.tryUse(e, ranged)
+      return
+    }
     if (w.skills.getCharges(e.id, this.kit.burst) > 0) w.skills.tryUse(e, this.kit.burst)
     if (e.gcdTimer > 0) return
     if (moving && this.kit.gcd.castTime > 0) return

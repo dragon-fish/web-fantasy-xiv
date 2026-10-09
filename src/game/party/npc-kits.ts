@@ -16,6 +16,8 @@ export interface NpcKit {
   range: number
   gcd: SkillDef
   burst: SkillDef
+  /** Melee only: a weaker instant ranged GCD (Tomahawk / Enpi) for when the target is out of reach */
+  rangedGcd?: SkillDef
   /** Mean damage weight per 2.5s GCD slot (filler + burst amortised over its cooldown) */
   weightPerGcd: number
   dash: SkillDef
@@ -56,6 +58,7 @@ interface Look {
   /** Job skill ids lending their name / icon / effects to the filler and the burst */
   gcd: string
   burst: string
+  rangedGcd?: string
   mitigation?: string
   heal?: string
   aoeHeal?: string
@@ -64,14 +67,14 @@ interface Look {
 }
 
 const LOOKS: Record<string, Look> = {
-  paladin: { style: 'tank', gcd: 'pld_vanguard', burst: 'pld_holy_spirit', mitigation: 'pld_holy_sheltron' },
-  warrior: { style: 'tank', gcd: 'slash', burst: 'overpower', mitigation: 'rampart' },
-  dark_knight: { style: 'tank', gcd: 'drk_shadow_bolt', burst: 'drk_drain_slash', mitigation: 'drk_shadow_wall' },
+  paladin: { style: 'tank', gcd: 'pld_vanguard', burst: 'pld_holy_spirit', rangedGcd: 'pld_holy_spirit', mitigation: 'pld_holy_sheltron' },
+  warrior: { style: 'tank', gcd: 'slash', burst: 'overpower', rangedGcd: 'line_shot', mitigation: 'rampart' },
+  dark_knight: { style: 'tank', gcd: 'drk_shadow_bolt', burst: 'drk_drain_slash', rangedGcd: 'drk_drain_slash', mitigation: 'drk_shadow_wall' },
   white_mage: {
     style: 'healer', gcd: 'whm_glare', burst: 'whm_afflatus_misery',
     heal: 'whm_cure_ii', aoeHeal: 'whm_afflatus_rapture', regen: 'whm_medica_ii', partyMit: 'whm_temperance',
   },
-  samurai: { style: 'melee', gcd: 'sam_setsu', burst: 'sam_midare' },
+  samurai: { style: 'melee', gcd: 'sam_setsu', burst: 'sam_midare', rangedGcd: 'sam_enpi' },
   bard: { style: 'ranged', gcd: 'brd_straight_shot', burst: 'brd_pitch_perfect' },
   black_mage: { style: 'caster', gcd: 'blm_fire', burst: 'blm_flare' },
 }
@@ -90,6 +93,9 @@ export function npcStyleOf(jobId: string): NpcStyle {
 }
 
 const BURST_COOLDOWN = 30000
+/** Melee ranged GCD: reach and damage weight (a filler GCD is 1) */
+const RANGED_GCD_RANGE = 15
+const RANGED_GCD_WEIGHT = 0.6
 /** NPC GCDs splash: anything else caught takes this share (lets the NPC tank hold a pack) */
 const SPLASH = 0.5
 
@@ -146,6 +152,13 @@ export function buildNpcKit(job: PlayerJob): NpcKit {
     weightPerGcd: 1 + burstWeight * 2500 / BURST_COOLDOWN,
     dash: { ...ROLE_DASH, id: id('dash'), cooldown: 20000, range: 20 },
     backstep: { ...ROLE_BACKSTEP, id: id('backstep'), cooldown: 20000 },
+  }
+  if (look.rangedGcd) {
+    const ranged = borrow(job, look.rangedGcd)
+    kit.rangedGcd = skill(id('ranged'), { ...ranged, vfx: { delivery: 'projectile', ...ranged.vfx } }, {
+      type: 'weaponskill', gcd: true, requiresTarget: true, range: RANGED_GCD_RANGE,
+      effects: [{ type: 'damage', potency: RANGED_GCD_WEIGHT, dmgType }],
+    })
   }
   if (look.mitigation) {
     kit.mitigation = skill(id('mit'), borrow(job, look.mitigation), {
