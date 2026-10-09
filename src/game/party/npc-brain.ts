@@ -21,8 +21,6 @@ const REACTION_MS: [number, number] = [300, 900]
 const LATE_REACTION_MS: [number, number] = [1500, 2500]
 /** Tank mitigation goes up this long before a tankbuster lands */
 const BUSTER_LEAD_MS: [number, number] = [1000, 3000]
-/** Chance a caster finishes a cast that is past halfway instead of moving at once */
-const GREED_CHANCE = 0.15
 const LOW_HP_MIT = 0.25
 const TANK_HEAL_BELOW = 0.85
 const SINGLE_HEAL_BELOW = 0.75
@@ -108,7 +106,6 @@ export class NpcBrain {
   private fight: Vec2 | null = null
   /** Where this NPC stands relative to a stack carrier (fixed per stack) */
   private stackOffset: { zoneId: string; x: number; y: number } | null = null
-  private greedyCast: string | null = null
   private raiseReadyAt = 0
 
   constructor(readonly entity: Entity, readonly kit: NpcKit, private world: NpcWorld) {}
@@ -167,24 +164,13 @@ export class NpcBrain {
     this.dest = this.chooseDestination(target, hazards, threats)
     const moving = dist(pos(e), this.dest) > ARRIVED
 
-    if (e.casting && moving && !this.keepCasting()) w.skills.interruptCast(e)
+    // Casters and healers get to safety first, then cast again from there (even with the AOE still pending)
+    if (e.casting && moving) w.skills.interruptCast(e)
     if (moving) this.travelSkills(target, hazards)
 
     if (this.kit.mitigation) this.tankDuty(threats, now)
     if (this.kit.style === 'healer' && this.healerDuty(threats, moving, now)) return
     if (target) this.attack(target, moving)
-  }
-
-  private keepCasting(): boolean {
-    const c = this.entity.casting!
-    if (this.kit.style !== 'caster' && this.kit.style !== 'healer') return false
-    const key = `${c.skillId}@${this.entity.gcdTimer}`
-    if (this.greedyCast === key) return true
-    if (c.elapsed / c.castTime > 0.5 && this.world.rng() < GREED_CHANCE) {
-      this.greedyCast = key
-      return true
-    }
-    return false
   }
 
   /** Highest-priority attackable enemy (nearest among equals); the NPC tank sticks to the boss */
@@ -233,9 +219,9 @@ export class NpcBrain {
   }
 
   /**
-   * A stack marker riding on someone else: follow that member and stand inside, whatever the preset
-   * spots say (the marked member decides where the stack happens). Null when there is none, or it is
-   * on this NPC (then it heads for its own spot and the others come along).
+   * A stack marker riding on someone else: stay inside its circle, following that member, whatever
+   * the preset spots say (the marked member decides where the stack happens). Null when there is
+   * none, or it is on this NPC (then it heads for its own spot and the others come along).
    */
   private stackToJoin(threats: ActiveAoeZone[]): Vec2 | null {
     const w = this.world
@@ -244,8 +230,10 @@ export class NpcBrain {
     if (!zone || zone.anchorEntityId === e.id) return null
     const carrier = w.entities.get(zone.anchorEntityId!)
     if (!carrier?.alive) return null
+    const radius = zone.def.shape.type === 'circle' ? zone.def.shape.radius : 2
+    // Anywhere inside the circle will do (with a little margin): no need to stand on the carrier
+    if (dist(pos(e), pos(carrier)) <= Math.max(0.5, radius - 1)) return pos(e)
     if (this.stackOffset?.zoneId !== zone.id) {
-      const radius = zone.def.shape.type === 'circle' ? zone.def.shape.radius : 2
       const a = w.rng() * Math.PI * 2
       const r = w.rng() * Math.min(1.5, radius * 0.4)
       this.stackOffset = { zoneId: zone.id, x: Math.sin(a) * r, y: Math.cos(a) * r }
