@@ -113,23 +113,27 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
   font-weight: 600;
 }
 
+// Rank above a bar laid along the icon's bottom edge, both flush with the icon's left side
 .party-list__enmity {
   position: absolute;
-  left: -14px;
-  bottom: -1px;
+  left: 0;
+  right: 0;
+  bottom: -3px;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .party-list__enmity-rank {
+  padding-left: 2px;
   font-size: 12px;
   font-weight: 700;
   line-height: 12px;
 }
 
 .party-list__enmity-bar {
-  width: 24px;
+  width: 100%;
+  box-sizing: border-box;
   height: 4px;
   margin-top: 1px;
   background: rgba(0, 0, 0, 0.7);
