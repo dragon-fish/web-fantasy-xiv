@@ -332,6 +332,36 @@ export class VfxRenderer {
         this.flash(new Vector3(caster.position.x, 0.4, caster.position.y), 'glowRing', s.color, 2.5, 260, 'ground')
         break
     }
+
+    const partyHeal = skill.effects?.find(e => e.type === 'party_heal')
+    if (partyHeal?.type === 'party_heal') this.ripple(caster, partyHeal.radius, style.element)
+  }
+
+  /** Party heals: waves roll out from the caster's feet to the edge of the effect range */
+  private ripple(caster: Entity, radius: number, element: VfxElement): void {
+    const s = ELEMENTS[element]
+    const x = caster.position.x, z = caster.position.y
+    // Ring textures peak at ~0.78 of the quad's half-width; scale so the bright edge lands on `r`
+    const ringScale = (r: number) => r * 2 / 0.78
+    for (let i = 0; i < 3; i++) {
+      this.later(i * 160, () => this.spawn('ground', 'ringThin', s.color, 900, (f, t) => {
+        const r = 0.6 + (radius - 0.6) * (1 - (1 - t) ** 2)
+        f.mesh.position.set(x, 0.09 + i * 0.005, z)
+        f.mesh.scaling.set(ringScale(r), 1, ringScale(r))
+        f.mesh.visibility = (i === 0 ? 0.8 : 0.45) * (1 - t * t)
+      }))
+    }
+    // The range itself: a soft wash and a rim that hold briefly once the waves arrive
+    this.spawn('ground', 'glowDisc', s.color, 1100, (f, t) => {
+      f.mesh.position.set(x, 0.06, z)
+      f.mesh.scaling.set(radius * 2.2, 1, radius * 2.2)
+      f.mesh.visibility = 0.12 * Math.sin(Math.PI * t)
+    })
+    this.spawn('ground', 'ringThick', s.color, 1100, (f, t) => {
+      f.mesh.position.set(x, 0.08, z)
+      f.mesh.scaling.set(ringScale(radius), 1, ringScale(radius))
+      f.mesh.visibility = t < 0.45 ? 0 : 0.8 * (1 - (t - 0.45) / 0.55)
+    })
   }
 
   private markDelivery(sourceId: string, targetId: string): void {
