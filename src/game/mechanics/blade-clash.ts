@@ -16,6 +16,8 @@ export interface BladeClashParams {
   /** Buff ids applied to the player on just / on a miss */
   justBuff?: string
   missBuff?: string
+  /** Presentation only: show the damage taken as this many quick hits */
+  hits?: number
 }
 
 const LABEL: Record<TimingGrade, string> = { just: 'JUST!', perfect: 'PERFECT', good: 'GOOD', early: 'EARLY', late: 'LATE' }
@@ -42,9 +44,9 @@ export const bladeClash: MechanicFactory = (ctx, raw, id) => {
     switch (grade) {
       case 'just': buff(p.justBuff); break
       case 'perfect': break
-      case 'good': ctx.combat.applyDamage(source, player, p.goodPotency, p.skillName); break
+      case 'good': ctx.combat.applyDamage(source, player, p.goodPotency, p.skillName, [], [], { hits: p.hits }); break
       default:
-        ctx.combat.applyDamage(source, player, p.missPotency, p.skillName)
+        ctx.combat.applyDamage(source, player, p.missPotency, p.skillName, [], [], { hits: p.hits })
         buff(p.missBuff)
     }
   }

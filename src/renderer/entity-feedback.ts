@@ -2,20 +2,30 @@ import { Sprite, SpriteManager, Color4, Vector3, Texture, type Scene } from '@ba
 import type { Entity } from '@/entity/entity'
 import { HealthBarMotion, type HealthBarSnapshot } from './health-bar-motion'
 import type { EventBus } from '@/core/event-bus'
+import { splitHits, HIT_INTERVAL_MS } from './hit-split'
 
 interface DamageFeedback {
   target: Entity
   source?: Entity
   amount: number
   isCritical?: boolean
+  /** Show the amount as this many quick hits (presentation only) */
+  hits?: number
 }
-interface NumberGroup { target: Entity; sprites: Sprite[]; age: number; lane: number; critical: boolean }
+interface NumberGroup {
+  target: Entity; sprites: Sprite[]; age: number; lane: number; critical: boolean
+  /** Multi-hit strike: small, quick and scattered sideways by this offset */
+  burst?: number
+}
 interface HealthBar { background: Sprite; trail: Sprite; fill: Sprite; heal: Sprite; edge: Sprite; castBackground: Sprite; castFill: Sprite }
 export interface EntityCast { elapsed: number; total: number }
 const GLYPHS = '0123456789+!无效'
 const MAX_NUMBERS = 80
 const MAX_HEALTH_BARS = 24
 const LIFETIME = 1000
+/** Multi-hit fly text: shorter-lived and faster so a flurry reads as a stream, not a pile */
+const BURST_LIFETIME = 650
+const BURST_RISE = 380 // ms per metre
 const COLORS = {
   outgoing: new Color4(1, 0.64, 0.2, 1), incoming: new Color4(1, 0.22, 0.22, 1),
   heal: new Color4(0.35, 1, 0.48, 1), neutral: new Color4(0.8, 0.8, 0.8, 1),
@@ -25,6 +35,8 @@ const COLORS = {
 export class EntityFeedback {
   private manager: SpriteManager
   private numbers: NumberGroup[] = []
+  /** Later numbers of a multi-hit attack, counting down on the visual clock */
+  private queued: { delay: number; target: Entity; text: string; color: Color4; burst: number }[] = []
   private bars = new Map<Entity, HealthBar>()
   private pool: Sprite[] = []
   private health = new WeakMap<Entity, HealthBarMotion>()
@@ -38,6 +50,14 @@ export class EntityFeedback {
     const critical = !heal && !!event.isCritical
     const color = heal ? COLORS.heal : event.target.type === 'player' ? COLORS.incoming
       : event.source?.type === 'player' ? COLORS.outgoing : COLORS.neutral
+    if (!heal && (event.hits ?? 1) > 1) {
+      splitHits(Math.round(event.amount), event.hits!).forEach((part, i) => {
+        const burst = Math.sin(i * 2.1) * 1.6
+        if (i === 0) this.addNumber(event.target, `${part}`, color, false, burst)
+        else this.queued.push({ delay: i * HIT_INTERVAL_MS, target: event.target, text: `${part}`, color, burst })
+      })
+      return
+    }
     const text = `${heal ? '+' : ''}${Math.round(Math.abs(event.amount))}${critical ? '!' : ''}`
     this.addNumber(event.target, text, color, critical)
   }
@@ -66,13 +86,13 @@ export class EntityFeedback {
     return sprite
   }
   private release(sprite: Sprite) { sprite.isVisible = false; this.pool.push(sprite) }
-  private addNumber(target: Entity, text: string, color: Color4, critical: boolean) {
+  private addNumber(target: Entity, text: string, color: Color4, critical: boolean, burst?: number) {
     if (this.numbers.length >= MAX_NUMBERS) {
       for (const sprite of this.numbers.shift()!.sprites) this.release(sprite)
     }
     const id = ++this.serial
     const sprites = [...text].map(char => this.acquire(`combat-number:${id}`, GLYPHS.indexOf(char), color))
-    this.numbers.push({ target, sprites, age: 0, lane: id % 3 - 1, critical })
+    this.numbers.push({ target, sprites, age: 0, lane: id % 3 - 1, critical, burst })
   }
   private motion(entity: Entity) {
     let motion = this.health.get(entity)
@@ -86,6 +106,14 @@ export class EntityFeedback {
   }
   update(entities: Entity[], player: Entity, mainBossId: string | null, dt: number, bossCast: EntityCast | null = null) {
     for (const entity of entities) this.motion(entity).update(entity.hp, entity.maxHp, dt)
+    if (this.queued.length && dt > 0) {
+      this.queued = this.queued.filter((q) => {
+        q.delay -= dt
+        if (q.delay > 0) return true
+        this.addNumber(q.target, q.text, q.color, false, q.burst)
+        return false
+      })
+    }
     const right = this.scene.activeCamera?.getDirection(Vector3.Right()).normalize() ?? Vector3.Right()
     const towardCamera = this.scene.activeCamera?.getDirection(Vector3.Forward()).negate() ?? Vector3.Backward()
     const injured = entities.filter(e => (e.type === 'mob' || e.type === 'boss') && e.id !== mainBossId && e.alive && e.visible && e.hp > 0 && e.hp < e.maxHp)
@@ -141,20 +169,23 @@ export class EntityFeedback {
     }
     for (const group of this.numbers) {
       group.age += dt
-      if (group.age >= LIFETIME) { for (const sprite of group.sprites) this.release(sprite); continue }
-      const size = group.critical ? 1.15 : 0.95
+      const burst = group.burst !== undefined
+      const life = burst ? BURST_LIFETIME : LIFETIME
+      if (group.age >= life) { for (const sprite of group.sprites) this.release(sprite); continue }
+      const size = burst ? 0.7 : group.critical ? 1.15 : 0.95
       const step = size * 0.52
+      const rise = burst ? group.age / BURST_RISE : group.age / 850 + (group.lane + 1) * 0.2
       for (let i = 0; i < group.sprites.length; i++) {
         const sprite = group.sprites[i]!
         sprite.width = size; sprite.height = size
-        sprite.color.a = Math.min(1, (LIFETIME - group.age) / 350)
+        sprite.color.a = Math.min(1, (life - group.age) / 350)
         sprite.isVisible = group.target.visible
-        const offset = (i - (group.sprites.length - 1) / 2) * step + group.lane * 1.15
-        sprite.position.set(group.target.position.x, this.heightFor(group.target) + 0.7 + group.age / 850 + (group.lane + 1) * 0.2, group.target.position.y)
+        const offset = (i - (group.sprites.length - 1) / 2) * step + (burst ? group.burst! : group.lane * 1.15)
+        sprite.position.set(group.target.position.x, this.heightFor(group.target) + 0.7 + rise, group.target.position.y)
         sprite.position.addInPlace(right.scale(offset))
       }
     }
-    this.numbers = this.numbers.filter(group => group.age < LIFETIME)
+    this.numbers = this.numbers.filter(group => group.age < (group.burst !== undefined ? BURST_LIFETIME : LIFETIME))
     if (this.orderDirty) {
       // Sprite draw order must survive pool reuse: backgrounds, fills, then text.
       const layer = (sprite: Sprite) => sprite.name.startsWith('hp-background:') || sprite.name.startsWith('cast-background:') ? 0 : sprite.name.startsWith('hp-trail:') ? 1 : sprite.name.startsWith('hp-fill:') || sprite.name.startsWith('cast-fill:') ? 2 : sprite.name.startsWith('hp-heal:') || sprite.name.startsWith('hp-edge:') ? 3 : 4

@@ -88,7 +88,7 @@ export class CombatResolver {
       switch (effect.type) {
         case 'damage':
           if (!caster || !target) break
-          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { noRevive: effect.noRevive })
+          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
           break
 
         case 'apply_buff': {
@@ -258,7 +258,7 @@ export class CombatResolver {
   }
 
   /** Shared damage entry point for timeline skills and simulated projectile hits. */
-  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean; noRevive?: boolean } = {}): void {
+  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean; noRevive?: boolean; hits?: number } = {}): void {
     // Invulnerable / damage immunity: negate all non-special damage
     if (!dmgTypes.includes('special') && (this.buffSystem.isInvulnerable(target) || this.buffSystem.hasDamageImmunity(target))) {
       this.bus.emit('damage:invulnerable', { source: caster, target, skill: skillName ? { name: skillName } : null })
@@ -299,7 +299,7 @@ export class CombatResolver {
       target.mp = Math.min(target.maxMp, target.mp + mpOnHit)
     }
 
-    this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null, isCritical: feedback.isCritical ?? false, noRevive: feedback.noRevive ?? false })
+    this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null, isCritical: feedback.isCritical ?? false, noRevive: feedback.noRevive ?? false, hits: feedback.hits })
 
     // Lifesteal: heal caster for % of damage dealt
     const lifesteal = this.buffSystem.getLifesteal(caster)

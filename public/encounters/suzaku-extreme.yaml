@@ -251,6 +251,7 @@ skills:
           - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
 
   # --- 鬼宿脚：坦克吃死刑，DPS 拼刀（timeline 里的 blade_clash） ---
+  # 原版的 17 连踢只是演出：伤害一帧结算，hits 只把伤害数字与受击特效拆成 17 段播放
   # 歼殛战标准：不开减伤打到血皮，不会穿杀（零式才是不开减伤必死）。按减伤最少的战士定：
   # 10000 血满血硬吃常规版剩约 1000，开铁壁（40%）只掉一半。
   phantom_flurry_tutorial:
@@ -269,7 +270,7 @@ skills:
         hitEffectDuration: 200
         effects: []
     effects:
-      - { type: damage, potency: 6000, when: { role: tank } }
+      - { type: damage, potency: 6000, hits: 17, when: { role: tank } }
   phantom_flurry:
     name: 鬼宿脚
     type: spell
@@ -286,7 +287,7 @@ skills:
         hitEffectDuration: 200
         effects: []
     effects:
-      - { type: damage, potency: 9000, when: { role: tank } }
+      - { type: damage, potency: 9000, hits: 17, when: { role: tank } }
   # 死刑后接的前方半场刀，方向锁定在读条开始时的朝向
   phantom_half_tutorial:
     name: 鬼宿脚
@@ -555,7 +556,7 @@ phases:
 
       # 鬼宿脚：死刑（坦克开减伤 / DPS 拼刀）→ 前方半场刀
       - { at: 32000, use: phantom_flurry_tutorial }
-      - { at: 32000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 32000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening, hits: 17 } }
       - { at: 37500, use: phantom_half_tutorial }
       - { at: 32000, action: show_dialog, when: { role: tank }, text: 鬼宿脚：坦克死刑！读条结束前开启减伤。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
       - { at: 32000, action: show_dialog, when: { role: dps }, text: 鬼宿脚：拼刀！屏幕中央的光圈转满时按 空格 接刀，越准收益越高。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
@@ -650,7 +651,7 @@ phases:
       - { at: 158000, action: show_dialog, text: 井宿焰：朝你劈下的超宽直线，横向闪开；同时头顶分散圈也会结算。 }
       - { at: 163500, action: hide_dialog }
       - { at: 168000, use: phantom_flurry }
-      - { at: 168000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 168000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening, hits: 17 } }
       - { at: 173500, use: phantom_half }
       - { at: 182000, use: ruthless_refrain_tutorial }
       - { at: 182000, action: show_dialog, text: 拒绝旋律：朱雀会把所有人向外击退——贴着内沿站，别被推出场外！ }
@@ -684,7 +685,7 @@ phases:
 
       # 死刑 → 前方刀 → 击退/吸引
       - { at: 268000, use: phantom_flurry }
-      - { at: 268000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 268000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening, hits: 17 } }
       - { at: 273500, use: phantom_half }
       - at: 278000
         choose:
@@ -708,7 +709,7 @@ phases:
       - { at: 328500, mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 4, interval: 1600, lead: 5500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
 
       - { at: 344000, use: phantom_flurry }
-      - { at: 344000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening } }
+      - { at: 344000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000, skillName: 鬼宿脚, goodPotency: 1900, missPotency: 7500, justBuff: keen_eye, missBuff: opening, hits: 17 } }
       - { at: 349500, use: phantom_half }
       - at: 354000
         choose:

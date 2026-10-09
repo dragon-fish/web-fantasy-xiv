@@ -21,6 +21,7 @@ import { createVfxMaterial } from './vfx-material'
 import { MechanicVfx } from './mechanic-vfx'
 import { HymnVfx } from './hymn-vfx'
 import { ReviveVfx } from './revive-vfx'
+import { HIT_INTERVAL_MS } from '../hit-split'
 
 type QuadKind = 'ground' | 'billboard' | 'billboardY' | 'flat' | 'arc'
 
@@ -458,7 +459,7 @@ export class VfxRenderer {
 
   // --- Reactions --------------------------------------------------------------
 
-  private onDamage(p: { source?: Entity; target: Entity; amount: number; periodic?: boolean }): void {
+  private onDamage(p: { source?: Entity; target: Entity; amount: number; periodic?: boolean; hits?: number }): void {
     const target = p.target
     if (!target?.position) return
     if (p.amount < 0) {
@@ -469,6 +470,15 @@ export class VfxRenderer {
     if (p.periodic || !(p.amount > 0)) return
     // Bosses reaching 0 HP end the fight without entity:died
     if (target.hp <= 0 && target.type === 'boss' && !this.dead.has(target.id)) { this.endCast(target.id); this.onDeath(target) }
+    // Multi-hit show: the follow-up strikes land on the beat of the split fly text
+    for (let i = 1; i < (p.hits ?? 1); i++) {
+      this.later(i * HIT_INTERVAL_MS, () => {
+        const e = this.entities.get(target.id)
+        if (!e) return
+        this.impact(this.chest(e), this.enemyElement, 0.5)
+        if (e.type === 'player') this.sm.shake(0.1, 70)
+      })
+    }
     const key = `${p.source?.id}>${target.id}`
     const delivered = this.deliveries.get(key)
     if (delivered !== undefined && this.now - delivered < DELIVERY_WINDOW) return
