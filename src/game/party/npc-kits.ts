@@ -157,8 +157,9 @@ export function buildNpcKit(job: PlayerJob): NpcKit {
     kit.heal = skill(id('heal'), borrow(job, look.heal!), {
       ...cast(1500), allyTarget: 'lowest-hp', range: 30, effects: [{ type: 'heal', potency: 4 }],
     })
+    // Instant (Afflatus Rapture): the one heal that goes out while moving
     kit.aoeHeal = skill(id('aoe_heal'), borrow(job, look.aoeHeal!), {
-      ...cast(2000), effects: [{ type: 'party_heal', potency: 3, radius: 20 }],
+      type: 'spell', castTime: 0, gcd: true, effects: [{ type: 'party_heal', potency: 2.5, radius: 20 }],
     })
     kit.regen = skill(id('regen'), borrow(job, look.regen!), {
       ...cast(2000), effects: [{ type: 'party_heal', potency: 1.5, radius: 20 }, { type: 'party_buff', buffId: 'npc_regen', radius: 20 }],

@@ -24,9 +24,9 @@ const BUSTER_LEAD_MS: [number, number] = [1000, 3000]
 /** Chance a caster finishes a cast that is past halfway instead of moving at once */
 const GREED_CHANCE = 0.15
 const LOW_HP_MIT = 0.25
-const TANK_HEAL_BELOW = 0.6
-const SINGLE_HEAL_BELOW = 0.5
-const AOE_HEAL_BELOW = 0.7
+const TANK_HEAL_BELOW = 0.85
+const SINGLE_HEAL_BELOW = 0.75
+const AOE_HEAL_BELOW = 0.85
 const ARRIVED = 0.4
 
 export interface NpcWorld {
@@ -104,6 +104,8 @@ export class NpcBrain {
   /** Tankbusters → lead time for mitigation (tank) */
   private busterLead = new Map<string, number>()
   private dodge: { key: string; spot: Vec2 } | null = null
+  /** Free mode's chosen fighting spot, kept while it stays good */
+  private fight: Vec2 | null = null
   private greedyCast: string | null = null
   private raiseReadyAt = 0
 
@@ -200,11 +202,17 @@ export class NpcBrain {
     return best
   }
 
+  /**
+   * Movement state: a mechanic spot wins; with nothing to attack, the idle formation; the tank holds
+   * the boss at the tank spot; everyone else is in free mode (`fightSpot`).
+   */
   private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[]): Vec2 {
     const w = this.world
     const e = this.entity
     const spot = w.spotFor(e)
-    if (spot) { this.dodge = null; return spot }
+    if (spot) { this.dodge = null; this.fight = null; return spot }
+    if (target && this.kit.style !== 'tank') { this.dodge = null; return this.fightSpot(target, hazards) }
+    this.fight = null
     const preferred = this.preferredPosition(target)
     const here = pos(e)
     if (hazards.length === 0) {
@@ -220,7 +228,43 @@ export class NpcBrain {
     return this.dodge.spot
   }
 
-  /** Where this NPC fights from: tank in front, melee at the back, ranged further back */
+  /**
+   * Free mode: keep hitting the target from wherever is fine. Stay while in range, safe and out of
+   * the boss's front; otherwise take the closest such point (a short walk beats a nice angle).
+   */
+  private fightSpot(target: Entity, hazards: ActiveAoeZone[]): Vec2 {
+    const w = this.world
+    const e = this.entity
+    const here = pos(e)
+    const reach = this.kit.range - 0.3
+    const inRange = (p: Vec2) => dist(p, pos(target)) - target.size <= reach
+    // The boss's front belongs to whoever it faces (cleaves); adds aren't worth walking around
+    const front = (p: Vec2) => {
+      if (target !== w.boss || target.target === e.id) return false
+      const bearing = ((Math.atan2(p.x - target.position.x, p.y - target.position.y) * 180) / Math.PI + 360) % 360
+      return Math.abs(((bearing - target.facing + 540) % 360) - 180) < 60
+    }
+    const good = (p: Vec2) => inRange(p) && isSafe(p, hazards, w.ground) && !front(p)
+    if (good(here)) { this.fight = null; return here }
+    if (this.fight && good(this.fight)) return this.fight
+    const melee = this.kit.style === 'melee'
+    const radii = melee ? [1, 2] : [6, 10, 14, 18].filter(r => r <= reach)
+    let best: Vec2 | null = null
+    let bestCost = Infinity
+    for (const r of radii) {
+      for (let i = 0; i < 24; i++) {
+        const a = (i * Math.PI * 2) / 24
+        const c = { x: target.position.x + Math.sin(a) * (target.size + r), y: target.position.y + Math.cos(a) * (target.size + r) }
+        if (!inRange(c) || !isSafe(c, hazards, w.ground)) continue
+        const cost = dist(here, c) + (front(c) ? 8 : 0) + w.rng() * 0.5
+        if (cost < bestCost) { bestCost = cost; best = c }
+      }
+    }
+    this.fight = best ?? findSafeSpot(here, here, hazards, w.ground, w.rng)
+    return this.fight
+  }
+
+  /** Idle formation, or (tank) where to hold the target */
   private preferredPosition(target: Entity | null): Vec2 {
     const w = this.world
     const e = this.entity
@@ -229,28 +273,16 @@ export class NpcBrain {
       const a = ((slot - 1) * 50 + 180) * Math.PI / 180
       return { x: w.config.idle.x + Math.sin(a) * 2.5, y: w.config.idle.y + Math.cos(a) * 2.5 }
     }
-    if (this.kit.style === 'tank') {
-      // Pull the boss to the tank spot only once it is on this tank; until then go and get it
-      if (target === w.boss && target.target === e.id) {
-        const face = dirOf(w.config.tankSpot.facing)
-        const anchor = w.boss.speed > 0 ? w.config.tankSpot : pos(w.boss)
-        const reach = w.boss.speed > 0 ? Math.max(w.boss.size + 1, w.bossChaseRange - 0.3) : w.boss.size + 1.5
-        return { x: anchor.x + face.x * reach, y: anchor.y + face.y * reach }
-      }
-      const away = { x: e.position.x - target.position.x, y: e.position.y - target.position.y }
-      const len = Math.hypot(away.x, away.y) || 1
-      return { x: target.position.x + (away.x / len) * (target.size + 1.5), y: target.position.y + (away.y / len) * (target.size + 1.5) }
+    // Pull the boss to the tank spot only once it is on this tank; until then go and get it
+    if (target === w.boss && target.target === e.id) {
+      const face = dirOf(w.config.tankSpot.facing)
+      const anchor = w.boss.speed > 0 ? w.config.tankSpot : pos(w.boss)
+      const reach = w.boss.speed > 0 ? Math.max(w.boss.size + 1, w.bossChaseRange - 0.3) : w.boss.size + 1.5
+      return { x: anchor.x + face.x * reach, y: anchor.y + face.y * reach }
     }
-    const ranged = this.kit.style !== 'melee'
-    const reach = target.size + (ranged ? 8 : 1.5)
-    // Only the boss is worth flanking, and only while it faces someone else (an enemy turning to
-    // whoever circles behind it drags the two round in circles); otherwise approach from where we are
-    const flank = target === w.boss && target.target !== e.id
-    const bearing = ((Math.atan2(e.position.x - target.position.x, e.position.y - target.position.y) * 180) / Math.PI + 360) % 360
-    const angle = flank ? target.facing + 180 + (slot - 1) * (ranged ? 35 : 25) : bearing
-    const d = dirOf(angle)
-    const p = { x: target.position.x + d.x * reach, y: target.position.y + d.y * reach }
-    return w.ground.standable(p) ? p : w.arena.clampPosition(p)
+    const away = { x: e.position.x - target.position.x, y: e.position.y - target.position.y }
+    const len = Math.hypot(away.x, away.y) || 1
+    return { x: target.position.x + (away.x / len) * (target.size + 1.5), y: target.position.y + (away.y / len) * (target.size + 1.5) }
   }
 
   /** Melee close in with a dash after dodging; anyone may backstep away from danger */
@@ -325,18 +357,20 @@ export class NpcBrain {
       if (w.skills.tryUse(e, kit.regen!)) this.prepared.add(raidwide!.id)
       return true
     }
-    if (moving || e.casting) return action.kind !== 'raise'
-    if (e.gcdTimer > 0) return action.kind !== 'raise'
-    switch (action.kind) {
+    if (e.casting || e.gcdTimer > 0) return action.kind !== 'raise'
+    // On the move only instants go out: the instant party heal stands in for a single heal
+    const heal = action.kind === 'heal' && moving ? { kind: 'aoe_heal' as const } : action
+    switch (heal.kind) {
       case 'heal':
-        e.allyTarget = action.target.id
+        e.allyTarget = heal.target.id
         w.skills.tryUse(e, kit.heal!)
         return true
       case 'aoe_heal':
         w.skills.tryUse(e, kit.aoeHeal!)
         return true
       case 'raise':
-        e.allyTarget = action.target.id
+        if (moving) return false
+        e.allyTarget = heal.target.id
         if (w.skills.tryUse(e, kit.raise!)) this.raiseReadyAt = now + NPC_RAISE_COOLDOWN_MS
         return true
     }
