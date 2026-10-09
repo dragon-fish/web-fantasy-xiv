@@ -126,7 +126,7 @@ export function useStateAdapter(scene: GameScene) {
         return item.kind === 'stacks'
           ? { kind: 'stacks' as const, buffId: item.buffId, label: item.label, count: stacks, max: item.max, shape: item.shape, color: item.color }
           : { kind: 'timer' as const, buffId: item.buffId, label: item.label, color: item.color,
-              progress: stacks >= item.max ? 1 : scene.playerDriver.passiveProgress(item.buffId) }
+              progress: scene.playerDriver.passiveProgress(item.buffId) }
       }),
       timelineEntries: scene.timelineEntries,
       currentPhaseInfo: scene.currentPhaseInfo,

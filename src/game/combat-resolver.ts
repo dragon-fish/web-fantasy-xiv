@@ -82,14 +82,14 @@ export class CombatResolver {
   }
 
   /** Apply a registered buff the way skills do (periodic effects get their tick schedule) */
-  grantBuff(target: Entity, buffId: string, source: Entity = target): void {
+  grantBuff(target: Entity, buffId: string, source: Entity = target, stacks = 1): void {
     const def = this.buffDefs.get(buffId)
     if (!def) {
       console.warn(`[combat] grantBuff: unknown buff def '${buffId}'`)
       return
     }
     if (def.effects.some(isPeriodicEffect)) applyPeriodicBuff(target, def, source, this.gameTimeGetter(), this.buffSystem)
-    else this.buffSystem.applyBuff(target, def, source.id)
+    else this.buffSystem.applyBuff(target, def, source.id, stacks)
   }
 
   registerBuffs(defs: Record<string, BuffDef>): void {

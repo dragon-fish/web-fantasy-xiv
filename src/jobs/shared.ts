@@ -43,8 +43,8 @@ export const JOB_CATEGORY_LABELS: Record<JobCategory, string> = {
 export type JobGaugeItem =
   /** One pip per stack of `buffId` */
   | { kind: 'stacks'; label: string; buffId: string; max: number; shape: 'diamond' | 'chevron'; color: string }
-  /** Progress towards the next stack of a passive buff (`passiveBuffs`); full while capped at `max` */
-  | { kind: 'timer'; label: string; buffId: string; max: number; color: string }
+  /** Progress towards the next stack of a passive buff (`passiveBuffs`); paused while capped */
+  | { kind: 'timer'; label: string; buffId: string; color: string }
 
 export interface PlayerJob {
   id: string
@@ -75,7 +75,7 @@ export interface PlayerJob {
   /** Full art gauge drawn from the same items; players can switch to the simplified one */
   gaugeArt?: 'whm-lily'
   /** Buffs applied when combat starts (make them `preserveOnDeath` to outlive deaths) */
-  combatBuffs?: string[]
+  combatBuffs?: (string | { buffId: string; stacks: number })[]
   /** Buffs that passively accumulate during combat */
   passiveBuffs?: { buffId: string; interval: number; stacks: number; requiresBuff?: string }[]
 }

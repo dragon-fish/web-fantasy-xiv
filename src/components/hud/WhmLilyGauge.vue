@@ -19,6 +19,8 @@ const BLOOD_CENTER = [279.4, 293.9]
 const BLOOD_PARTS = ['blood-1', 'blood-2', 'blood-3']
 const SIZES: Record<string, [number, number]> = {
   vine: [279, 359], lily: [84, 86], calyx: [38, 37],
+  // The glow art is a quarter-size copy of the vine, drawn ×2.5 behind it (fit by outline overlap)
+  'vine-glow': [123 * 2.5, 153 * 2.5],
   'blood-1': [31, 35], 'blood-2': [58, 60], 'blood-3': [105, 96], 'blood-glow': [115, 107],
 }
 
@@ -38,14 +40,24 @@ const at = (part: string, cx: number, cy: number) => {
 }
 const lilyStyle = (slot: number) => {
   const s = LILY_SLOTS[slot]!
-  // Bloomed lilies are solid; the next one fades in as it grows
-  const opacity = slot < lilies.value ? 1 : slot === lilies.value ? nextLily.value * 0.35 : 0
-  return { ...at('lily', s.lily[0]!, s.lily[1]!), opacity }
+  return { ...at('lily', s.lily[0]!, s.lily[1]!), opacity: slot < lilies.value ? 1 : 0 }
 }
+/** Lily timer: the glowing vine behind the stalk lights up from the root as the next lily grows */
+const glowStyle = computed(() => {
+  const url = `url(${BASE}/vine-glow.png)`
+  const { left, top, width, height } = at('vine-glow', 141.5, 181.5)
+  return {
+    left, top, width, height,
+    backgroundColor: '#7cc6ff',
+    maskImage: url, WebkitMaskImage: url,
+    clipPath: `inset(${(1 - nextLily.value) * 100}% 0 0 0)`,
+  }
+})
 </script>
 
 <template lang="pug">
 .whm-gauge(:style="{ width: `${340 * SCALE}px`, height: `${362 * SCALE}px` }")
+  .whm-gauge__glow-vine(:style="glowStyle")
   .whm-gauge__part(:style="at('vine', 139.5, 179.5)")
   template(v-for="(slot, i) in LILY_SLOTS" :key="i")
     .whm-gauge__part(:style="lilyStyle(i)")
@@ -64,6 +76,14 @@ const lilyStyle = (slot: number) => {
   position: absolute;
   background: center / contain no-repeat;
   transition: opacity 0.25s;
+}
+
+.whm-gauge__glow-vine {
+  position: absolute;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
 }
 
 .whm-gauge__glow {

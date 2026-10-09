@@ -23,12 +23,12 @@ export const WHITE_MAGE_JOB: PlayerJob = {
   skillBar: buildSkillBar(WHITE_MAGE_SKILLS, ROLE_DASH_FORWARD, WHITE_MAGE_RAISE),
   buffs: mergeBuffs(WHITE_MAGE_BUFFS),
   buffMap: mergeBuffMap(WHITE_MAGE_BUFFS),
-  // Healer role trait + the first free raise
-  combatBuffs: ['healer_lucid_dreaming', 'whm_free_raise'],
+  // Healer role trait, the first free raise, and a full set of Lilies at the pull
+  combatBuffs: ['healer_lucid_dreaming', 'whm_free_raise', { buffId: 'whm_lily', stacks: 3 }],
   passiveBuffs: [{ buffId: 'whm_lily', interval: 20000, stacks: 1 }],
   gauge: [
     { kind: 'stacks', label: '治疗百合', buffId: 'whm_lily', max: 3, shape: 'diamond', color: '#d2f0ff' },
-    { kind: 'timer', label: '百合积攒', buffId: 'whm_lily', max: 3, color: '#8fd4ff' },
+    { kind: 'timer', label: '百合积攒', buffId: 'whm_lily', color: '#8fd4ff' },
     { kind: 'stacks', label: '血百合', buffId: 'whm_blood_lily', max: 3, shape: 'chevron', color: '#ff9aa4' },
   ],
   gaugeArt: 'whm-lily',
