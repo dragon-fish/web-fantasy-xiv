@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { GaugeView } from '@/stores/battle'
 
 // White Mage "lily stalk" gauge, assembled from the game's JobHudWHM parts. Positions are in
@@ -18,7 +18,7 @@ const BLOOD_CENTER = [279.4, 293.9]
 /** Blood lily art per stack count: petal → bigger petal → full bloom */
 const BLOOD_PARTS = ['blood-1', 'blood-2', 'blood-3']
 const SIZES: Record<string, [number, number]> = {
-  vine: [279, 359], lily: [84, 86], calyx: [38, 37],
+  vine: [279, 359], lily: [84, 86], calyx: [38, 37], 'lily-glow': [99, 100], burst: [134, 134],
   // The glow art is a quarter-size copy of the vine, drawn ×2.5 behind it (fit by outline overlap)
   'vine-glow': [123 * 2.5, 153 * 2.5],
   'blood-1': [31, 35], 'blood-2': [58, 60], 'blood-3': [105, 96], 'blood-glow': [115, 107],
@@ -28,6 +28,14 @@ const find = (kind: string, buffId: string) => props.items.find(i => i.kind === 
 const lilies = computed(() => { const i = find('stacks', 'whm_lily'); return i?.kind === 'stacks' ? i.count : 0 })
 const nextLily = computed(() => { const i = find('timer', 'whm_lily'); return i?.kind === 'timer' ? i.progress : 0 })
 const blood = computed(() => { const i = find('stacks', 'whm_blood_lily'); return i?.kind === 'stacks' ? i.count : 0 })
+
+/** Bumped when a flower is gained; keying the burst on it replays the one-shot flash */
+const lilyFlash = ref([0, 0, 0])
+const bloodFlash = ref(0)
+watch(lilies, (n, prev) => {
+  for (let i = prev; i < n; i++) lilyFlash.value[i]!++
+})
+watch(blood, (n, prev) => { if (n > prev) bloodFlash.value++ })
 
 /** Absolutely place a part by its center (source px) */
 const at = (part: string, cx: number, cy: number) => {
@@ -60,11 +68,14 @@ const glowStyle = computed(() => {
   .whm-gauge__glow-vine(:style="glowStyle")
   .whm-gauge__part(:style="at('vine', 139.5, 179.5)")
   template(v-for="(slot, i) in LILY_SLOTS" :key="i")
+    .whm-gauge__part.whm-gauge__aura(v-if="i < lilies" :style="at('lily-glow', slot.lily[0], slot.lily[1])")
     .whm-gauge__part(:style="lilyStyle(i)")
     .whm-gauge__part(:style="at('calyx', slot.calyx[0], slot.calyx[1])")
+    .whm-gauge__part.whm-gauge__burst(v-if="lilyFlash[i]" :key="`l${i}-${lilyFlash[i]}`" :style="at('burst', slot.lily[0], slot.lily[1])")
   template(v-if="blood > 0")
     .whm-gauge__part.whm-gauge__glow(v-if="blood >= 3" :style="at('blood-glow', BLOOD_CENTER[0], BLOOD_CENTER[1])")
     .whm-gauge__part(:style="at(BLOOD_PARTS[Math.min(blood, 3) - 1], BLOOD_CENTER[0], BLOOD_CENTER[1])")
+  .whm-gauge__part.whm-gauge__burst(v-if="bloodFlash" :key="`b${bloodFlash}`" :style="at('burst', BLOOD_CENTER[0], BLOOD_CENTER[1])")
 </template>
 
 <style lang="scss" scoped>
@@ -88,6 +99,28 @@ const glowStyle = computed(() => {
 
 .whm-gauge__glow {
   animation: whm-glow 1.2s ease-in-out infinite alternate;
+}
+
+// Held lilies: a faint blue silhouette breathing behind the bell
+.whm-gauge__aura {
+  animation: whm-aura 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes whm-aura {
+  from { opacity: 0.2; }
+  to { opacity: 0.65; }
+}
+
+// Gained flower: one radial flash that spins open and fades
+.whm-gauge__burst {
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: whm-burst 0.6s ease-out forwards;
+}
+
+@keyframes whm-burst {
+  from { opacity: 1; transform: scale(0.4) rotate(0deg); }
+  to { opacity: 0; transform: scale(1.4) rotate(40deg); }
 }
 
 @keyframes whm-glow {
