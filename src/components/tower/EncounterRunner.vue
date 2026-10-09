@@ -149,6 +149,7 @@ watch(
   HudCombatAnnounce
   HudDialogBox
   HudQtePrompt
+  HudOverheadStatus
   HudDebugInfo
   HudTimelineDisplay
   HudTooltip

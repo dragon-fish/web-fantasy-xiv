@@ -1,6 +1,15 @@
 import { useBattleStore } from '@/stores/battle'
 import type { GameScene } from '@/game/game-scene'
 import type { Entity } from '@/entity/entity'
+import type { BuffDef } from '@/core/types'
+import { pickControlStatus } from '@/game/control-status'
+import { REVIVE_BUFFS, type ReviveTier } from '@/game/player-revive'
+
+/** How long the new Weakness / Brink icon flashes over the head after a revive */
+const REVIVE_FLASH_MS = 2600
+/** Status fly text lifetime and how many may float at once */
+const POPUP_MS = 1600
+const MAX_POPUPS = 6
 
 export function useStateAdapter(scene: GameScene) {
   const battle = useBattleStore()
@@ -37,7 +46,44 @@ export function useStateAdapter(scene: GameScene) {
     else battle.bossCast = null
   }
 
+  let reviveFlash: { icon?: string; name: string; until: number } | null = null
+  const onRevived = ({ tier }: { tier: ReviveTier }) => {
+    const def = REVIVE_BUFFS[tier]
+    reviveFlash = { icon: def.icon, name: def.name, until: performance.now() + REVIVE_FLASH_MS }
+  }
+
+  let popupKey = 0
+  let popups: { key: number; icon?: string; name: string; gained: boolean; debuff: boolean; born: number }[] = []
+  const pushPopup = (target: Entity, buff: BuffDef | undefined, gained: boolean) => {
+    if (!buff || target.id !== scene.player.id) return
+    popups.push({ key: ++popupKey, icon: buff.icon, name: buff.name, gained, debuff: buff.type === 'debuff', born: performance.now() })
+    if (popups.length > MAX_POPUPS) popups = popups.slice(-MAX_POPUPS)
+  }
+  const onBuffApplied = ({ target, buff }: { target: Entity; buff?: BuffDef }) => pushPopup(target, buff, true)
+  const onBuffRemoved = ({ target, buff }: { target: Entity; buff?: BuffDef }) => pushPopup(target, buff, false)
+
+  /** Head-anchored status; null when there is nothing to say */
+  function overhead(player: Entity) {
+    const now = performance.now()
+    const control = player.alive ? pickControlStatus(player.buffs, id => scene.buffSystem.getDef(id)) : null
+    if (reviveFlash && now > reviveFlash.until) reviveFlash = null
+    popups = popups.filter(p => now - p.born < POPUP_MS)
+    if (!control && !reviveFlash && !popups.length) return null
+    const height = scene.entityRenderer.getHeight?.(player) ?? 1.8
+    const pos = scene.sceneManager.worldToCss(player.position.x, player.position.y, height + 0.6)
+    if (!pos) return null
+    return {
+      ...pos,
+      control,
+      flash: reviveFlash && { icon: reviveFlash.icon, name: reviveFlash.name },
+      popups: popups.map(({ born, ...p }) => ({ ...p, t: (now - born) / POPUP_MS })),
+    }
+  }
+
   scene.bus.on('damage:dealt', onDamage)
+  scene.bus.on('player:revived', onRevived)
+  scene.bus.on('buff:applied', onBuffApplied)
+  scene.bus.on('buff:removed', onBuffRemoved)
   scene.bus.on('skill:cast_start', onCastStart)
   scene.bus.on('skill:cast_complete', onCastComplete)
   scene.bus.on('skill:cast_interrupted', onCastInterrupted)
@@ -72,6 +118,7 @@ export function useStateAdapter(scene: GameScene) {
       announceText: scene.announceText,
       dialogText: scene.dialogText,
       qte: scene.qte ? { ...scene.qte } : null,
+      overhead: overhead(player),
       timelineEntries: scene.timelineEntries,
       currentPhaseInfo: scene.currentPhaseInfo,
       damageLog: scene.damageLog,
@@ -128,6 +175,9 @@ export function useStateAdapter(scene: GameScene) {
 
   function dispose(): void {
     scene.bus.off('damage:dealt', onDamage)
+    scene.bus.off('player:revived', onRevived)
+    scene.bus.off('buff:applied', onBuffApplied)
+    scene.bus.off('buff:removed', onBuffRemoved)
     scene.bus.off('skill:cast_start', onCastStart)
     scene.bus.off('skill:cast_complete', onCastComplete)
     scene.bus.off('skill:cast_interrupted', onCastInterrupted)

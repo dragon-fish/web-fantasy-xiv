@@ -1,4 +1,5 @@
 import type { QtePrompt } from '@/game/game-scene'
+import type { ControlStatus } from '@/game/control-status'
 import { defineStore } from 'pinia'
 import type { HealthBarSnapshot } from '@/renderer/health-bar-motion'
 import type { BuffDef } from '@/core/types'
@@ -29,6 +30,28 @@ export interface BuffSnapshot {
   stacks: number
   remaining: number
   effects: BuffDef['effects']
+}
+
+/** Status shown over the player's head (CSS px within the canvas box) */
+export interface OverheadStatus {
+  x: number
+  y: number
+  /** Crowd control explaining ignored input */
+  control: ControlStatus | null
+  /** Briefly flashed status, e.g. the Weakness / Brink debuff right after a revive */
+  flash: { icon?: string; name: string } | null
+  /** FFXIV-style "+Status / −Status" fly text beside the player, oldest first */
+  popups: StatusPopup[]
+}
+
+export interface StatusPopup {
+  key: number
+  icon?: string
+  name: string
+  gained: boolean
+  debuff: boolean
+  /** Life progress 0..1 */
+  t: number
 }
 
 export interface DpsSkillEntry {
@@ -65,6 +88,7 @@ export const useBattleStore = defineStore('battle', {
     dialogText: '',
     // Timed-input prompt (blade clash)
     qte: null as QtePrompt | null,
+    overhead: null as OverheadStatus | null,
     // Control
     paused: false,
     battleOver: false,

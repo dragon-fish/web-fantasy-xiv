@@ -283,6 +283,14 @@ export class SceneManager {
     }
   }
 
+  /** Like worldToScreen, but in CSS pixels of the canvas box (for HTML overlays) */
+  worldToCss(x: number, y: number, heightOffset = 0): { x: number; y: number } | null {
+    const p = this.worldToScreen(x, y, heightOffset)
+    if (!p) return null
+    const k = this.canvas.clientWidth / Math.max(1, this.engine.getRenderWidth())
+    return { x: p.x * k, y: p.y * k }
+  }
+
   dispose(): void {
     this.engine.stopRenderLoop()
     // Dispose post effects before the scene: their async shader compiles otherwise
