@@ -19,28 +19,27 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
     :title="`F${i + 1}`"
     @click="select(m.id)"
   )
-    //- Enmity on your current enemy (FFXIV): the holder reads 引战, the others their rank
-    .party-list__enmity
+    .party-list__icon
+      img(v-if="m.icon" :src="m.icon" alt="")
+      //- Enmity on your current enemy (FFXIV), pressed over the icon: the holder reads 引战
       template(v-if="m.enmity")
-        span.party-list__enmity-label(v-if="m.enmity.rank === 1") 引战
-        template(v-else)
+        span.party-list__aggro(v-if="m.enmity.rank === 1") 引战
+        .party-list__enmity(v-else)
           span.party-list__enmity-rank {{ m.enmity.rank }}
           .party-list__enmity-bar
             .party-list__enmity-fill(:class="enmityClass(m.enmity.ratio)" :style="{ width: `${m.enmity.ratio * 100}%` }")
-    .party-list__icon
-      img(v-if="m.icon" :src="m.icon" alt="")
     .party-list__main
       .party-list__head
         span.party-list__slot {{ i + 1 }}
-        span.party-list__name {{ m.isPlayer ? `Player (${m.name})` : m.name }}
-        span.party-list__hp.tabular-nums {{ m.alive ? m.hp : '' }}
-      .party-list__bar
-        .party-list__bar-fill(:style="{ width: pct(m.hp, m.maxHp) }")
-      //- The cast line is always laid out so rows keep their height when casts come and go
-      .party-list__cast(:class="{ 'is-idle': !m.cast }")
-        template(v-if="m.cast")
+        //- A cast takes the name's place while it lasts
+        .party-list__cast(v-if="m.cast")
           .party-list__cast-fill(:style="{ width: `${m.cast.progress * 100}%` }")
           span.party-list__cast-name {{ m.cast.name }}
+        span.party-list__name(v-else) {{ m.isPlayer ? `Player (${m.name})` : m.name }}
+      .party-list__vitals
+        .party-list__bar
+          .party-list__bar-fill(:style="{ width: pct(m.hp, m.maxHp) }")
+        span.party-list__hp.tabular-nums {{ m.alive ? m.hp : '' }}
     .party-list__buffs
       img.party-list__buff(v-for="(b, k) in m.buffs" :key="k" :src="b.icon" :alt="b.name" :title="b.name")
 </template>
@@ -48,12 +47,11 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
 <style lang="scss" scoped>
 .party-list {
   position: absolute;
-  left: 12px;
+  left: 24px;
   top: 44%;
-  width: 300px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   pointer-events: auto;
   user-select: none;
   font-size: 12px;
@@ -62,7 +60,6 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
 }
 
 .party-list__title {
-  margin-left: 30px;
   color: #f3d58a;
   font-size: 13px;
   font-weight: 600;
@@ -70,11 +67,10 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
 }
 
 .party-list__row {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 0;
+  gap: 6px;
+  padding: 2px 6px 2px 2px;
   border-radius: 4px;
   cursor: pointer;
 
@@ -93,21 +89,37 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
   }
 }
 
-.party-list__enmity {
-  width: 28px;
+.party-list__icon {
+  position: relative;
+  width: 36px;
   height: 36px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding-bottom: 2px;
+  flex: none;
+
+  img {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+  }
 }
 
-.party-list__enmity-label {
+.party-list__aggro {
+  position: absolute;
+  right: calc(100% - 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
   color: #ffd2c8;
   font-size: 11px;
   font-weight: 600;
-  margin-bottom: 8px;
+}
+
+.party-list__enmity {
+  position: absolute;
+  left: -14px;
+  bottom: -1px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .party-list__enmity-rank {
@@ -120,8 +132,8 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
   width: 24px;
   height: 4px;
   margin-top: 1px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -133,28 +145,15 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
   &.is-safe { background: #59c8ff; }
 }
 
-.party-list__icon {
-  width: 36px;
-  height: 36px;
-  flex: none;
-
-  img {
-    width: 100%;
-    height: 100%;
-    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
-  }
-}
-
 .party-list__main {
-  flex: 1;
-  min-width: 0;
+  width: 150px;
 }
 
 .party-list__head {
   display: flex;
   align-items: center;
   gap: 4px;
-  line-height: 16px;
+  height: 16px;
 }
 
 .party-list__slot {
@@ -179,14 +178,41 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
   text-overflow: ellipsis;
 }
 
-.party-list__hp {
-  font-size: 11px;
-  color: #cfe9ff;
+.party-list__cast {
+  position: relative;
+  flex: 1;
+  height: 13px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 220, 160, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.party-list__cast-fill {
+  height: 100%;
+  background: linear-gradient(180deg, #ffe2a0, #e09a3a);
+}
+
+.party-list__cast-name {
+  position: absolute;
+  inset: 0;
+  padding-left: 4px;
+  font-size: 10px;
+  line-height: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.party-list__vitals {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
 }
 
 .party-list__bar {
+  width: 96px;
   height: 5px;
-  margin-top: 2px;
   background: rgba(10, 20, 30, 0.85);
   border: 1px solid rgba(220, 240, 255, 0.55);
   border-radius: 3px;
@@ -198,30 +224,9 @@ const enmityClass = (ratio: number) => (ratio >= 0.85 ? 'is-close' : 'is-safe')
   background: linear-gradient(180deg, #c8f4ff, #4cc3ea);
 }
 
-.party-list__cast {
-  position: relative;
-  height: 9px;
-  margin-top: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-
-  &.is-idle {
-    visibility: hidden;
-  }
-}
-
-.party-list__cast-fill {
-  height: 100%;
-  background: rgba(255, 190, 90, 0.7);
-}
-
-.party-list__cast-name {
-  position: absolute;
-  inset: 0;
-  padding-left: 3px;
-  font-size: 9px;
-  line-height: 9px;
+.party-list__hp {
+  font-size: 11px;
+  color: #cfe9ff;
 }
 
 .party-list__buffs {
