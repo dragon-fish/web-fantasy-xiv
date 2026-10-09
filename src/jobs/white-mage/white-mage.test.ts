@@ -81,6 +81,17 @@ describe('White Mage', () => {
     expect(buffs.hasBuff(whm, 'whm_free_raise')).toBe(true)
   })
 
+  it('Medica II leaves a regen on party members in range', () => {
+    const { buffs, whm, ally, use } = setup()
+    const near = ally('near', 10, 1000)
+    const far = ally('far', 20, 1000)
+    use('whm_medica_ii')
+    expect(near.hp).toBe(3500)
+    expect(buffs.hasBuff(near, 'whm_medica_ii')).toBe(true)
+    expect(buffs.hasBuff(whm, 'whm_medica_ii')).toBe(true)
+    expect(buffs.hasBuff(far, 'whm_medica_ii')).toBe(false)
+  })
+
   it('Temperance covers party members within 30m only', () => {
     const { buffs, whm, ally, use } = setup()
     const near = ally('near', 10, 9000)

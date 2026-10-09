@@ -37,7 +37,7 @@ export const WHITE_MAGE_SKILLS: SkillDef[] = [
     mpCost: 1000,
     effects: [{ type: 'heal', potency: 4.0 }],
   },
-  // 3: Medica II — party heal around you
+  // 3: Medica II — party heal around you plus a 15s regen
   {
     id: 'whm_medica_ii',
     name: '医济',
@@ -51,7 +51,10 @@ export const WHITE_MAGE_SKILLS: SkillDef[] = [
     requiresTarget: false,
     range: 0,
     mpCost: 1500,
-    effects: [{ type: 'party_heal', potency: 2.5, radius: 15 }],
+    effects: [
+      { type: 'party_heal', potency: 2.5, radius: 15 },
+      { type: 'party_buff', buffId: 'whm_medica_ii', radius: 15 },
+    ],
   },
   // 4: Afflatus Rapture — instant free party heal for a Lily; an effective heal grows a Blood Lily
   {

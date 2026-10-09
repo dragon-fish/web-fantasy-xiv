@@ -28,6 +28,17 @@ export const WHITE_MAGE_BUFFS: Record<string, BuffDef> = {
     hidden: true,
     effects: [],
   },
+  whm_medica_ii: {
+    id: 'whm_medica_ii',
+    name: '医济',
+    description: '体力持续恢复。',
+    icon: icon('player_skill_effects', 10413),
+    type: 'buff',
+    duration: 15000,
+    stackable: false,
+    maxStacks: 1,
+    effects: [{ type: 'hot', potency: 0.5, interval: 3000 }],
+  },
   whm_temperance: {
     id: 'whm_temperance',
     name: '节制',

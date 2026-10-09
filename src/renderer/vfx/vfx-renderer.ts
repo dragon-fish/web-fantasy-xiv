@@ -351,17 +351,6 @@ export class VfxRenderer {
         f.mesh.visibility = (i === 0 ? 0.8 : 0.45) * (1 - t * t)
       }))
     }
-    // The range itself: a soft wash and a rim that hold briefly once the waves arrive
-    this.spawn('ground', 'glowDisc', s.color, 1100, (f, t) => {
-      f.mesh.position.set(x, 0.06, z)
-      f.mesh.scaling.set(radius * 2.2, 1, radius * 2.2)
-      f.mesh.visibility = 0.12 * Math.sin(Math.PI * t)
-    })
-    this.spawn('ground', 'ringThick', s.color, 1100, (f, t) => {
-      f.mesh.position.set(x, 0.08, z)
-      f.mesh.scaling.set(ringScale(radius), 1, ringScale(radius))
-      f.mesh.visibility = t < 0.45 ? 0 : 0.8 * (1 - (t - 0.45) / 0.55)
-    })
   }
 
   private markDelivery(sourceId: string, targetId: string): void {
