@@ -106,6 +106,8 @@ export class NpcBrain {
   private dodge: { key: string; spot: Vec2 } | null = null
   /** Free mode's chosen fighting spot, kept while it stays good */
   private fight: Vec2 | null = null
+  /** Where this NPC stands relative to a stack carrier (fixed per stack) */
+  private stackOffset: { zoneId: string; x: number; y: number } | null = null
   private greedyCast: string | null = null
   private raiseReadyAt = 0
 
@@ -162,7 +164,7 @@ export class NpcBrain {
     const hazards = this.dodgeable(threats)
     const target = this.pickTarget()
     if (target) e.target = target.id
-    this.dest = this.chooseDestination(target, hazards)
+    this.dest = this.chooseDestination(target, hazards, threats)
     const moving = dist(pos(e), this.dest) > ARRIVED
 
     if (e.casting && moving && !this.keepCasting()) w.skills.interruptCast(e)
@@ -206,9 +208,11 @@ export class NpcBrain {
    * Movement state: a mechanic spot wins; with nothing to attack, the idle formation; the tank holds
    * the boss at the tank spot; everyone else is in free mode (`fightSpot`).
    */
-  private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[]): Vec2 {
+  private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[], threats: ActiveAoeZone[]): Vec2 {
     const w = this.world
     const e = this.entity
+    const stack = this.stackToJoin(threats)
+    if (stack) { this.dodge = null; this.fight = null; return stack }
     const spot = w.spotFor(e)
     if (spot) { this.dodge = null; this.fight = null; return spot }
     if (target && this.kit.style !== 'tank') { this.dodge = null; return this.fightSpot(target, hazards) }
@@ -226,6 +230,27 @@ export class NpcBrain {
       this.dodge = { key, spot: findSafeSpot(here, preferred, hazards, w.ground, w.rng) }
     }
     return this.dodge.spot
+  }
+
+  /**
+   * A stack marker riding on someone else: follow that member and stand inside, whatever the preset
+   * spots say (the marked member decides where the stack happens). Null when there is none, or it is
+   * on this NPC (then it heads for its own spot and the others come along).
+   */
+  private stackToJoin(threats: ActiveAoeZone[]): Vec2 | null {
+    const w = this.world
+    const e = this.entity
+    const zone = threats.find(z => z.def.share && z.anchorEntityId && z.def.anchor.type === 'party')
+    if (!zone || zone.anchorEntityId === e.id) return null
+    const carrier = w.entities.get(zone.anchorEntityId!)
+    if (!carrier?.alive) return null
+    if (this.stackOffset?.zoneId !== zone.id) {
+      const radius = zone.def.shape.type === 'circle' ? zone.def.shape.radius : 2
+      const a = w.rng() * Math.PI * 2
+      const r = w.rng() * Math.min(1.5, radius * 0.4)
+      this.stackOffset = { zoneId: zone.id, x: Math.sin(a) * r, y: Math.cos(a) * r }
+    }
+    return { x: carrier.position.x + this.stackOffset.x, y: carrier.position.y + this.stackOffset.y }
   }
 
   /**

@@ -36,6 +36,12 @@ export class CombatResolver {
     private displacer?: DisplacementAnimator,
     private gameTimeGetter: () => number = () => 0,
   ) {
+    // Zones of a cast can resolve before the cast completes: know the skill from its start
+    bus.on('skill:cast_start', ({ skill }: { skill: SkillDef }) => {
+      this.skillNames.set(skill.id, skill.name)
+      this.skillDefsMap.set(skill.id, skill)
+    })
+
     // Single-target skill effects
     bus.on('skill:cast_complete', (payload: { caster: Entity; skill: SkillDef | any; allyTargetId?: string | null }) => {
       const skill = payload.skill as SkillDef | undefined
