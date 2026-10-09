@@ -22,9 +22,17 @@ const LATE_REACTION_MS: [number, number] = [1500, 2500]
 /** Tank mitigation goes up this long before a tankbuster lands */
 const BUSTER_LEAD_MS: [number, number] = [1000, 3000]
 const LOW_HP_MIT = 0.25
-const TANK_HEAL_BELOW = 0.85
-const SINGLE_HEAL_BELOW = 0.75
-const AOE_HEAL_BELOW = 0.85
+/** Single heal thresholds (HP ratio) */
+const TANK_HEAL_BELOW = 0.7
+const SINGLE_HEAL_BELOW = 0.6
+/** Party heal once at least two are under this */
+const AOE_HEAL_BELOW = 0.7
+/** The healer always saves itself first under this */
+const SELF_SAVE_BELOW = 0.33
+/** Someone this low is single-healed before any party heal, whatever the numbers say */
+const CRITICAL_BELOW = 0.25
+/** ±share of random wobble on urgency and on the heal comparison */
+const HEAL_JITTER = 0.1
 const ARRIVED = 0.4
 /** The tank drags the boss back toward the tank spot once it strays this far, and lets go this close (m) */
 const PULL_START = 6
@@ -67,23 +75,53 @@ export type HealerAction =
   | { kind: 'raise'; target: Entity }
   | null
 
+export interface HealerSense {
+  /** Every party member, fallen ones included */
+  party: Entity[]
+  self: Entity
+  player: Entity
+  /** A raidwide is coming and has not been answered yet */
+  raidwideComing: boolean
+  canRaise: boolean
+  /** HP one single heal / one party heal restores */
+  singleHeal: number
+  partyHeal: number
+  rng: () => number
+}
+
+const ratio = (e: Entity) => e.hp / Math.max(1, e.maxHp)
+
 /**
- * Healer duty, highest first: heal the tank > party heal > raidwide prep > single-heal whoever is low > raise.
- * `prepare` = a raidwide is coming and has not been answered yet.
+ * Healer duty. Self-save first (< 33%); then single heals (tank < 70%, others < 60%) by a curved
+ * urgency and party heals (two or more < 70%). When both apply, the party heal goes first if it
+ * restores more in total, unless someone is critical (< 25%). Then raidwide prep, then raises.
  */
-export function chooseHealerAction(party: Entity[], raidwideComing: boolean, canRaise: boolean, player: Entity): HealerAction {
-  const ratio = (e: Entity) => e.hp / Math.max(1, e.maxHp)
+export function chooseHealerAction(sense: HealerSense): HealerAction {
+  const { party, self, player, rng } = sense
+  const wobble = () => 1 + (rng() * 2 - 1) * HEAL_JITTER
   const alive = party.filter(e => e.alive)
-  const tank = alive.find(e => e.role === 'tank' && ratio(e) < TANK_HEAL_BELOW)
-  if (tank) return { kind: 'heal', target: tank }
-  if (alive.filter(e => ratio(e) < AOE_HEAL_BELOW).length >= 2) return { kind: 'aoe_heal' }
-  if (raidwideComing) return { kind: 'prepare' }
-  const low = alive.filter(e => ratio(e) < SINGLE_HEAL_BELOW).sort((a, b) => ratio(a) - ratio(b))[0]
-  if (low) return { kind: 'heal', target: low }
-  if (canRaise) {
-    const fallen = party.filter(e => !e.alive)
+  if (self.alive && ratio(self) < SELF_SAVE_BELOW) return { kind: 'heal', target: self }
+
+  // Urgency grows steeply as HP falls below the member's threshold
+  const threshold = (e: Entity) => (e.role === 'tank' ? TANK_HEAL_BELOW : SINGLE_HEAL_BELOW)
+  const single = alive
+    .filter(e => ratio(e) < threshold(e))
+    .map(e => ({ e, urgency: Math.pow((threshold(e) - ratio(e)) / threshold(e), 0.6) * wobble() }))
+    .sort((a, b) => b.urgency - a.urgency)[0]?.e
+  const aoe = alive.filter(e => ratio(e) < AOE_HEAL_BELOW).length >= 2
+
+  if (single && aoe && ratio(single) >= CRITICAL_BELOW) {
+    const missing = (e: Entity) => Math.max(0, e.maxHp - e.hp)
+    const partyGain = alive.reduce((sum, e) => sum + Math.min(missing(e), sense.partyHeal), 0)
+    const singleGain = Math.min(missing(single), sense.singleHeal)
+    return partyGain * wobble() >= singleGain ? { kind: 'aoe_heal' } : { kind: 'heal', target: single }
+  }
+  if (single) return { kind: 'heal', target: single }
+  if (aoe) return { kind: 'aoe_heal' }
+  if (sense.raidwideComing) return { kind: 'prepare' }
+  if (sense.canRaise) {
     const order = (e: Entity) => (e.role === 'tank' ? 0 : e.id === player.id ? 1 : 2)
-    const next = fallen.sort((a, b) => order(a) - order(b))[0]
+    const next = party.filter(e => !e.alive).sort((a, b) => order(a) - order(b))[0]
     if (next) return { kind: 'raise', target: next }
   }
   return null
@@ -425,7 +463,14 @@ export class NpcBrain {
     const kit = this.kit
     const party = w.entities.getAll().filter(isPartyMember)
     const raidwide = threats.find(z => z.def.telegraph === false && !this.prepared.has(z.id) && damageEffects(z).length > 0)
-    const action = chooseHealerAction(party, !!raidwide, now >= this.raiseReadyAt, w.player)
+    const healOf = (skill: typeof kit.heal) => {
+      const effect = skill?.effects?.find(x => x.type === 'heal' || x.type === 'party_heal')
+      return effect && 'potency' in effect ? effect.potency * e.attack : 0
+    }
+    const action = chooseHealerAction({
+      party, self: e, player: w.player, raidwideComing: !!raidwide, canRaise: now >= this.raiseReadyAt,
+      singleHeal: healOf(kit.heal), partyHeal: healOf(kit.aoeHeal), rng: w.rng,
+    })
     if (!action) return false
     if (action.kind === 'prepare') {
       if (w.skills.getCharges(e.id, kit.partyMit!) > 0 && w.skills.tryUse(e, kit.partyMit!)) {
