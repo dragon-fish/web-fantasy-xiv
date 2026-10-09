@@ -470,14 +470,11 @@ export class VfxRenderer {
     if (p.periodic || !(p.amount > 0)) return
     // Bosses reaching 0 HP end the fight without entity:died
     if (target.hp <= 0 && target.type === 'boss' && !this.dead.has(target.id)) { this.endCast(target.id); this.onDeath(target) }
-    // Multi-hit show: the follow-up strikes land on the beat of the split fly text
-    for (let i = 1; i < (p.hits ?? 1); i++) {
-      this.later(i * HIT_INTERVAL_MS, () => {
-        const e = this.entities.get(target.id)
-        if (!e) return
-        this.impact(this.chest(e), this.enemyElement, 0.5)
-        if (e.type === 'player') this.sm.shake(0.1, 70)
-      })
+    // Multi-hit show: every strike lands with a shockwave on the beat of the split fly text
+    const hits = p.hits ?? 1
+    if (hits > 1) {
+      for (let i = 0; i < hits; i++) this.later(i * HIT_INTERVAL_MS, () => this.strike(target.id, i === hits - 1))
+      return
     }
     const key = `${p.source?.id}>${target.id}`
     const delivered = this.deliveries.get(key)
@@ -489,6 +486,20 @@ export class VfxRenderer {
       const heavy = p.amount >= target.maxHp * 0.08
       this.sm.shake(heavy ? 0.35 : 0.12, heavy ? 260 : 140)
     }
+  }
+
+  /** One beat of a flurry: shockwave at the feet, spark at the chest; the last one hits hardest */
+  private strike(targetId: string, last: boolean): void {
+    const e = this.entities.get(targetId)
+    if (!e) return
+    const chest = this.chest(e)
+    const feet = new Vector3(e.position.x, 0.08, e.position.y)
+    const s = ELEMENTS[this.enemyElement]
+    this.flash(feet, 'ringThick', s.color, last ? 7 : 3.2, last ? 520 : 260, 'ground')
+    this.flash(feet, 'waveRing', s.core, last ? 5 : 2.4, 220, 'ground')
+    this.flash(chest, Math.random() < 0.5 ? 'spark' : 'crescent', s.core, last ? 4 : 2.2, 160)
+    this.impact(chest, this.enemyElement, last ? 1.3 : 0.5)
+    if (e.type === 'player') this.sm.shake(last ? 0.5 : 0.14, last ? 320 : 80)
   }
 
   private onZoneResolved(zone: ActiveAoeZone): void {

@@ -2,8 +2,8 @@
 // Presentation of multi-hit attacks. FFXIV resolves the whole attack in one frame; the hits are
 // a show, so this only splits an already-dealt total into fly-text numbers.
 
-/** Interval between the shown hits of a multi-hit attack */
-export const HIT_INTERVAL_MS = 80
+/** Interval between the shown hits of a multi-hit attack; long enough for a swing/flinch to read */
+export const HIT_INTERVAL_MS = 110
 
 /** Split `total` into `hits` positive integers that vary a little and add up exactly to `total`. */
 export function splitHits(total: number, hits: number): number[] {

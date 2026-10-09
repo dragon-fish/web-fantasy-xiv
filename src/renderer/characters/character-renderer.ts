@@ -16,6 +16,7 @@ import { resolveModel, modelScaleFor, MODELS, type ModelSpec, type AnimRole } fr
 import { ModelLibrary, type ModelInstance } from './model-library'
 import { selectAnimation, resolveClip, type OneShot } from './animation-state'
 import { TargetRing } from './target-ring'
+import { HIT_INTERVAL_MS } from '../hit-split'
 
 const ROTATION_SPEED = 720 // degrees per second
 const CROSSFADE_MS = 140
@@ -25,6 +26,9 @@ const CORPSE_FADE_DELAY = 1400
 const CORPSE_FADE_MS = 700
 /** Fraction of an airborne buff spent flipping through the air; the rest is the landing rebound */
 const AIR_FLIGHT = 0.78
+/** Multi-hit flurries: snappy swings and flinches, forced on every beat */
+const FLURRY_ATTACK_SPEED = 2.6
+const FLURRY_HIT_SPEED = 2.2
 /** Resurrection: the body lies still, then floats up under the light pillar and drops on revive */
 const REVIVE_RISE_FROM = 0.38
 const REVIVE_RISE_TO = 0.92
@@ -81,6 +85,8 @@ export class CharacterRenderer implements EntityVisuals {
   private scene: Scene
   private now = 0
   private targetRing: TargetRing
+  /** Beats of multi-hit attacks still to play (render clock) */
+  private strikes: { at: number; sourceId?: string; targetId: string }[] = []
 
   constructor(private sm: SceneManager, bus: EventBus) {
     this.scene = sm.scene
@@ -114,10 +120,17 @@ export class CharacterRenderer implements EntityVisuals {
       v.airFrom = this.now
       v.airUntil = this.now + Math.max(400, buff.duration)
     })
-    bus.on('damage:dealt', (p: { target: Entity; amount: number; periodic?: boolean }) => {
+    bus.on('damage:dealt', (p: { source?: Entity; target: Entity; amount: number; periodic?: boolean; hits?: number }) => {
       if (!(p.amount > 0)) return
       const v = this.views.get(p.target.id)
       if (!v) return
+      // A flurry plays a swing and a flinch on every shown hit, in step with the fly text
+      if ((p.hits ?? 1) > 1 && p.target.hp > 0) {
+        for (let i = 0; i < p.hits!; i++) {
+          this.strikes.push({ at: this.now + i * HIT_INTERVAL_MS, sourceId: p.source?.id, targetId: p.target.id })
+        }
+        return
+      }
       // Bosses reaching 0 HP end the battle without entity:died; treat it as death here
       if (p.target.hp <= 0 && v.deadAt === null) v.deadAt = this.now
       v.flashUntil = this.now + FLASH_MS
@@ -269,8 +282,8 @@ export class CharacterRenderer implements EntityVisuals {
 
   // --- Animation -------------------------------------------------------------
 
-  private playOneShot(v: CharacterView, role: OneShot['role']): void {
-    if (role === 'hit') {
+  private playOneShot(v: CharacterView, role: OneShot['role'], opts: { force?: boolean; speed?: number } = {}): void {
+    if (role === 'hit' && !opts.force) {
       // A flinch never interrupts a swing/release, a cast or movement (see selectAnimation)
       const busy = v.oneShot && v.oneShot.until > this.now && v.oneShot.role !== 'hit'
       const casting = !!v.entity.casting && v.entity.casting.castTime > 0
@@ -284,7 +297,7 @@ export class CharacterRenderer implements EntityVisuals {
     const name = resolveClip(role, v.spec.clips, c => v.model!.animations.has(c), v.attackVariant)
     if (!name) return
     const group = v.model.animations.get(name)!
-    const speed = role === 'hit' ? 1.4 : 1.15
+    const speed = opts.speed ?? (role === 'hit' ? 1.4 : 1.15)
     const ms = ((group.to - group.from) / 60) * 1000 / speed
     v.oneShot = { role, until: this.now + Math.max(250, ms) }
     this.switchClip(v, name, false, speed, true)
@@ -354,6 +367,7 @@ export class CharacterRenderer implements EntityVisuals {
 
   updateAll(entities: Entity[], dt: number, lockedTargetId?: string | null): void {
     this.now += dt
+    if (this.strikes.length) this.playStrikes()
     const seen = new Set<string>()
     for (const entity of entities) {
       const v = this.views.get(entity.id)
@@ -457,6 +471,22 @@ export class CharacterRenderer implements EntityVisuals {
     const fl = v.flashUntil > this.now ? (v.flashUntil - this.now) / FLASH_MS : 0
     for (const [mat, base] of v.baseEmissive) {
       mat.emissiveColor.set(base.r + fl * 0.75, base.g + fl * 0.72, base.b + fl * 0.68)
+    }
+  }
+
+  private playStrikes(): void {
+    const due = this.strikes.filter(s => s.at <= this.now)
+    if (!due.length) return
+    this.strikes = this.strikes.filter(s => s.at > this.now)
+    for (const s of due) {
+      const src = s.sourceId ? this.views.get(s.sourceId) : undefined
+      if (src && src.deadAt === null) this.playOneShot(src, 'attack', { speed: FLURRY_ATTACK_SPEED })
+      const tgt = this.views.get(s.targetId)
+      if (!tgt || tgt.deadAt !== null) continue
+      tgt.flashUntil = this.now + FLASH_MS
+      tgt.squashUntil = this.now + SQUASH_MS
+      tgt.lastHitAnim = this.now
+      this.playOneShot(tgt, 'hit', { force: true, speed: FLURRY_HIT_SPEED })
     }
   }
 
