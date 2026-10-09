@@ -7,6 +7,7 @@ import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import type { ClashGrade } from '@/game/parry-prompt'
 import type { VfxRenderer } from './vfx-renderer'
 import { TankbusterMarker } from './tankbuster-marker'
+import { LockOnMarker } from './lockon-marker'
 import { StackMarker, STACK_CIRCLE_CHEVRONS, STACK_LINE_CHEVRONS } from './stack-marker'
 
 type Fx = ReturnType<VfxRenderer['spawn']>
@@ -106,8 +107,20 @@ export class MechanicVfx {
       this.markers.set(zone.id, [driver])
       return
     }
-    // Spread: four rotating arcs; stack: glow + chevrons pointing in
-    fx.push(this.vfx.spawn('billboard', kind === 'spread' ? 'spreadArcs' : 'shareGlow', color, Infinity, (f) => {
+    if (kind === 'spread') {
+      // FFXIV lock-on: red crystal sigil over the head, dark red ring at the feet
+      const marker = new LockOnMarker(this.vfx.sm.scene)
+      const driver = this.vfx.spawn('ground', 'glowDisc', color, Infinity, (f) => {
+        f.mesh.visibility = 0
+        const e = this.vfx.entities.get(id)
+        if (e) marker.update(e.position.x, e.position.y, this.vfx.heightOf(e), e.size, f.age)
+      })
+      driver.onDone = () => marker.dispose()
+      this.markers.set(zone.id, [driver])
+      return
+    }
+    // Stack: glow + chevrons pointing in
+    fx.push(this.vfx.spawn('billboard', 'shareGlow', color, Infinity, (f) => {
       follow(f, 1.1)
       f.mesh.rotation.z = f.age / 500
       const intro = Math.min(1, f.age / 200)
