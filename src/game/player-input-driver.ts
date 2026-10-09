@@ -13,9 +13,10 @@ import { computeMoveDirection, computeDirectionAngle } from '@/input/input-manag
 
 const SKILL_QUEUE_WINDOW = 500
 const SLIDECAST_WINDOW = 300
-const REGEN_INTERVAL = 3000
-const REGEN_RATE_IDLE = 0.20  // 20% max HP per tick out of combat
-const REGEN_RATE_COMBAT = 0.02 // 2% max HP per tick in combat
+/** Natural HP regen, shared by the player and NPC allies */
+export const REGEN_INTERVAL = 3000
+export const REGEN_RATE_IDLE = 0.20  // 20% max HP per tick out of combat
+export const REGEN_RATE_COMBAT = 0.02 // 2% max HP per tick in combat
 const MP_REGEN_INTERVAL = 3000
 const MP_REGEN_AMOUNT = 500
 const MP_REGEN_INTERVAL_IDLE = 3000

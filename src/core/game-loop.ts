@@ -8,6 +8,8 @@ export class GameLoop {
 
   logicTime = 0
   alpha = 0
+  /** Dev fast-forward: logic ticks run this many times faster than wall time */
+  timeScale = 1
 
   onUpdate(fn: (dt: number) => void): void {
     this.updateFn = fn
@@ -15,7 +17,7 @@ export class GameLoop {
 
   tick(deltaMs: number): void {
     const clamped = Math.min(deltaMs, MAX_DELTA)
-    this.accumulator += clamped
+    this.accumulator += clamped * this.timeScale
 
     while (this.accumulator >= LOGIC_TICK) {
       this.updateFn?.(LOGIC_TICK)

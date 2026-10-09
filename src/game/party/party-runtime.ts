@@ -4,7 +4,8 @@ import type { Role, SkillDef, Vec2 } from '@/core/types'
 import type { Entity } from '@/entity/entity'
 import type { GameScene } from '../game-scene'
 import type { EncounterData } from '../encounter-loader'
-import type { TimelineAction } from '@/config/schema'
+import type { NpcSpotHint, TimelineAction } from '@/config/schema'
+import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import type { DeathZoneManager } from '@/arena/death-zone-manager'
 import type { PlayerJob } from '@/jobs/shared'
 import { getPlayableJob } from '@/jobs'
@@ -101,6 +102,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     e.customData.displayName = job.name
     e.customData.jobId = job.id
     e.customData.jobCategory = job.category
+    e.customData.npcStyle = npcStyleOf(job.id)
     kits.set(e.id, buildNpcKit(job))
     return e
   })
@@ -134,18 +136,55 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     selectPartyTargets(anchor, s.entityMgr.getAlive().filter(isPartyMember), enmity.ranking(caster), rng))
 
   // --- Spot hints from the timeline ---
+  function activateSpots(hint: NpcSpotHint, caster: Entity, hold: number): void {
+    const origin = { x: caster.position.x, y: caster.position.y, facing: caster.facing }
+    spots.activate(hint, npcs.filter(n => n.alive).map(n => ({ id: n.id, position: { x: n.position.x, y: n.position.y } })), now(), hold, origin)
+    spotsSince = now()
+    spotReaction.clear()
+    for (const n of npcs) spotReaction.set(n.id, SPOT_REACTION_MS[0] + rng() * (SPOT_REACTION_MS[1] - SPOT_REACTION_MS[0]))
+  }
+
   s.bus.on('timeline:action', (action: TimelineAction) => {
     if (!action.npc || action.fastForward) return
     const skill: SkillDef | undefined = action.use ? enc.skills.get(action.use) : undefined
     const resolveAt = skill?.zones?.length ? Math.max(...skill.zones.map(z => z.resolveDelay)) : (skill?.castTime ?? 0)
     const hold = action.npc.hold ?? (skill ? resolveAt + 300 : 5000)
-    const caster = (action.entity ? s.entityMgr.get(action.entity) : undefined) ?? boss
-    const origin = { x: caster.position.x, y: caster.position.y, facing: caster.facing }
-    spots.activate(action.npc, npcs.filter(n => n.alive).map(n => ({ id: n.id, position: { x: n.position.x, y: n.position.y } })), now(), hold, origin)
-    spotsSince = now()
-    spotReaction.clear()
-    for (const n of npcs) spotReaction.set(n.id, SPOT_REACTION_MS[0] + rng() * (SPOT_REACTION_MS[1] - SPOT_REACTION_MS[0]))
+    activateSpots(action.npc, (action.entity ? s.entityMgr.get(action.entity) : undefined) ?? boss, hold)
   })
+
+  /**
+   * Markers on two or more members with no timeline hint: spread them on a ring round the caster,
+   * spaced so no two circles overlap (the spot behind the caster is left for the player).
+   */
+  const autoSpread = new Set<string>()
+  function spreadUnhinted(): void {
+    if (spots.hasHint()) return
+    const groups = new Map<string, ActiveAoeZone[]>()
+    for (const z of s.zoneMgr.getActiveZones()) {
+      if (z.resolved || z.def.share || z.def.anchor.type !== 'party' || !z.anchorEntityId || !z.casterId) continue
+      const key = `${z.casterId}:${z.skillId}`
+      groups.set(key, [...(groups.get(key) ?? []), z])
+    }
+    for (const [key, zones] of groups) {
+      const marked = new Set(zones.map(z => z.anchorEntityId))
+      const groupKey = `${key}:${zones[0]!.id}`
+      if (marked.size < 2 || autoSpread.has(groupKey)) continue
+      autoSpread.add(groupKey)
+      const caster = s.entityMgr.get(zones[0]!.casterId!)
+      if (!caster) continue
+      const shape = zones[0]!.def.shape
+      const radius = shape.type === 'circle' ? shape.radius : 4
+      const n = Math.max(2, s.entityMgr.getAlive().filter(isPartyMember).length)
+      const ring = Math.max(caster.size + 3, (radius + 1) / (2 * Math.sin(Math.PI / n)))
+      // Boss frame: +y ahead of the caster; the first spot sits right behind it (the player's)
+      const spotsRing = Array.from({ length: n }, (_, i) => {
+        const a = Math.PI + (i * 2 * Math.PI) / n
+        return { x: Math.sin(a) * ring, y: Math.cos(a) * ring }
+      })
+      const hold = Math.max(...zones.map(z => z.def.resolveDelay - z.elapsed)) + 300
+      activateSpots({ frame: 'boss', spots: spotsRing, tolerance: 1 }, caster, hold)
+    }
+  }
 
   // --- Brains ---
   const world = {
@@ -200,6 +239,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
       }
       director.update(dt, deps.combatElapsed(), boss.hp)
       spots.update(now(), s.player.alive ? { x: s.player.position.x, y: s.player.position.y } : null)
+      spreadUnhinted()
       for (const b of brains) b.update(dt)
       for (const n of npcs) {
         if (n.alive && deps.deathZones.isInAnyZone({ x: n.position.x, y: n.position.y })) {

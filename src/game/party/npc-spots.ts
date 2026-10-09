@@ -21,12 +21,13 @@ export function playerSpotIndex(spots: Vec2[]): number {
 }
 
 /**
- * Spot index per NPC. With a spot for everyone, the player's spot (`reserved`) stays free and NPCs
- * claim the rest, closest pairs first; with fewer spots (stacks), each NPC takes the spot nearest to it.
+ * Spot index per NPC. With a spot for each NPC, NPCs claim distinct spots, closest pairs first, and
+ * the player's spot (`reserved`) stays free when there is one to spare; with fewer spots than NPCs
+ * (stacks), each NPC takes the spot nearest to it.
  */
 export function assignSpots(spots: Vec2[], npcs: SpotClaimant[], reserved = playerSpotIndex(spots)): Map<string, number> {
   const out = new Map<string, number>()
-  if (spots.length < npcs.length + 1) {
+  if (spots.length < npcs.length) {
     for (const n of npcs) {
       let best = 0
       spots.forEach((s, i) => { if (dist(n.position, s) < dist(n.position, spots[best]!)) best = i })
@@ -35,7 +36,7 @@ export function assignSpots(spots: Vec2[], npcs: SpotClaimant[], reserved = play
     return out
   }
   const free = new Set(spots.map((_, i) => i))
-  free.delete(reserved)
+  if (spots.length > npcs.length) free.delete(reserved)
   const waiting = [...npcs]
   while (waiting.length > 0 && free.size > 0) {
     let pick: { n: number; s: number; d: number } | null = null
@@ -90,7 +91,7 @@ export class SpotCoordinator {
     const spots = worldSpots(hint, origin)
     // The player's spot is picked in the hint's own frame (southernmost / behind the boss)
     const claims = assignSpots(spots, npcs, playerSpotIndex(hint.spots))
-    const active: ActiveHint = { hint, spots, until: now + holdMs, claims, points: new Map(), unique: spots.length >= npcs.length + 1 }
+    const active: ActiveHint = { hint, spots, until: now + holdMs, claims, points: new Map(), unique: spots.length >= npcs.length }
     for (const [id, i] of claims) active.points.set(id, this.standPoint(active, i))
     this.active = active
   }
@@ -112,6 +113,10 @@ export class SpotCoordinator {
       a.points.set(id, this.standPoint(a, next))
       return
     }
+  }
+
+  hasHint(): boolean {
+    return this.active !== null
   }
 
   pointFor(npcId: string): Vec2 | null {

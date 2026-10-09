@@ -14,6 +14,7 @@ import { isHostile, isPartyMember } from '@/combat/party'
 import { findSafeSpot, inHazard, isSafe, pathIsSafe, type Ground } from './npc-nav'
 import { NPC_RAISE_COOLDOWN_MS, type NpcKit } from './npc-kits'
 import type { PartyConfig } from './party-config'
+import { REGEN_INTERVAL, REGEN_RATE_COMBAT, REGEN_RATE_IDLE } from '../player-input-driver'
 
 /** NPCs think this often (ms); movement runs every tick */
 export const THINK_MS = 150
@@ -127,6 +128,14 @@ export function chooseHealerAction(sense: HealerSense): HealerAction {
   return null
 }
 
+/** Who steps aside when two marked members crowd each other: lower moves (the player never does) */
+function yieldRank(e: Entity): number {
+  if (!e.npc) return 9
+  if (e.role === 'healer') return 0
+  if (e.role === 'tank') return 3
+  return e.customData.npcStyle === 'melee' ? 2 : 1
+}
+
 const between = (rng: () => number, [lo, hi]: [number, number]) => lo + rng() * (hi - lo)
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y)
 const pos = (e: Entity): Vec2 => ({ x: e.position.x, y: e.position.y })
@@ -163,6 +172,7 @@ export class NpcBrain {
   constructor(readonly entity: Entity, readonly kit: NpcKit, private world: NpcWorld) {}
 
   update(dt: number): void {
+    this.regen(dt)
     this.thinkAcc += dt
     if (this.thinkAcc >= THINK_MS) {
       this.thinkAcc = 0
@@ -193,12 +203,21 @@ export class NpcBrain {
     return out
   }
 
-  /** AOEs worth walking out of: not raidwides, not markers riding on party members */
+  /**
+   * AOEs to stay out of: everything telegraphed, including markers riding on other members (their
+   * spread circles, a tankbuster on the tank). Not raidwides, not stacks (those are joined), and
+   * not this NPC's own marker. Between two marked members only the one lower in the yield order
+   * steps aside (healer, then ranged, then melee, then tank; everyone yields to the player) —
+   * if both dodged each other they would chase each other round.
+   */
   private dodgeable(zones: ActiveAoeZone[]): ActiveAoeZone[] {
+    const e = this.entity
+    const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && !z.def.share).map(z => z.anchorEntityId))
     return zones.filter((z) => {
-      if (z.def.telegraph === false) return false
-      const anchored = z.anchorEntityId ? this.world.entities.get(z.anchorEntityId) : null
-      return !(anchored && isPartyMember(anchored) && z.def.anchor.type !== 'target')
+      if (z.def.telegraph === false || z.def.share || z.anchorEntityId === e.id) return false
+      const carrier = z.anchorEntityId ? this.world.entities.get(z.anchorEntityId) : undefined
+      if (!carrier || !isPartyMember(carrier) || !marked.has(e.id)) return true
+      return yieldRank(e) < yieldRank(carrier) || (yieldRank(e) === yieldRank(carrier) && e.id > carrier.id)
     })
   }
 
@@ -513,6 +532,18 @@ export class NpcBrain {
     if (e.gcdTimer > 0) return
     if (moving && this.kit.gcd.castTime > 0) return
     w.skills.tryUse(e, this.kit.gcd)
+  }
+
+  /** Natural HP regen, at the player's rates */
+  private regenAcc = 0
+  private regen(dt: number): void {
+    const e = this.entity
+    const maxHp = this.world.buffs.getMaxHp(e)
+    if (!e.alive || e.hp >= maxHp) { this.regenAcc = 0; return }
+    this.regenAcc += dt
+    if (this.regenAcc < REGEN_INTERVAL) return
+    this.regenAcc -= REGEN_INTERVAL
+    e.hp = Math.min(maxHp, e.hp + Math.floor(maxHp * (e.inCombat ? REGEN_RATE_COMBAT : REGEN_RATE_IDLE)))
   }
 
   // --- Movement ------------------------------------------------------------

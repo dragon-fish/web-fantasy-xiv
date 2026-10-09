@@ -380,6 +380,17 @@ export class GameScene {
     )
 
     registry.register(
+      'speed',
+      '[dev] speed <n> — run the game n× faster (1 = normal; for smoke-testing whole fights)',
+      (args) => {
+        const n = Number((args._ as unknown[])[0])
+        if (!Number.isFinite(n) || n <= 0 || n > 16) return 'Usage: speed <0.1–16>'
+        this.gameLoop.timeScale = n
+        return `Game speed ×${n}`
+      },
+    )
+
+    registry.register(
       'list-entities',
       '[dev] Print entity list (id, type, group, hp/maxHp, alive)',
       () => {
