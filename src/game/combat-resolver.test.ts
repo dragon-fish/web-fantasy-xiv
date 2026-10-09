@@ -103,6 +103,41 @@ describe('CombatResolver — noRevive damage', () => {
   })
 })
 
+// ─── Flurry guard ───────────────────────────────────────
+
+describe('CombatResolver — flurry guard', () => {
+  function flurry(setupBuff?: (h: ReturnType<typeof setup>) => void) {
+    const h = setup()
+    setupBuff?.(h)
+    const events: { guard: string; hits: number }[] = []
+    h.bus.on('combat:flurry', (e: { guard: string; hits: number }) => events.push(e))
+    castSkill(h.bus, h.boss, makeSkill({ id: 'flurry', effects: [{ type: 'damage', potency: 1000, hits: 17 }] }))
+    return events
+  }
+
+  it('an unguarded multi-hit attack lands clean', () => {
+    expect(flurry()).toEqual([expect.objectContaining({ guard: 'none', hits: 17 })])
+  })
+
+  it('mitigation or a shield blocks it', () => {
+    expect(flurry(({ buffSystem, player }) => buffSystem.applyBuff(player, mitigationBuff, 'self'))[0]?.guard).toBe('block')
+    expect(flurry(({ buffSystem, player }) => buffSystem.applyBuff(player, shieldBuff, 'self', 500))[0]?.guard).toBe('block')
+  })
+
+  it('invulnerability deflects every hit', () => {
+    const invuln: BuffDef = { id: 'hallowed', name: 'Hallowed', type: 'buff', duration: 10000, stackable: false, maxStacks: 1, effects: [{ type: 'invulnerable' }] }
+    expect(flurry(({ buffSystem, player }) => buffSystem.applyBuff(player, invuln, 'self'))[0]?.guard).toBe('deflect')
+  })
+
+  it('single hits announce no flurry', () => {
+    const { bus, boss } = setup()
+    const events: unknown[] = []
+    bus.on('combat:flurry', (e: unknown) => events.push(e))
+    castSkill(bus, boss, makeSkill({ id: 'hit', effects: [{ type: 'damage', potency: 1000 }] }))
+    expect(events).toEqual([])
+  })
+})
+
 // ─── Special damage ─────────────────────────────────────
 
 describe('CombatResolver — special damage', () => {

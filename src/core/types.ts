@@ -39,6 +39,9 @@ export type DisplacementSource =
   | { type: 'caster' }
   | { type: 'position'; x: number; y: number }
 
+/** How a multi-hit attack's show plays out on the target: clean hits, blocked, deflected, perfectly deflected */
+export type FlurryGuard = 'none' | 'block' | 'deflect' | 'perfect'
+
 export type DamageType =
   | 'special'    // ignores mitigation, shields, undying
   | 'physical'   // 物理

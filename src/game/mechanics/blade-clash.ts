@@ -41,10 +41,14 @@ export const bladeClash: MechanicFactory = (ctx, raw, id) => {
       const def = buffId ? ctx.buffDef(buffId) : undefined
       if (def) ctx.buffs.applyBuff(player, def, source.id)
     }
+    // Clean parries take no damage, so they announce their own deflected flurry
+    const parried = (guard: 'perfect' | 'deflect') => {
+      if ((p.hits ?? 1) > 1) ctx.bus.emit('combat:flurry', { sourceId: source.id, targetId: player.id, hits: p.hits, guard })
+    }
     switch (grade) {
-      case 'just': buff(p.justBuff); break
-      case 'perfect': break
-      case 'good': ctx.combat.applyDamage(source, player, p.goodPotency, p.skillName, [], [], { hits: p.hits }); break
+      case 'just': buff(p.justBuff); parried('perfect'); break
+      case 'perfect': parried('deflect'); break
+      case 'good': ctx.combat.applyDamage(source, player, p.goodPotency, p.skillName, [], [], { hits: p.hits, guard: 'block' }); break
       default:
         ctx.combat.applyDamage(source, player, p.missPotency, p.skillName, [], [], { hits: p.hits })
         buff(p.missBuff)

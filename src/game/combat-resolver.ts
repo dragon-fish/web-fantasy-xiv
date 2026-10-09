@@ -3,7 +3,7 @@ import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
-import type { DamageType, SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
+import type { DamageType, FlurryGuard, SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
 import { applyPeriodicBuff, isPeriodicEffect } from '@/combat/buff-periodic'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
@@ -257,13 +257,24 @@ export class CombatResolver {
     return damageIncrease
   }
 
-  /** Shared damage entry point for timeline skills and simulated projectile hits. */
-  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean; noRevive?: boolean; hits?: number } = {}): void {
+  /**
+   * Shared damage entry point for timeline skills and simulated projectile hits.
+   * `feedback.hits` > 1 also announces `combat:flurry` (presentation of a multi-hit attack); its guard
+   * follows the target's defences unless `feedback.guard` overrides it.
+   */
+  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean; noRevive?: boolean; hits?: number; guard?: FlurryGuard } = {}): void {
+    const flurry = (guard: FlurryGuard) => {
+      if ((feedback.hits ?? 1) > 1) this.bus.emit('combat:flurry', { sourceId: caster.id, targetId: target.id, hits: feedback.hits, guard: feedback.guard ?? guard })
+    }
     // Invulnerable / damage immunity: negate all non-special damage
     if (!dmgTypes.includes('special') && (this.buffSystem.isInvulnerable(target) || this.buffSystem.hasDamageImmunity(target))) {
+      flurry('deflect')
       this.bus.emit('damage:invulnerable', { source: caster, target, skill: skillName ? { name: skillName } : null })
       return
     }
+    // Mitigation or a shield up when the attack lands = a guarded flurry
+    const guarded = !dmgTypes.includes('special')
+      && (this.buffSystem.getMitigations(target).length > 0 || this.buffSystem.getShieldTotal(target) > 0)
 
     let dmg: number
     // Freeze caster's derived attack (base × attack_modifier) once per hit so
@@ -299,6 +310,7 @@ export class CombatResolver {
       target.mp = Math.min(target.maxMp, target.mp + mpOnHit)
     }
 
+    flurry(guarded ? 'block' : 'none')
     this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null, isCritical: feedback.isCritical ?? false, noRevive: feedback.noRevive ?? false, hits: feedback.hits })
 
     // Lifesteal: heal caster for % of damage dealt
