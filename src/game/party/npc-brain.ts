@@ -226,6 +226,8 @@ export class NpcBrain {
   private stackToJoin(threats: ActiveAoeZone[]): Vec2 | null {
     const w = this.world
     const e = this.entity
+    const line = threats.find(z => z.def.share && z.def.direction.type === 'toward_target' && z.targetId)
+    if (line) return this.lineToJoin(line)
     const zone = threats.find(z => z.def.share && z.anchorEntityId && z.def.anchor.type === 'party')
     if (!zone || zone.anchorEntityId === e.id) return null
     const carrier = w.entities.get(zone.anchorEntityId!)
@@ -239,6 +241,28 @@ export class NpcBrain {
       this.stackOffset = { zoneId: zone.id, x: Math.sin(a) * r, y: Math.cos(a) * r }
     }
     return { x: carrier.position.x + this.stackOffset.x, y: carrier.position.y + this.stackOffset.y }
+  }
+
+  /** Line stack aimed at someone else: get into the line just behind them (they take the front share) */
+  private lineToJoin(zone: ActiveAoeZone): Vec2 | null {
+    const w = this.world
+    const e = this.entity
+    if (zone.targetId === e.id) return null
+    const aimed = w.entities.get(zone.targetId!)
+    if (!aimed?.alive) return null
+    const dx = aimed.position.x - zone.center.x
+    const dy = aimed.position.y - zone.center.y
+    const len = Math.hypot(dx, dy) || 1
+    const width = zone.def.shape.type === 'rect' ? zone.def.shape.width : 2
+    if (this.stackOffset?.zoneId !== zone.id) {
+      this.stackOffset = { zoneId: zone.id, x: 1.2 + w.rng() * 1.5, y: (w.rng() - 0.5) * width * 0.4 }
+    }
+    const back = this.stackOffset.x
+    const side = this.stackOffset.y
+    return {
+      x: aimed.position.x + (dx / len) * back + (dy / len) * side,
+      y: aimed.position.y + (dy / len) * back - (dx / len) * side,
+    }
   }
 
   /**

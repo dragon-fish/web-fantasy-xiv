@@ -86,6 +86,15 @@ export class AoeZoneManager {
     for (let i = this.zones.length - 1; i >= 0; i--) {
       const zone = this.zones[i]
       zone.elapsed += dt
+      // Line stacks keep aiming at the marked member until they resolve
+      if (!zone.resolved && zone.def.share && zone.def.direction.type === 'toward_target' && zone.targetId) {
+        const aimed = this.entityMgr.get(zone.targetId)
+        if (aimed?.alive) {
+          const dx = aimed.position.x - zone.center.x
+          const dy = aimed.position.y - zone.center.y
+          if (dx !== 0 || dy !== 0) zone.facing = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+        }
+      }
       if (!zone.resolved && zone.anchorEntityId && followsAnchor(zone.def.anchor)) {
         const anchor = this.entityMgr.get(zone.anchorEntityId)
         if (anchor?.alive) zone.center = { x: anchor.position.x, y: anchor.position.y }

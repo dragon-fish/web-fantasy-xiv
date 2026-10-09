@@ -139,7 +139,8 @@ export interface AoeZoneDef {
   marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull'
   /**
    * Damage split among everyone hit: `even` divides it equally; `{ front }` (lines / fans) puts
-   * `front` of it on the member nearest the origin and splits the rest among the others
+   * `front` of it on the member nearest the origin and splits the rest among the others.
+   * A shared zone aimed `toward_target` keeps turning to its target until it resolves (line stacks).
    */
   share?: 'even' | { front: number }
   /** Splash of a single-target skill: skips the caster's target, which takes the skill's own hit */

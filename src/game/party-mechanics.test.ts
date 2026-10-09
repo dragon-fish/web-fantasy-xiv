@@ -86,4 +86,16 @@ describe('party mechanics', () => {
     expect(main.hp).toBe(100000)
     expect(near.hp).toBe(90000)
   })
+  it('a line stack keeps turning to the member it targets until it resolves', () => {
+    const { zones, boss, member, cast } = setup()
+    const marked = member('player', 0, 0) // due south of the boss at (0, 10)
+    boss.target = 'player'
+    cast({ anchor: { type: 'caster' }, direction: { type: 'toward_target' }, shape: { type: 'rect', length: 30, width: 4 }, share: 'even' })
+    const zone = zones.getActiveZones()[0]!
+    expect(Math.round(zone.facing)).toBe(180)
+    marked.position.x = 10
+    marked.position.y = 10 // now due east
+    zones.update(100)
+    expect(Math.round(zone.facing)).toBe(90)
+  })
 })
