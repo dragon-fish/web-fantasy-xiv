@@ -16,6 +16,8 @@ export interface ActiveAoeZone {
   elapsed: number
   /** Entity the zone is anchored on (caster/target anchors); only `target_live` zones follow it */
   anchorEntityId: string | null
+  /** The caster's target when the zone was spawned */
+  targetId: string | null
   /** Time (ms from creation) when telegraph appears */
   telegraphAt: number
   telegraphVisible: boolean
@@ -64,6 +66,7 @@ export class AoeZoneManager {
       anchorEntityId: def.anchor.type === 'target' || def.anchor.type === 'target_live' || def.anchor.type === 'party' ? targetId
         : def.anchor.type === 'caster' ? casterId : null,
       telegraphAt,
+      targetId,
       telegraphVisible: false,
       resolved: false,
     }
@@ -122,6 +125,7 @@ export class AoeZoneManager {
       // Skip untargetable entities (invulnerable)
       if (!entity.targetable) continue
       if (caster && !isHostile(caster, entity)) continue
+      if (zone.def.exceptTarget && entity.id === zone.targetId) continue
       const point: Vec2 = { x: entity.position.x, y: entity.position.y }
       if (isPointInAoeShape(point, zone.center, zone.def.shape, zone.facing)) {
         hitEntities.push(entity)

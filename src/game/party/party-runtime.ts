@@ -165,6 +165,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     rng,
   }
   const brains = npcs.map(n => new NpcBrain(n, kits.get(n.id)!, world))
+  if (import.meta.env.DEV) (globalThis as any).__party = { brains, director, enmity, spots }
 
   /** Before the pull NPCs trail the player */
   function followPlayer(npc: Entity, i: number, dt: number): void {

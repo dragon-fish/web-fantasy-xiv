@@ -70,4 +70,20 @@ describe('party mechanics', () => {
     zones.update(1000)
     expect([front, back1, back2].map(m => 100000 - m.hp)).toEqual([5000, 2500, 2500])
   })
+
+  it("a splash zone hits everything around the caster's target except the target itself", () => {
+    const { mgr, zones } = setup()
+    const npc = mgr.create({ id: 'npc', type: 'player', npc: true, hp: 1000, attack: 100, position: { x: 0, y: -2, z: 0 } })
+    const main = mgr.create({ id: 'main', type: 'mob', hp: 100000, position: { x: 0, y: 0, z: 0 } })
+    const near = mgr.create({ id: 'near', type: 'mob', hp: 100000, position: { x: 2, y: 0, z: 0 } })
+    npc.target = 'main'
+    zones.spawn({
+      anchor: { type: 'target' }, direction: { type: 'none' }, shape: { type: 'circle', radius: 5 },
+      telegraph: false, exceptTarget: true, resolveDelay: 0, hitEffectDuration: 0,
+      effects: [{ type: 'damage', potency: 100, dmgType: 'special' }],
+    }, 'splash', { x: 0, y: -2 }, 0, { x: 0, y: 0 }, 'npc', 'main')
+    zones.update(16)
+    expect(main.hp).toBe(100000)
+    expect(near.hp).toBe(90000)
+  })
 })

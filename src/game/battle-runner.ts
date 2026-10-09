@@ -851,6 +851,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
 
       const victim = party ? party.targetFor(entity) : s.player
       if (!victim) continue
+      // Keep the target in step with who the enemy faces (NPCs read it to stay out of its front)
+      entity.target = victim.id
       ai.updateFacing(victim)
       ai.updateMovement(victim, dt)
 

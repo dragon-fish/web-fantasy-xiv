@@ -24,6 +24,12 @@ const ENEMY_FILL = new Color3(1.0, 0.42, 0.06)
 const ENEMY_RIM = new Color3(1.0, 0.8, 0.4)
 const PLAYER_FILL = new Color3(0.2, 0.5, 1.0)
 const PLAYER_RIM = new Color3(0.65, 0.88, 1.0)
+/** Markers riding on a party member (spread): FFXIV's purple circle */
+const SPREAD_FILL = new Color3(0.7, 0.25, 1.0)
+const SPREAD_RIM = new Color3(0.92, 0.75, 1.0)
+/** Shared damage (stacks, line stacks): gather inside */
+const SHARE_FILL = new Color3(1.0, 0.82, 0.12)
+const SHARE_RIM = new Color3(1.0, 0.97, 0.7)
 const MIN_FLASH_MS = 260
 
 export class AoeRenderer {
@@ -127,8 +133,11 @@ export class AoeRenderer {
     if (!geo) return
 
     const mesh = MeshBuilder.CreateGround(`aoe-${zone.id}`, { width: geo.quadWidth, height: geo.quadLength }, this.scene)
-    const material = createTelegraphMaterial(this.scene, `aoe-mat-${zone.id}`, geo,
-      isPlayer ? PLAYER_FILL : ENEMY_FILL, isPlayer ? PLAYER_RIM : ENEMY_RIM)
+    const [fill, rim] = isPlayer ? [PLAYER_FILL, PLAYER_RIM]
+      : zone.def.share ? [SHARE_FILL, SHARE_RIM]
+        : zone.def.anchor.type === 'party' ? [SPREAD_FILL, SPREAD_RIM]
+          : [ENEMY_FILL, ENEMY_RIM]
+    const material = createTelegraphMaterial(this.scene, `aoe-mat-${zone.id}`, geo, fill, rim)
     mesh.material = material
     mesh.isPickable = false
 

@@ -11,7 +11,7 @@ import type { Arena } from '@/arena/arena'
 import type { DisplacementAnimator } from '../displacement-animator'
 import { rangeTo } from '@/skill/skill-resolver'
 import { isHostile, isPartyMember } from '@/combat/party'
-import { findSafeSpot, isSafe, pathIsSafe, type Ground } from './npc-nav'
+import { findSafeSpot, inHazard, isSafe, pathIsSafe, type Ground } from './npc-nav'
 import { NPC_RAISE_COOLDOWN_MS, type NpcKit } from './npc-kits'
 import type { PartyConfig } from './party-config'
 
@@ -189,11 +189,13 @@ export class NpcBrain {
     const e = this.entity
     const attackable = (t: Entity) => t.alive && t.visible && t.targetable && !t.dormant && isHostile(e, t)
     if (this.kit.style === 'tank' && attackable(w.boss)) return w.boss
+    // Among equals: nearest; a tank first goes for whatever is not on it yet
+    const score = (t: Entity) => dist(pos(e), pos(t)) + (this.kit.style === 'tank' && t.target === e.id ? 100 : 0)
     let best: Entity | null = null
     for (const t of w.entities.getAll()) {
       if (!attackable(t)) continue
       if (!best || w.priority(t) > w.priority(best)
-        || (w.priority(t) === w.priority(best) && dist(pos(e), pos(t)) < dist(pos(e), pos(best)))) best = t
+        || (w.priority(t) === w.priority(best) && score(t) < score(best))) best = t
     }
     return best
   }
@@ -239,9 +241,12 @@ export class NpcBrain {
       return { x: target.position.x + (away.x / len) * (target.size + 1.5), y: target.position.y + (away.y / len) * (target.size + 1.5) }
     }
     const ranged = this.kit.style !== 'melee'
-    const spread = ranged ? 35 : 25
-    const angle = target.facing + 180 + (slot - 1) * spread
     const reach = target.size + (ranged ? 8 : 1.5)
+    // Only the boss is worth flanking, and only while it faces someone else (an enemy turning to
+    // whoever circles behind it drags the two round in circles); otherwise approach from where we are
+    const flank = target === w.boss && target.target !== e.id
+    const bearing = ((Math.atan2(e.position.x - target.position.x, e.position.y - target.position.y) * 180) / Math.PI + 360) % 360
+    const angle = flank ? target.facing + 180 + (slot - 1) * (ranged ? 35 : 25) : bearing
     const d = dirOf(angle)
     const p = { x: target.position.x + d.x * reach, y: target.position.y + d.y * reach }
     return w.ground.standable(p) ? p : w.arena.clampPosition(p)
@@ -263,13 +268,14 @@ export class NpcBrain {
         return
       }
     }
-    if (target && dist(here, dest) > 5 && w.skills.getCharges(e.id, this.kit.backstep) > 0) {
+    // Backstep only to get out of an AOE the NPC is standing in
+    if (target && inHazard(here, hazards) && dist(here, dest) > 5 && w.skills.getCharges(e.id, this.kit.backstep) > 0) {
       const away = { x: here.x - target.position.x, y: here.y - target.position.y }
       const len = Math.hypot(away.x, away.y) || 1
       const toDest = { x: dest.x - here.x, y: dest.y - here.y }
       const along = (away.x * toDest.x + away.y * toDest.y) / (len * (Math.hypot(toDest.x, toDest.y) || 1))
       const landing = { x: here.x + (away.x / len) * 10, y: here.y + (away.y / len) * 10 }
-      if (along > 0.8 && dist(landing, dest) < dist(here, dest) && pathIsSafe(here, landing, hazards, w.ground)) {
+      if (along > 0.8 && dist(landing, dest) < dist(here, dest) && isSafe(landing, hazards, w.ground) && pathIsSafe(here, landing, [], w.ground)) {
         w.skills.tryUse(e, this.kit.backstep)
       }
     }

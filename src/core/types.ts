@@ -142,6 +142,8 @@ export interface AoeZoneDef {
    * `front` of it on the member nearest the origin and splits the rest among the others
    */
   share?: 'even' | { front: number }
+  /** Splash of a single-target skill: skips the caster's target, which takes the skill's own hit */
+  exceptTarget?: boolean
 }
 
 export interface SkillDef {

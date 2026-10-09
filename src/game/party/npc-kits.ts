@@ -1,7 +1,7 @@
 // src/game/party/npc-kits.ts
 // NPC allies play a small scripted kit dressed as a real job (names, icons, effects borrowed).
 // Damage effects carry relative weights; the damage director turns them into numbers.
-import type { BuffDef, SkillDef, SkillEffectDef } from '@/core/types'
+import type { AoeZoneDef, BuffDef, SkillDef, SkillEffectDef } from '@/core/types'
 import type { PlayerJob } from '@/jobs/shared'
 import { JobCategory } from '@/jobs/shared'
 import { icon } from '@/jobs/commons/icon-paths'
@@ -90,6 +90,19 @@ export function npcStyleOf(jobId: string): NpcStyle {
 }
 
 const BURST_COOLDOWN = 30000
+/** NPC GCDs splash: anything else caught takes this share (lets the NPC tank hold a pack) */
+const SPLASH = 0.5
+
+/** Melee: a short frontal fan; ranged: a small circle around the target. Untelegraphed, resolves with the hit. */
+function splashZone(melee: boolean, potency: number, dmgType: 'physical' | 'magical', resolveDelay: number): AoeZoneDef {
+  return {
+    anchor: melee ? { type: 'caster' } : { type: 'target' },
+    direction: melee ? { type: 'toward_target' } : { type: 'none' },
+    shape: melee ? { type: 'fan', radius: 6, angle: 120 } : { type: 'circle', radius: 5 },
+    telegraph: false, exceptTarget: true, resolveDelay, hitEffectDuration: 0,
+    effects: [{ type: 'damage', potency: potency * SPLASH, dmgType }],
+  }
+}
 
 function borrow(job: PlayerJob, skillId: string): Pick<SkillDef, 'name' | 'icon' | 'vfx'> {
   const s = job.skills.find(k => k.id === skillId)
@@ -114,12 +127,17 @@ export function buildNpcKit(job: PlayerJob): NpcKit {
   const gcdCast = look.style === 'caster' ? 2000 : look.style === 'healer' ? 1500 : 0
   const burstWeight = look.style === 'tank' || look.style === 'healer' ? 3 : 4
 
+  const gcdLook = borrow(job, look.gcd)
+  // The splash zone would otherwise make the renderer treat the GCD as a ground burst
+  gcdLook.vfx = { delivery: melee ? 'melee' : 'projectile', ...gcdLook.vfx }
   const kit: NpcKit = {
     style: look.style,
     range,
-    gcd: skill(id('gcd'), borrow(job, look.gcd), {
+    gcd: skill(id('gcd'), gcdLook, {
       type: gcdCast > 0 ? 'spell' : 'weaponskill', castTime: gcdCast, gcd: true,
-      requiresTarget: true, range, effects: [{ type: 'damage', potency: 1, dmgType }],
+      requiresTarget: true, range, targetType: 'aoe',
+      effects: [{ type: 'damage', potency: 1, dmgType }],
+      zones: [splashZone(melee, 1, dmgType, gcdCast)],
     }),
     burst: skill(id('burst'), borrow(job, look.burst), {
       cooldown: BURST_COOLDOWN, requiresTarget: true, range,

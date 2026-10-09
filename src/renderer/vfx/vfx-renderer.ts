@@ -565,6 +565,9 @@ export class VfxRenderer {
       return
     }
 
+    // Splash around a single-target attack: the attack's own delivery already shows it
+    if (zone.def.exceptTarget) return
+
     // Raidwide (no telegraph): one thin expanding wave from the caster instead of area-filling bursts
     if (zone.def.telegraph === false) {
       this.spawn('ground', 'ringThin', s.color, 700, (f, t) => {
