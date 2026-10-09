@@ -868,6 +868,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (party) {
       party.update(dt)
       if (combatStarted && !s.battleOver && party.allDown() && !revive?.isPending()) {
+        s.setAnnounce(null)
         scriptRunner.disposeAll()
         s.bus.emit('combat:ended', { result: 'wipe', elapsed: scheduler.combatElapsed })
         s.endBattle('wipe')
