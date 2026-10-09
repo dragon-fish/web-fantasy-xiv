@@ -154,9 +154,14 @@ export interface TimelineAction {
   npc?: NpcSpotHint
 }
 
-/** Preset spots NPCs claim for a mechanic; `tolerance` = radius of the random stand point (m) */
+/**
+ * Preset spots NPCs claim for a mechanic; `tolerance` = radius of the random stand point (m).
+ * `frame`: `arena` (default) = arena coordinates; `boss` = relative to the caster when the entry
+ * fires (+y = the way it faces, +x = its right), for mechanics that follow the boss around.
+ */
 export interface NpcSpotHint {
   spots: { x: number; y: number; tolerance?: number }[]
+  frame?: 'arena' | 'boss'
   tolerance?: number
   /** ms the spots hold from dispatch (default: until the action's zones resolve) */
   hold?: number

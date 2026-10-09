@@ -46,4 +46,21 @@ describe('EnmitySystem', () => {
     bus.emit('entity:died', { entity: tank })
     expect(enmity.top(boss)).toBe(dps)
   })
+  it('a raised tank provokes with its first action on an enemy, even a damage-less one', () => {
+    const { bus, enmity, boss, tank, dps, healer, hit, heal } = setup()
+    hit(dps, 50000)
+    tank.alive = false
+    bus.emit('entity:died', { entity: tank })
+    tank.alive = true
+    bus.emit('party:raised', { entity: tank })
+    heal(healer, tank, 1000)
+    heal(tank, dps, 500) // heal spillover is not a provoke
+    expect(enmity.top(boss)).toBe(dps)
+    tank.target = 'boss'
+    bus.emit('skill:cast_complete', { caster: tank, skill: { id: 'dash' } })
+    expect(enmity.get(boss, tank)).toBe(50000 + 1)
+    expect(enmity.top(boss)).toBe(tank)
+    hit(tank, 100) // later gains add normally
+    expect(enmity.get(boss, tank)).toBe(50001 + 1000)
+  })
 })

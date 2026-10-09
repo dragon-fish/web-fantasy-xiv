@@ -139,7 +139,9 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     const skill: SkillDef | undefined = action.use ? enc.skills.get(action.use) : undefined
     const resolveAt = skill?.zones?.length ? Math.max(...skill.zones.map(z => z.resolveDelay)) : (skill?.castTime ?? 0)
     const hold = action.npc.hold ?? (skill ? resolveAt + 300 : 5000)
-    spots.activate(action.npc, npcs.filter(n => n.alive).map(n => ({ id: n.id, position: { x: n.position.x, y: n.position.y } })), now(), hold)
+    const caster = (action.entity ? s.entityMgr.get(action.entity) : undefined) ?? boss
+    const origin = { x: caster.position.x, y: caster.position.y, facing: caster.facing }
+    spots.activate(action.npc, npcs.filter(n => n.alive).map(n => ({ id: n.id, position: { x: n.position.x, y: n.position.y } })), now(), hold, origin)
     spotsSince = now()
     spotReaction.clear()
     for (const n of npcs) spotReaction.set(n.id, SPOT_REACTION_MS[0] + rng() * (SPOT_REACTION_MS[1] - SPOT_REACTION_MS[0]))

@@ -13,7 +13,7 @@ export interface SpotClaimant {
 
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y)
 
-/** The spot left for the player: the southernmost one (smallest y) */
+/** The spot left for the player: the southernmost one (smallest y) — behind the boss in its own frame */
 export function playerSpotIndex(spots: Vec2[]): number {
   let best = 0
   spots.forEach((s, i) => { if (s.y < spots[best]!.y) best = i })
@@ -21,10 +21,10 @@ export function playerSpotIndex(spots: Vec2[]): number {
 }
 
 /**
- * Spot index per NPC. With a spot for everyone, the player's spot stays free and NPCs claim the
- * rest, closest pairs first; with fewer spots (stacks), each NPC takes the spot nearest to it.
+ * Spot index per NPC. With a spot for everyone, the player's spot (`reserved`) stays free and NPCs
+ * claim the rest, closest pairs first; with fewer spots (stacks), each NPC takes the spot nearest to it.
  */
-export function assignSpots(spots: Vec2[], npcs: SpotClaimant[]): Map<string, number> {
+export function assignSpots(spots: Vec2[], npcs: SpotClaimant[], reserved = playerSpotIndex(spots)): Map<string, number> {
   const out = new Map<string, number>()
   if (spots.length < npcs.length + 1) {
     for (const n of npcs) {
@@ -35,7 +35,7 @@ export function assignSpots(spots: Vec2[], npcs: SpotClaimant[]): Map<string, nu
     return out
   }
   const free = new Set(spots.map((_, i) => i))
-  free.delete(playerSpotIndex(spots))
+  free.delete(reserved)
   const waiting = [...npcs]
   while (waiting.length > 0 && free.size > 0) {
     let pick: { n: number; s: number; d: number } | null = null
@@ -53,8 +53,26 @@ export function assignSpots(spots: Vec2[], npcs: SpotClaimant[]): Map<string, nu
   return out
 }
 
+/** Where a boss-frame hint is anchored: the caster's position and facing (degrees, 0 = +y) */
+export interface SpotOrigin {
+  x: number
+  y: number
+  facing: number
+}
+
+/** Hint spots in arena coordinates */
+export function worldSpots(hint: NpcSpotHint, origin: SpotOrigin | null): { x: number; y: number; tolerance?: number }[] {
+  if (hint.frame !== 'boss' || !origin) return hint.spots
+  const a = (origin.facing * Math.PI) / 180
+  const fwd = { x: Math.sin(a), y: Math.cos(a) }
+  const right = { x: Math.cos(a), y: -Math.sin(a) }
+  return hint.spots.map(s => ({ ...s, x: origin.x + right.x * s.x + fwd.x * s.y, y: origin.y + right.y * s.x + fwd.y * s.y }))
+}
+
 interface ActiveHint {
   hint: NpcSpotHint
+  /** Spots resolved into arena coordinates at activation */
+  spots: { x: number; y: number; tolerance?: number }[]
   until: number
   claims: Map<string, number>
   /** Where each NPC actually stands (scattered inside the tolerance) */
@@ -68,11 +86,12 @@ export class SpotCoordinator {
 
   constructor(private rng: () => number, private mistakeRate: number) {}
 
-  activate(hint: NpcSpotHint, npcs: SpotClaimant[], now: number, holdMs: number): void {
-    const spots = hint.spots
-    const claims = assignSpots(spots, npcs)
-    const active: ActiveHint = { hint, until: now + holdMs, claims, points: new Map(), unique: spots.length >= npcs.length + 1 }
-    for (const [id, i] of claims) active.points.set(id, this.standPoint(hint, i))
+  activate(hint: NpcSpotHint, npcs: SpotClaimant[], now: number, holdMs: number, origin: SpotOrigin | null = null): void {
+    const spots = worldSpots(hint, origin)
+    // The player's spot is picked in the hint's own frame (southernmost / behind the boss)
+    const claims = assignSpots(spots, npcs, playerSpotIndex(hint.spots))
+    const active: ActiveHint = { hint, spots, until: now + holdMs, claims, points: new Map(), unique: spots.length >= npcs.length + 1 }
+    for (const [id, i] of claims) active.points.set(id, this.standPoint(active, i))
     this.active = active
   }
 
@@ -82,15 +101,15 @@ export class SpotCoordinator {
     if (!a) return
     if (now >= a.until) { this.active = null; return }
     if (!a.unique || !player) return
-    const spots = a.hint.spots
+    const spots = a.spots
     for (const [id, i] of a.claims) {
-      if (dist(player, spots[i]!) > this.tolerance(a.hint, i)) continue
+      if (dist(player, spots[i]!) > this.tolerance(a, i)) continue
       const taken = new Set(a.claims.values())
       const free = spots.map((_, k) => k).filter(k => !taken.has(k))
       if (free.length === 0) return
       const next = free.reduce((b, k) => (dist(spots[k]!, spots[i]!) < dist(spots[b]!, spots[i]!) ? k : b))
       a.claims.set(id, next)
-      a.points.set(id, this.standPoint(a.hint, next))
+      a.points.set(id, this.standPoint(a, next))
       return
     }
   }
@@ -99,17 +118,17 @@ export class SpotCoordinator {
     return this.active?.points.get(npcId) ?? null
   }
 
-  private tolerance(hint: NpcSpotHint, i: number): number {
-    return hint.spots[i]!.tolerance ?? hint.tolerance ?? DEFAULT_SPOT_TOLERANCE
+  private tolerance(a: ActiveHint, i: number): number {
+    return a.spots[i]!.tolerance ?? a.hint.tolerance ?? DEFAULT_SPOT_TOLERANCE
   }
 
-  private standPoint(hint: NpcSpotHint, i: number): Vec2 {
-    const tol = this.tolerance(hint, i)
-    const spot = hint.spots[i]!
+  private standPoint(a: ActiveHint, i: number): Vec2 {
+    const tol = this.tolerance(a, i)
+    const spot = a.spots[i]!
     if (this.rng() >= this.mistakeRate) return scatter(spot, tol, this.rng)
     // A sloppy NPC ends up 2–3 tolerances off the spot
-    const a = this.rng() * Math.PI * 2
+    const angle = this.rng() * Math.PI * 2
     const r = tol * (2 + this.rng())
-    return { x: spot.x + Math.sin(a) * r, y: spot.y + Math.cos(a) * r }
+    return { x: spot.x + Math.sin(angle) * r, y: spot.y + Math.cos(angle) * r }
   }
 }

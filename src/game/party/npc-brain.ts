@@ -230,7 +230,8 @@ export class NpcBrain {
       return { x: w.config.idle.x + Math.sin(a) * 2.5, y: w.config.idle.y + Math.cos(a) * 2.5 }
     }
     if (this.kit.style === 'tank') {
-      if (target === w.boss) {
+      // Pull the boss to the tank spot only once it is on this tank; until then go and get it
+      if (target === w.boss && target.target === e.id) {
         const face = dirOf(w.config.tankSpot.facing)
         const anchor = w.boss.speed > 0 ? w.config.tankSpot : pos(w.boss)
         const reach = w.boss.speed > 0 ? Math.max(w.boss.size + 1, w.bossChaseRange - 0.3) : w.boss.size + 1.5

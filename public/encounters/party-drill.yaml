@@ -1,6 +1,7 @@
 # 小队演练 — NPC 小队系统的验收副本（隐藏）
 # 设计：docs/superpowers/specs/2026-10-09-npc-party-design.md
 # 数值：boss attack = 1，potency 即固定伤害
+# NPC 点位一律面基（frame: boss）：倒 T 后 boss 追人跑，场基点位会失效
 
 # 小队模式：玩家 + 3 名 NPC；目标时间缺省按 boss 血量推算
 party:
@@ -117,7 +118,7 @@ skills:
         hitEffectDuration: 400
         effects: [{ type: damage, potency: 8000 }]
 
-  # 挡刀：朝南的直线，最前面的人承担一半
+  # 挡刀：朝一仇的直线，最前面的人承担一半
   line_stack:
     name: 贯穿
     type: spell
@@ -125,7 +126,7 @@ skills:
     targetType: aoe
     zones:
       - anchor: { type: caster }
-        direction: { type: fixed, angle: 180 }
+        direction: { type: toward_target }
         shape: { type: rect, length: 25, width: 5 }
         share: { front: 0.5 }
         resolveDelay: 5000
@@ -184,10 +185,10 @@ phases:
       - { at: 6000, use: raidwide }
       - { at: 14000, use: buster }
       - { at: 19000, use: cleave }
-      - { at: 24000, use: spread, npc: { spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
-      - { at: 34000, use: stack, npc: { spots: [{ x: 0, y: -7 }] } }
-      - { at: 44000, use: line_stack, npc: { spots: [{ x: 0, y: -8 }], tolerance: 1 } }
-      - { at: 54000, use: four_markers, npc: { spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
+      - { at: 24000, use: spread, npc: { frame: boss, spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
+      - { at: 34000, use: stack, npc: { frame: boss, spots: [{ x: 0, y: -7 }] } }
+      - { at: 44000, use: line_stack, npc: { frame: boss, spots: [{ x: 0, y: 7 }], tolerance: 1 } }
+      - { at: 54000, use: four_markers, npc: { frame: boss, spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
 
       # 小怪阶段：本体不可选中，NPC 转火优先级高的小怪，打完回待机位
       - { at: 64000, action: disable_ai }
@@ -206,21 +207,21 @@ phases:
       - { at: 100000, use: raidwide }
       - { at: 108000, use: buster }
       - { at: 113000, use: cleave }
-      - { at: 118000, use: four_markers, npc: { spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
-      - { at: 128000, use: stack, npc: { spots: [{ x: 0, y: -7 }] } }
-      - { at: 138000, use: spread, npc: { spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
-      - { at: 148000, use: line_stack, npc: { spots: [{ x: 0, y: -8 }], tolerance: 1 } }
+      - { at: 118000, use: four_markers, npc: { frame: boss, spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
+      - { at: 128000, use: stack, npc: { frame: boss, spots: [{ x: 0, y: -7 }] } }
+      - { at: 138000, use: spread, npc: { frame: boss, spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
+      - { at: 148000, use: line_stack, npc: { frame: boss, spots: [{ x: 0, y: 7 }], tolerance: 1 } }
       - { at: 158000, use: raidwide }
       - { at: 166000, use: buster }
       - { at: 171000, use: cleave }
-      - { at: 178000, use: spread, npc: { spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
+      - { at: 178000, use: spread, npc: { frame: boss, spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
       - { at: 188000, use: raidwide }
-      - { at: 196000, use: stack, npc: { spots: [{ x: 0, y: -7 }] } }
+      - { at: 196000, use: stack, npc: { frame: boss, spots: [{ x: 0, y: -7 }] } }
       - { at: 206000, use: buster }
-      - { at: 212000, use: four_markers, npc: { spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
+      - { at: 212000, use: four_markers, npc: { frame: boss, spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
       - { at: 222000, use: raidwide }
       - { at: 230000, use: cleave }
-      - { at: 236000, use: line_stack, npc: { spots: [{ x: 0, y: -8 }], tolerance: 1 } }
+      - { at: 236000, use: line_stack, npc: { frame: boss, spots: [{ x: 0, y: 7 }], tolerance: 1 } }
       - { at: 246000, use: buster }
 
       # 软狂暴：目标时间约 235s，读条 8s

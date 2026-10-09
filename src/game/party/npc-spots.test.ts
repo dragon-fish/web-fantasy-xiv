@@ -1,4 +1,4 @@
-import { assignSpots, SpotCoordinator } from './npc-spots'
+import { assignSpots, SpotCoordinator, worldSpots } from './npc-spots'
 
 const square = [{ x: -6, y: 6 }, { x: 6, y: 6 }, { x: 6, y: -6 }, { x: -6, y: -6 }]
 
@@ -42,5 +42,16 @@ describe('npc spots', () => {
     sloppy.activate({ spots: [{ x: 0, y: 0 }], tolerance: 1 }, [{ id: 'a', position: { x: 0, y: 0 } }], 0, 1000)
     const q = sloppy.pointFor('a')!
     expect(Math.hypot(q.x, q.y)).toBeGreaterThan(2)
+  })
+  it('boss-frame spots follow the caster, and the one behind it is left for the player', () => {
+    // Boss at (10, 0) facing east: "behind" is west of it
+    const hint = { frame: 'boss' as const, spots: [{ x: 0, y: 6 }, { x: 0, y: -6 }, { x: 6, y: 0 }, { x: -6, y: 0 }], tolerance: 0 }
+    const world = worldSpots(hint, { x: 10, y: 0, facing: 90 })
+    expect(world.map(p => [Math.round(p.x) + 0, Math.round(p.y) + 0])).toEqual([[16, 0], [4, 0], [10, -6], [10, 6]])
+    const spots = new SpotCoordinator(() => 0.5, 0)
+    const npcs = ['a', 'b', 'c'].map(id => ({ id, position: { x: 10, y: 0 } }))
+    spots.activate(hint, npcs, 0, 1000, { x: 10, y: 0, facing: 90 })
+    const taken = npcs.map(n => spots.pointFor(n.id)!).map(p => [Math.round(p.x) + 0, Math.round(p.y) + 0])
+    expect(taken).not.toContainEqual([4, 0])
   })
 })
