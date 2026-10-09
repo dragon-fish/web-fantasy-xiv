@@ -1,0 +1,49 @@
+import { EventBus } from '@/core/event-bus'
+import { EntityManager } from '@/entity/entity-manager'
+import { EnmitySystem } from './enmity'
+
+function setup() {
+  const bus = new EventBus()
+  const mgr = new EntityManager(bus)
+  const enmity = new EnmitySystem(bus, mgr)
+  const boss = mgr.create({ id: 'boss', type: 'boss', hp: 100000 })
+  const tank = mgr.create({ id: 'tank', type: 'player', role: 'tank', npc: true, hp: 10000 })
+  const healer = mgr.create({ id: 'healer', type: 'player', role: 'healer', hp: 10000 })
+  const dps = mgr.create({ id: 'dps', type: 'player', role: 'dps', npc: true, hp: 10000 })
+  enmity.engage(boss)
+  const hit = (source: any, amount: number) => bus.emit('damage:dealt', { source, target: boss, amount })
+  const heal = (source: any, target: any, amount: number, overheal = 0) => bus.emit('damage:dealt', { source, target, amount: -amount, overheal })
+  return { bus, enmity, boss, tank, healer, dps, hit, heal }
+}
+
+describe('EnmitySystem', () => {
+  it('damage dealt is enmity, and a tank draws ten times as much', () => {
+    const { enmity, boss, tank, dps, hit } = setup()
+    hit(dps, 5000)
+    hit(tank, 600)
+    expect(enmity.get(boss, dps)).toBe(5000)
+    expect(enmity.get(boss, tank)).toBe(6000)
+    expect(enmity.top(boss)).toBe(tank)
+  })
+
+  it('healing a member on the list draws enmity; overheal counts 1.5×', () => {
+    const { enmity, boss, healer, tank, heal } = setup()
+    heal(healer, tank, 4000, 1000)
+    expect(enmity.get(boss, healer)).toBe(3000 + 1500)
+  })
+
+  it('periodic ticks carry only the caster id and still count', () => {
+    const { enmity, boss, healer, tank, heal } = setup()
+    heal({ id: 'healer' }, tank, 500)
+    expect(enmity.get(boss, healer)).toBe(500)
+  })
+
+  it('the next in line takes over when the top falls', () => {
+    const { bus, enmity, boss, tank, dps, hit } = setup()
+    hit(tank, 1000)
+    hit(dps, 2000)
+    tank.alive = false
+    bus.emit('entity:died', { entity: tank })
+    expect(enmity.top(boss)).toBe(dps)
+  })
+})

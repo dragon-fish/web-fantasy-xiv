@@ -3,9 +3,9 @@ import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
-import type { DamageType, FlurryGuard, SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
+import type { AoeZoneDef, DamageType, FlurryGuard, SkillDef, SkillEffectDef, BuffDef, Vec2 } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
-import { isPartyMember, partyMembersNear } from '@/combat/party'
+import { isAlly, isPartyMember, partyMembersNear } from '@/combat/party'
 import { applyPeriodicBuff, isPeriodicEffect } from '@/combat/buff-periodic'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import { EASING, type EasingFn } from './displacement-animator'
@@ -24,6 +24,8 @@ export class CombatResolver {
   private skillNames = new Map<string, string>()
   private skillDefsMap = new Map<string, SkillDef>()
   private lifestealRemainders = new WeakMap<Entity, number>()
+  /** Attack an NPC's damage is computed from (the party director's budget); heals keep the real stat */
+  private npcDamageAttack: ((caster: Entity) => number | null) | null = null
 
   constructor(
     private bus: EventBus,
@@ -59,9 +61,10 @@ export class CombatResolver {
       const skillDef = this.skillDefsMap.get(payload.zone.skillId)
       const potencyBonus = caster && skillDef ? this.resolvePotencyBonus(caster, skillDef) : 0
 
-      for (const hit of payload.hitEntities) {
-        this.resolveEffects(payload.zone.def.effects, caster, hit, skillName, potencyBonus)
-      }
+      const shares = shareFactors(payload.zone.def.share, payload.hitEntities, payload.zone.center)
+      payload.hitEntities.forEach((hit, i) => {
+        this.resolveEffects(payload.zone.def.effects, caster, hit, skillName, potencyBonus, [], shares[i])
+      })
       const revive = (payload.zone.def.effects as SkillEffectDef[]).find(e => e.type === 'revive')
       if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
     })
@@ -72,12 +75,16 @@ export class CombatResolver {
     })
   }
 
+  setNpcDamageAttack(provider: (caster: Entity) => number | null): void {
+    this.npcDamageAttack = provider
+  }
+
   /** Restore HP (caster's attack × potency, attack modifiers included); returns the HP actually restored */
   private heal(caster: Entity, target: Entity, potency: number): number {
     const amount = Math.floor(this.buffSystem.getAttack(caster) * potency)
     const restored = Math.min(amount, Math.max(0, target.maxHp - target.hp))
     target.hp = Math.min(target.maxHp, target.hp + amount)
-    this.bus.emit('damage:dealt', { source: caster, target, amount: -amount, skill: null })
+    this.bus.emit('damage:dealt', { source: caster, target, amount: -amount, overheal: amount - restored, skill: null })
     return restored
   }
 
@@ -105,18 +112,22 @@ export class CombatResolver {
     skillName?: string,
     potencyBonus = 0,
     extraIncreases: number[] = [],
+    /** This target's portion of shared damage (`AoeZoneDef.share`) */
+    damageShare = 1,
   ): void {
     for (const effect of effects) {
       if (!matchesCondition(effect.when, target ?? caster)) continue
       switch (effect.type) {
-        case 'damage':
+        case 'damage': {
           if (!caster || !target) break
+          const potency = (effect.potency + potencyBonus) * damageShare
           if (normalizeDmgType(effect.dmgType).includes('tankbuster')) {
-            this.resolveTankbuster(caster, target, effect, effect.potency + potencyBonus, skillName, extraIncreases)
+            this.resolveTankbuster(caster, target, effect, potency, skillName, extraIncreases)
             break
           }
-          this.applyDamage(caster, target, effect.potency + potencyBonus, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
+          this.applyDamage(caster, target, potency, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
           break
+        }
 
         case 'apply_buff': {
           const buffDef = this.buffDefs.get(effect.buffId)
@@ -169,8 +180,8 @@ export class CombatResolver {
           break
 
         case 'heal': {
-          // Heal only applies to friendly targets (same type as caster); otherwise fallback to caster
-          const friendlyTarget = (target && caster && target.type === caster.type) ? target : caster
+          // Heal only applies to allies; otherwise it falls back to the caster
+          const friendlyTarget = (target && caster && isAlly(caster, target)) ? target : caster
           if (!friendlyTarget) break
           this.heal(caster ?? friendlyTarget, friendlyTarget, effect.potency)
           break
@@ -350,7 +361,7 @@ export class CombatResolver {
     let dmg: number
     // Freeze caster's derived attack (base × attack_modifier) once per hit so
     // both branches reference the same value.
-    const casterAttack = this.buffSystem.getAttack(caster)
+    const casterAttack = (caster.npc ? this.npcDamageAttack?.(caster) : null) ?? this.buffSystem.getAttack(caster)
     if (dmgTypes.includes('special')) {
       // Special damage: ignores mitigation, shields, and undying
       dmg = Math.floor(casterAttack * potency)
@@ -439,4 +450,21 @@ export class CombatResolver {
 function normalizeDmgType(raw?: DamageType | DamageType[]): DamageType[] {
   if (!raw) return []
   return Array.isArray(raw) ? raw : [raw]
+}
+
+/**
+ * Each hit entity's portion of shared damage. `even`: 1/n each. `{ front }`: the one nearest the
+ * zone origin takes `front`, the rest split the remainder; a lone target takes it all.
+ */
+export function shareFactors(share: AoeZoneDef['share'], hits: Entity[], origin: Vec2): number[] {
+  const n = hits.length
+  if (!share || n <= 1) return hits.map(() => 1)
+  if (share === 'even') return hits.map(() => 1 / n)
+  let front = 0
+  let best = Infinity
+  hits.forEach((e, i) => {
+    const d = Math.hypot(e.position.x - origin.x, e.position.y - origin.y)
+    if (d < best) { best = d; front = i }
+  })
+  return hits.map((_, i) => (i === front ? share.front : (1 - share.front) / (n - 1)))
 }

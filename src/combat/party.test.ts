@@ -1,6 +1,6 @@
 import { EventBus } from '@/core/event-bus'
 import { EntityManager } from '@/entity/entity-manager'
-import { pickAllyTarget, partyMembersNear } from './party'
+import { pickAllyTarget, partyMembersNear, selectPartyTargets, isHostile } from './party'
 
 function setup() {
   const mgr = new EntityManager(new EventBus())
@@ -30,6 +30,18 @@ describe('pickAllyTarget', () => {
     expect(pickAllyTarget(healer, mgr.getAll(), 'lowest-hp', 30)?.id).toBe('healer')
   })
 
+  it("the caster's own pick wins when it fits, otherwise the default rule applies", () => {
+    const { mgr, at } = setup()
+    const healer = at('healer', 0, 1000)
+    at('tank', 5, 900)
+    at('dps', 10, 400)
+    at('far', 50, 900)
+    healer.allyTarget = 'tank'
+    expect(pickAllyTarget(healer, mgr.getAll(), 'lowest-hp', 30)?.id).toBe('tank')
+    healer.allyTarget = 'far'
+    expect(pickAllyTarget(healer, mgr.getAll(), 'lowest-hp', 30)?.id).toBe('dps')
+  })
+
   it('fallen picks the nearest fallen member, or nothing', () => {
     const { mgr, at } = setup()
     const healer = at('healer', 0, 1000)
@@ -49,5 +61,49 @@ describe('partyMembersNear', () => {
     at('down', 5, 0, { alive: false })
     at('boss', 1, 10, { type: 'mob' })
     expect(partyMembersNear(healer, mgr.getAll(), 15).map(e => e.id).sort()).toEqual(['healer', 'near'])
+  })
+})
+
+describe('isHostile', () => {
+  it('goes by team, not entity type', () => {
+    const { mgr, at } = setup()
+    const player = at('player', 0, 1000)
+    const npc = mgr.create({ id: 'npc', type: 'player', npc: true, hp: 1 })
+    const boss = at('boss', 0, 1, { type: 'mob' })
+    const charmed = mgr.create({ id: 'charmed', type: 'mob', team: 'party', hp: 1 })
+    expect(isHostile(player, npc)).toBe(false)
+    expect(isHostile(npc, boss)).toBe(true)
+    expect(isHostile(boss, charmed)).toBe(true)
+    expect(isHostile(player, charmed)).toBe(false)
+  })
+})
+
+describe('selectPartyTargets', () => {
+  const party = () => {
+    const { mgr, at } = setup()
+    const tank = at('tank', 0, 1000); tank.role = 'tank'
+    const healer = at('healer', 0, 1000); healer.role = 'healer'
+    const dps = at('dps', 0, 1000); dps.role = 'dps'
+    return { members: [tank, healer, dps], tank, healer, dps, mgr }
+  }
+  const seq = (...values: number[]) => { let i = 0; return () => values[i++ % values.length]! }
+
+  it('count: distinct members first, then repeats when too few are alive', () => {
+    const { members } = party()
+    const picked = selectPartyTargets({ select: 'count', count: 4 }, members, [], seq(0, 0, 0, 0.5))
+    expect(picked.map(e => e.id)).toEqual(['tank', 'healer', 'dps', 'healer'])
+  })
+
+  it('role: every member of the role, or one random member when none is left', () => {
+    const { members, healer, tank } = party()
+    expect(selectPartyTargets({ select: 'role', role: 'healer' }, members, [])).toEqual([healer])
+    const withoutHealer = members.filter(m => m !== healer)
+    expect(selectPartyTargets({ select: 'role', role: 'healer' }, withoutHealer, [], () => 0)).toEqual([tank])
+  })
+
+  it('enmity: picks by rank and skips ranks nobody holds', () => {
+    const { members, tank, dps } = party()
+    expect(selectPartyTargets({ select: 'enmity', rank: [1, 2] }, members, [tank, dps])).toEqual([tank, dps])
+    expect(selectPartyTargets({ select: 'enmity', rank: 3 }, members, [tank, dps])).toEqual([])
   })
 })

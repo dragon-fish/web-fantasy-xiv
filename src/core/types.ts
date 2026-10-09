@@ -17,11 +17,26 @@ export type TargetType = 'single' | 'aoe'
 
 export type BuffType = 'buff' | 'debuff'
 
+/**
+ * Party marker selection (one zone per picked member):
+ * - each: every living member
+ * - count: `count` members; when fewer are alive, random members are picked again (someone takes two)
+ * - role: the living members with `role`; a random member when none is left
+ * - enmity: the caster's enmity ranks (1 = top); missing ranks are skipped
+ */
+export type PartySelect =
+  | { select: 'each' }
+  | { select: 'count'; count: number }
+  | { select: 'role'; role: Role }
+  | { select: 'enmity'; rank: number | number[] }
+
 export type AnchorType =
   | { type: 'caster' }
   | { type: 'target' }
   | { type: 'target_live' }
   | { type: 'position'; x: number; y: number }
+  /** `follow` (default true): the zone tracks its member until it resolves */
+  | ({ type: 'party'; follow?: boolean } & PartySelect)
 
 export type DirectionType =
   | { type: 'caster_facing' }
@@ -122,6 +137,11 @@ export interface AoeZoneDef {
   telegraph?: boolean
   /** Overhead marker on the anchored entity while the zone is pending (renderer-only) */
   marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull'
+  /**
+   * Damage split among everyone hit: `even` divides it equally; `{ front }` (lines / fans) puts
+   * `front` of it on the member nearest the origin and splits the rest among the others
+   */
+  share?: 'even' | { front: number }
 }
 
 export interface SkillDef {

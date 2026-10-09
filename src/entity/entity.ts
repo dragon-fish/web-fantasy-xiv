@@ -59,6 +59,12 @@ export interface Entity {
   model?: string
   /** Combat role (players: from job category) */
   role?: Role
+  /** Faction: same team = allies (heal / buff), different teams = hostile (attack); `neutral` is neither */
+  team: string
+  /** Party member driven by NPC AI rather than the human player */
+  npc?: boolean
+  /** Ally picked for friendly single-target skills (heals, raise); null = the skill picks one itself */
+  allyTarget: string | null
   /** Lying dormant (e.g. a corpse awaiting revival): untargetable, inert, revived by `revive` effects */
   dormant?: boolean
 
@@ -107,6 +113,8 @@ export interface CreateEntityOptions {
   size?: number
   model?: string
   role?: Role
+  team?: string
+  npc?: boolean
   dormant?: boolean
   hp?: number
   maxHp?: number
@@ -117,6 +125,14 @@ export interface CreateEntityOptions {
   aggroRange?: number
   gcdDuration?: number
   skillIds?: string[]
+}
+
+export const PARTY_TEAM = 'party'
+export const ENEMY_TEAM = 'enemy'
+export const NEUTRAL_TEAM = 'neutral'
+
+function defaultTeam(type: EntityType): string {
+  return type === 'player' ? PARTY_TEAM : type === 'object' ? NEUTRAL_TEAM : ENEMY_TEAM
 }
 
 export function createEntity(opts: CreateEntityOptions): Entity {
@@ -135,6 +151,9 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     size: opts.size ?? 0.5,
     model: opts.model,
     role: opts.role,
+    team: opts.team ?? defaultTeam(opts.type),
+    npc: opts.npc,
+    allyTarget: null,
     dormant: opts.dormant,
     hp: opts.hp ?? baseMaxHp,
     maxHp: 0, // placeholder, overwritten below

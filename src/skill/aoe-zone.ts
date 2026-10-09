@@ -4,6 +4,7 @@ import type { EventBus } from '@/core/event-bus'
 import type { EntityManager } from '@/entity/entity-manager'
 import type { Entity } from '@/entity/entity'
 import { isPointInAoeShape } from './aoe-shape'
+import { isHostile } from '@/combat/party'
 
 export interface ActiveAoeZone {
   id: string
@@ -22,6 +23,10 @@ export interface ActiveAoeZone {
 }
 
 let nextZoneId = 0
+
+function followsAnchor(anchor: AoeZoneDef['anchor']): boolean {
+  return anchor.type === 'target_live' || (anchor.type === 'party' && anchor.follow !== false)
+}
 
 export class AoeZoneManager {
   private zones: ActiveAoeZone[] = []
@@ -55,7 +60,7 @@ export class AoeZoneManager {
       center,
       facing,
       elapsed: 0,
-      anchorEntityId: def.anchor.type === 'target' || def.anchor.type === 'target_live' ? targetId
+      anchorEntityId: def.anchor.type === 'target' || def.anchor.type === 'target_live' || def.anchor.type === 'party' ? targetId
         : def.anchor.type === 'caster' ? casterId : null,
       telegraphAt,
       telegraphVisible: false,
@@ -77,7 +82,7 @@ export class AoeZoneManager {
     for (let i = this.zones.length - 1; i >= 0; i--) {
       const zone = this.zones[i]
       zone.elapsed += dt
-      if (!zone.resolved && zone.def.anchor.type === 'target_live' && zone.anchorEntityId) {
+      if (!zone.resolved && zone.anchorEntityId && followsAnchor(zone.def.anchor)) {
         const anchor = this.entityMgr.get(zone.anchorEntityId)
         if (anchor?.alive) zone.center = { x: anchor.position.x, y: anchor.position.y }
       }
@@ -115,8 +120,7 @@ export class AoeZoneManager {
       }
       // Skip untargetable entities (invulnerable)
       if (!entity.targetable) continue
-      // Skip friendly entities (same faction: player vs player, or boss/mob vs boss/mob)
-      if (caster && !this.isHostile(caster, entity)) continue
+      if (caster && !isHostile(caster, entity)) continue
       const point: Vec2 = { x: entity.position.x, y: entity.position.y }
       if (isPointInAoeShape(point, zone.center, zone.def.shape, zone.facing)) {
         hitEntities.push(entity)
@@ -126,20 +130,13 @@ export class AoeZoneManager {
     this.bus.emit('aoe:zone_resolved', { zone, hitEntities, dormantHits })
   }
 
-  private isHostile(a: Entity, b: Entity): boolean {
-    const playerTypes = new Set(['player'])
-    const enemyTypes = new Set(['boss', 'mob'])
-    const aIsPlayer = playerTypes.has(a.type)
-    const bIsPlayer = playerTypes.has(b.type)
-    return aIsPlayer !== bIsPlayer
-  }
-
   private resolveAnchor(anchor: AoeZoneDef['anchor'], casterPos: Vec2, targetPos: Vec2 | null): Vec2 {
     switch (anchor.type) {
       case 'caster':
         return { ...casterPos }
       case 'target':
       case 'target_live':
+      case 'party':
         return targetPos ? { ...targetPos } : { ...casterPos }
       case 'position':
         return { x: anchor.x, y: anchor.y }

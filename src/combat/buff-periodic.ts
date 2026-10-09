@@ -176,6 +176,7 @@ export function firePeriodicTick(
         increases: snap.casterIncreases,
         mitigations: [],
       })
+      const overheal = Math.max(0, target.hp + heal - target.maxHp)
       target.hp = Math.min(target.maxHp, target.hp + heal)
       // Emit heal via damage:dealt with negative amount (existing convention
       // used by lifesteal / heal effects in combat-resolver.ts).
@@ -183,6 +184,7 @@ export function firePeriodicTick(
         source: { id: p.sourceCasterId } as Entity,
         target,
         amount: -heal,
+        overheal,
         skill: { name: 'HoT' },
         periodic: true,
       })

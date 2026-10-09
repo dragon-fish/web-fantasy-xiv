@@ -1,3 +1,4 @@
+import { isHostile } from '@/combat/party'
 import type { Entity } from '@/entity/entity'
 import type { SkillDef } from '@/core/types'
 import type { InputManager } from '@/input/input-manager'
@@ -349,6 +350,6 @@ export class PlayerInputDriver {
   }
 
   private isEnemyTarget(e: Entity): boolean {
-    return e.type !== 'player' && e.type !== 'object' && e.alive && e.targetable
+    return isHostile(this.entity, e) && e.alive && e.targetable
   }
 }

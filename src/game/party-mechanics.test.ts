@@ -1,0 +1,73 @@
+import { EventBus } from '@/core/event-bus'
+import { EntityManager } from '@/entity/entity-manager'
+import { BuffSystem } from '@/combat/buff'
+import { Arena } from '@/arena/arena'
+import { AoeZoneManager } from '@/skill/aoe-zone'
+import { SkillResolver } from '@/skill/skill-resolver'
+import { selectPartyTargets, isPartyMember } from '@/combat/party'
+import { CombatResolver } from './combat-resolver'
+import type { AoeZoneDef, SkillDef } from '@/core/types'
+
+function setup() {
+  const bus = new EventBus()
+  const mgr = new EntityManager(bus)
+  const buffs = new BuffSystem(bus)
+  const zones = new AoeZoneManager(bus, mgr)
+  const skills = new SkillResolver(bus, mgr, buffs, zones)
+  new CombatResolver(bus, mgr, buffs, new Arena({ name: 't', shape: { type: 'circle', radius: 60 }, boundary: 'wall' }), zones)
+  skills.setPartyMarkerPicker((_caster, anchor) =>
+    selectPartyTargets(anchor, mgr.getAlive().filter(isPartyMember), []))
+  const boss = mgr.create({ id: 'boss', type: 'boss', hp: 100000, attack: 100, position: { x: 0, y: 10, z: 0 } })
+  const member = (id: string, x: number, y: number) =>
+    mgr.create({ id, type: 'player', npc: id !== 'player', hp: 100000, position: { x, y, z: 0 } })
+  const cast = (zone: Partial<AoeZoneDef>) => {
+    const skill: SkillDef = {
+      id: 'mech', name: 'mech', type: 'ability', castTime: 0, cooldown: 0, gcd: false,
+      targetType: 'aoe', requiresTarget: false, range: 0,
+      zones: [{
+        anchor: { type: 'caster' }, direction: { type: 'none' }, shape: { type: 'circle', radius: 3 },
+        resolveDelay: 1000, hitEffectDuration: 0, effects: [{ type: 'damage', potency: 100, dmgType: 'special' }],
+        ...zone,
+      } as AoeZoneDef],
+    }
+    skills.tryUse(boss, skill)
+  }
+  return { mgr, zones, boss, member, cast }
+}
+
+describe('party mechanics', () => {
+  it('a spread marker drops one zone on each member, following them until it resolves', () => {
+    const { zones, member, cast } = setup()
+    const a = member('player', -10, 0)
+    const b = member('npc1', 10, 0)
+    cast({ anchor: { type: 'party', select: 'each' } })
+    expect(zones.getActiveZones().map(z => z.anchorEntityId).sort()).toEqual(['npc1', 'player'])
+    a.position.x = -15
+    zones.update(500)
+    expect(zones.getActiveZones().find(z => z.anchorEntityId === 'player')!.center.x).toBe(-15)
+    zones.update(500)
+    expect(a.hp).toBe(90000)
+    expect(b.hp).toBe(90000)
+  })
+
+  it('a stack splits its damage evenly among everyone inside', () => {
+    const { member, cast, zones } = setup()
+    const members = [member('player', 0, 0), member('npc1', 1, 0), member('npc2', 0, 1), member('npc3', 20, 0)]
+    cast({ anchor: { type: 'position', x: 0, y: 0 } as any, share: 'even' })
+    zones.update(1000)
+    expect(members.map(m => 100000 - m.hp)).toEqual([3333, 3333, 3333, 0])
+  })
+
+  it('a line stack puts its front share on whoever stands nearest the origin', () => {
+    const { member, cast, zones } = setup()
+    const front = member('player', 0, 7)
+    const back1 = member('npc1', 0, 4)
+    const back2 = member('npc2', 0.5, 3)
+    cast({
+      anchor: { type: 'caster' }, direction: { type: 'fixed', angle: 180 },
+      shape: { type: 'rect', length: 20, width: 4 }, share: { front: 0.5 },
+    })
+    zones.update(1000)
+    expect([front, back1, back2].map(m => 100000 - m.hp)).toEqual([5000, 2500, 2500])
+  })
+})

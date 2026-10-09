@@ -88,6 +88,9 @@ function parseZone(raw: any): AoeZoneDef {
     shape = { type: 'rect', length, width: shape.width }
   }
 
+  // Party marker sugar: `anchor: { select: each }` → `{ type: 'party', select: 'each' }`
+  if (anchor && anchor.type == null && anchor.select != null) anchor = { type: 'party', ...anchor }
+
   return {
     anchor,
     direction,
@@ -99,6 +102,7 @@ function parseZone(raw: any): AoeZoneDef {
     displacementHint: raw.displacementHint,
     marker: raw.marker,
     telegraph: raw.telegraph,
+    share: raw.share,
   }
 }
 

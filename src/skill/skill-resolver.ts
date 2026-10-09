@@ -1,11 +1,14 @@
 // src/skill/skill-resolver.ts
-import type { SkillDef, Vec2 } from '@/core/types'
+import type { AoeZoneDef, SkillDef, Vec2 } from '@/core/types'
 import type { EventBus } from '@/core/event-bus'
 import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { AoeZoneManager } from '@/skill/aoe-zone'
 import type { Entity } from '@/entity/entity'
 import { pickAllyTarget } from '@/combat/party'
+
+/** Members a party marker lands on (see `selectPartyTargets`); set by party-mode encounters */
+export type PartyMarkerPicker = (caster: Entity, anchor: Extract<AoeZoneDef['anchor'], { type: 'party' }>) => Entity[]
 
 export const GCD_DURATION = 2500 // ms
 
@@ -29,6 +32,8 @@ export class SkillResolver {
   private skillDefs = new Map<string, SkillDef>()
   /** All entities that have ever used a skill (need GCD/casting ticks) */
   private trackedEntities = new Map<string, Entity>()
+  /** Without a picker, party markers fall back to the caster's target */
+  private pickPartyMarkers: PartyMarkerPicker | null = null
 
   constructor(
     private bus: EventBus,
@@ -36,6 +41,10 @@ export class SkillResolver {
     private buffSystem: BuffSystem,
     private zoneMgr: AoeZoneManager,
   ) {}
+
+  setPartyMarkerPicker(picker: PartyMarkerPicker): void {
+    this.pickPartyMarkers = picker
+  }
 
   registerSkill(def: SkillDef): void {
     this.skillDefs.set(def.id, def)
@@ -226,16 +235,17 @@ export class SkillResolver {
       ? { x: targetEntity.position.x, y: targetEntity.position.y }
       : null
 
+    const casterPos = { x: caster.position.x, y: caster.position.y }
     for (const zoneDef of skill.zones) {
-      this.zoneMgr.spawn(
-        zoneDef,
-        skill.id,
-        { x: caster.position.x, y: caster.position.y },
-        caster.facing,
-        targetPos,
-        caster.id,
-        targetEntity?.id ?? null,
-      )
+      if (zoneDef.anchor.type === 'party') {
+        const picked = this.pickPartyMarkers?.(caster, zoneDef.anchor) ?? (targetEntity ? [targetEntity] : [])
+        for (const member of picked) {
+          this.zoneMgr.spawn(zoneDef, skill.id, casterPos, caster.facing,
+            { x: member.position.x, y: member.position.y }, caster.id, member.id)
+        }
+        continue
+      }
+      this.zoneMgr.spawn(zoneDef, skill.id, casterPos, caster.facing, targetPos, caster.id, targetEntity?.id ?? null)
     }
   }
 
