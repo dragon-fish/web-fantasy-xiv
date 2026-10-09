@@ -26,8 +26,13 @@ const TANK_HEAL_BELOW = 0.85
 const SINGLE_HEAL_BELOW = 0.75
 const AOE_HEAL_BELOW = 0.85
 const ARRIVED = 0.4
-/** The tank drags the boss back once it has drifted this far off the tank spot (m) */
-const PULL_TOLERANCE = 1.5
+/** The tank drags the boss back toward the tank spot once it strays this far, and lets go this close (m) */
+const PULL_START = 6
+const PULL_STOP = 2
+/** Non-tanks step out of the boss's front only for a spot this close (m, or a share of their distance
+ *  from it); it is a preference, not a must */
+const FRONT_STEP = 3
+const FRONT_STEP_PER_RANGE = 0.6
 
 export interface NpcWorld {
   now(): number
@@ -106,6 +111,8 @@ export class NpcBrain {
   private dodge: { key: string; spot: Vec2 } | null = null
   /** Free mode's chosen fighting spot, kept while it stays good */
   private fight: Vec2 | null = null
+  /** Tank: dragging the boss back toward the tank spot */
+  private pulling = false
   /** Where this NPC stands relative to a stack carrier (fixed per stack) */
   private stackOffset: { zoneId: string; x: number; y: number } | null = null
   private raiseReadyAt = 0
@@ -275,30 +282,46 @@ export class NpcBrain {
     const here = pos(e)
     const reach = this.kit.range - 0.3
     const inRange = (p: Vec2) => dist(p, pos(target)) - target.size <= reach
-    // The boss's front belongs to whoever it faces (cleaves); adds aren't worth walking around
+    // The boss's front (90°) belongs to whoever it faces; adds aren't worth walking around
     const front = (p: Vec2) => {
       if (target !== w.boss || target.target === e.id) return false
       const bearing = ((Math.atan2(p.x - target.position.x, p.y - target.position.y) * 180) / Math.PI + 360) % 360
-      return Math.abs(((bearing - target.facing + 540) % 360) - 180) < 60
+      return Math.abs(((bearing - target.facing + 540) % 360) - 180) < 45
     }
-    const good = (p: Vec2) => inRange(p) && isSafe(p, hazards, w.ground) && !front(p)
-    if (good(here)) { this.fight = null; return here }
+    const good = (p: Vec2) => inRange(p) && isSafe(p, hazards, w.ground)
     if (this.fight && good(this.fight)) return this.fight
-    const melee = this.kit.style === 'melee'
-    const radii = melee ? [1, 2] : [6, 10, 14, 18].filter(r => r <= reach)
+    if (good(here)) {
+      this.fight = null
+      if (!front(here)) return here
+      // In front: step aside only if a spot out of it is close; never circle the boss for it
+      const aside = this.closestFightSpot(target, c => good(c) && !front(c))
+      const allowance = Math.max(FRONT_STEP, FRONT_STEP_PER_RANGE * dist(here, pos(target)))
+      if (aside && dist(here, aside) <= allowance) { this.fight = aside; return aside }
+      return here
+    }
+    this.fight = this.closestFightSpot(target, good, c => (front(c) ? 8 : 0))
+      ?? findSafeSpot(here, here, hazards, w.ground, w.rng)
+    return this.fight
+  }
+
+  /** Nearest ring point around `target` passing `ok`, by walk distance plus `penalty` */
+  private closestFightSpot(target: Entity, ok: (p: Vec2) => boolean, penalty: (p: Vec2) => number = () => 0): Vec2 | null {
+    const w = this.world
+    const here = pos(this.entity)
+    const reach = this.kit.range - 0.3
+    const radii = this.kit.style === 'melee' ? [1, 2] : [6, 10, 14, 18].filter(r => r <= reach)
     let best: Vec2 | null = null
     let bestCost = Infinity
     for (const r of radii) {
       for (let i = 0; i < 24; i++) {
         const a = (i * Math.PI * 2) / 24
         const c = { x: target.position.x + Math.sin(a) * (target.size + r), y: target.position.y + Math.cos(a) * (target.size + r) }
-        if (!inRange(c) || !isSafe(c, hazards, w.ground)) continue
-        const cost = dist(here, c) + (front(c) ? 8 : 0) + w.rng() * 0.5
+        if (!ok(c)) continue
+        const cost = dist(here, c) + penalty(c) + w.rng() * 0.5
         if (cost < bestCost) { bestCost = cost; best = c }
       }
     }
-    this.fight = best ?? findSafeSpot(here, here, hazards, w.ground, w.rng)
-    return this.fight
+    return best
   }
 
   /** Idle formation, or (tank) where to hold the target */
@@ -317,16 +340,17 @@ export class NpcBrain {
         const reach = w.boss.size + 1.5
         return { x: w.boss.position.x + face.x * reach, y: w.boss.position.y + face.y * reach }
       }
-      // The boss stops a chase range short of whoever it follows. Off the spot: walk past the spot,
-      // one chase range beyond it, so the boss comes to rest on it; then step round to the facing side.
+      // Keep the boss roughly mid-arena (boss-frame mechanics need room), not pinned to the spot.
+      // It stops a chase range short of whoever it follows, so drag it by walking past the spot,
+      // one chase range beyond it; otherwise hold it where it is, facing the configured way.
       const spot = w.config.tankSpot
       const reach = Math.max(w.boss.size + 1, w.bossChaseRange - 0.3)
       const off = { x: spot.x - w.boss.position.x, y: spot.y - w.boss.position.y }
       const away = Math.hypot(off.x, off.y)
-      if (away > PULL_TOLERANCE) {
-        return { x: spot.x + (off.x / away) * reach, y: spot.y + (off.y / away) * reach }
-      }
-      return { x: spot.x + face.x * reach, y: spot.y + face.y * reach }
+      if (away > PULL_START) this.pulling = true
+      else if (away < PULL_STOP) this.pulling = false
+      if (this.pulling) return { x: spot.x + (off.x / away) * reach, y: spot.y + (off.y / away) * reach }
+      return { x: w.boss.position.x + face.x * reach, y: w.boss.position.y + face.y * reach }
     }
     const away = { x: e.position.x - target.position.x, y: e.position.y - target.position.y }
     const len = Math.hypot(away.x, away.y) || 1
