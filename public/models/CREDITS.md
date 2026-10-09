@@ -4,7 +4,7 @@ All models in this folder are CC0 1.0 (public domain). Attribution is appreciate
 
 | Files | Source |
 |---|---|
-| characters/knight, barbarian, mage, rogue, rogue-hooded; monsters/skeleton-* | KayKit Character Pack: Adventurers / Skeletons 1.0 by Kay Lousberg — https://kaylousberg.itch.io / github.com/KayKit-Game-Assets |
+| characters/knight, barbarian, mage, rogue, rogue-hooded, white-mage (mage with a recoloured palette); monsters/skeleton-* | KayKit Character Pack: Adventurers / Skeletons 1.0 by Kay Lousberg — https://kaylousberg.itch.io / github.com/KayKit-Game-Assets |
 | monsters/demon, fishman, tribal, dragon | Quaternius — Ultimate Monsters — https://quaternius.com |
 | monsters/giant, imp, dummy; props/big-crystal, crystal, fire-pit, rock-large | Quaternius / Kenney via poly.pizza — https://poly.pizza |
 | monsters/bat, slime, spider | Quaternius — Animated Monster Pack / Easy Enemy Pack — https://quaternius.com |

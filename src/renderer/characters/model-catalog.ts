@@ -112,6 +112,13 @@ export const MODELS: Record<string, ModelSpec> = {
     clips: { ...KAYKIT_COMMON, attack: ['Spellcast_Shoot'] },
     weaponSlots: KAYKIT_SLOTS, weapons: ['2H_Staff'], tint: '#6b6f9c',
   },
+  // white-mage.glb = mage.glb with its palette atlas recoloured (white robe, red lining, bronze staff).
+  // `head` joins the slots so the wizard hat is filtered out like an unused weapon.
+  'job:white_mage': {
+    id: 'job:white_mage', url: 'models/characters/white-mage.glb', height: 2.05, placeholder: 'player',
+    clips: { ...KAYKIT_COMMON, attack: ['Spellcast_Shoot'] },
+    weaponSlots: [...KAYKIT_SLOTS, 'head'], weapons: ['2H_Staff'],
+  },
 
   // --- Bosses (Quaternius Ultimate Monsters / poly.pizza) ---
   demon: { id: 'demon', url: 'models/monsters/demon.glb', height: 5, nominalRadius: 1.5, placeholder: 'sentinel', clips: MONSTER_BIG },
