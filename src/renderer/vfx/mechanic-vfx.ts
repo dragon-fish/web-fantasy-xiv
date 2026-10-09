@@ -4,7 +4,7 @@
 import { Color3, Vector3 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
-import type { TimingGrade } from '@/game/mechanics/timed-input'
+import type { ClashGrade } from '@/game/mechanics/blade-clash'
 import type { VfxRenderer } from './vfx-renderer'
 import { TankbusterMarker } from './tankbuster-marker'
 
@@ -45,7 +45,7 @@ export class MechanicVfx {
     bus.on('aoe:zone_resolved', ({ zone }: { zone: ActiveAoeZone }) => this.endMarker(zone.id))
     bus.on('aoe:zone_removed', ({ zone }: { zone: ActiveAoeZone }) => this.endMarker(zone.id))
     bus.on('mechanic:clash_start', (p: { id: string; sourceId: string | null; targetId: string; windup: number }) => this.clashStart(p))
-    bus.on('mechanic:clash_result', (p: { id: string; grade: TimingGrade; sourceId: string | null; targetId: string }) => this.clashResult(p))
+    bus.on('mechanic:clash_result', (p: { id: string; grade: ClashGrade; sourceId: string | null; targetId: string }) => this.clashResult(p))
     bus.on('mechanic:dance_start', (p: { id: string; center: { x: number; y: number }; radius: number }) => this.danceStart(p))
     bus.on('mechanic:dance_note', (p: { id: string; index: number; dir: number; lead: number }) => this.danceNote(p))
     bus.on('mechanic:dance_judge', (p: { id: string; index: number; success: boolean }) => this.danceJudge(p))
@@ -281,7 +281,7 @@ export class MechanicVfx {
     this.clashes.set(p.id, fx)
   }
 
-  private clashResult(p: { id: string; grade: TimingGrade; sourceId: string | null; targetId: string }): void {
+  private clashResult(p: { id: string; grade: ClashGrade; sourceId: string | null; targetId: string }): void {
     for (const f of this.clashes.get(p.id) ?? []) f.life = 0
     this.clashes.delete(p.id)
     const target = this.vfx.entities.get(p.targetId)

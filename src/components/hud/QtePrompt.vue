@@ -9,10 +9,10 @@ const C = 2 * Math.PI * R
 const prompt = computed(() => battle.qte)
 /** Fill fraction: reaches 1 exactly when the strike lands */
 const progress = computed(() => (prompt.value ? Math.min(1, prompt.value.elapsed / prompt.value.windup) : 0))
-/** Arc length (in circumference units) of a ± window around the strike moment */
-const windowArc = (ms: number) => (prompt.value ? Math.min(0.5, ms / prompt.value.windup) * C : 0)
-/** Period exactly one circumference so the arc wraps across 12 o'clock (both sides of the strike) */
-const dash = (ms: number) => `${windowArc(ms) * 2} ${C - windowArc(ms) * 2}`
+/** Arc length (in circumference units) of the window ending at the strike moment */
+const windowArc = (ms: number) => (prompt.value ? Math.min(1, ms / prompt.value.windup) * C : 0)
+/** One arc per circumference, shifted back so it ends exactly at 12 o'clock (the strike) */
+const dash = (ms: number) => `${windowArc(ms)} ${C - windowArc(ms)}`
 const gradeClass = computed(() => (prompt.value?.grade ?? '').replace(/[^a-z]/gi, '').toLowerCase())
 </script>
 
@@ -20,16 +20,16 @@ const gradeClass = computed(() => (prompt.value?.grade ?? '').replace(/[^a-z]/gi
 .qte(v-if="prompt")
   svg.qte__ring(viewBox="0 0 140 140")
     circle.qte__track(cx="70" cy="70" :r="R")
-    //- Judgement windows, centred on the top (= strike moment); drawn as arcs either side of 12 o'clock
+    //- Parry windows end at the top (= strike moment): pressing inside one enters that stance in time
     circle.qte__window.qte__window--good(cx="70" cy="70" :r="R"
-      :stroke-dasharray="dash(prompt.windows.good)"
-      :stroke-dashoffset="windowArc(prompt.windows.good)")
+      :stroke-dasharray="dash(prompt.windows.guard)"
+      :stroke-dashoffset="windowArc(prompt.windows.guard)")
     circle.qte__window.qte__window--perfect(cx="70" cy="70" :r="R"
+      :stroke-dasharray="dash(prompt.windows.block)"
+      :stroke-dashoffset="windowArc(prompt.windows.block)")
+    circle.qte__window.qte__window--just(cx="70" cy="70" :r="R"
       :stroke-dasharray="dash(prompt.windows.perfect)"
       :stroke-dashoffset="windowArc(prompt.windows.perfect)")
-    circle.qte__window.qte__window--just(cx="70" cy="70" :r="R"
-      :stroke-dasharray="dash(prompt.windows.just)"
-      :stroke-dashoffset="windowArc(prompt.windows.just)")
     circle.qte__fill(cx="70" cy="70" :r="R"
       :stroke-dasharray="`${progress * C} ${C}`")
   .qte__center
@@ -37,7 +37,7 @@ const gradeClass = computed(() => (prompt.value?.grade ?? '').replace(/[^a-z]/gi
       .qte__grade(:class="`qte__grade--${gradeClass}`") {{ prompt.grade }}
     template(v-else)
       .qte__key SPACE
-      .qte__hint 光圈转满时按下
+      .qte__hint 光圈转满前按下
   .qte__title(v-if="!prompt.grade") 拼刀！
 </template>
 

@@ -1,26 +1,27 @@
 // src/game/mechanics/blade-clash.ts
-// 拼刀: the player parries a heavy strike with the action key (Space) at the moment it lands.
-// Damage resolves once, at the strike moment (or at the press, if pressed late inside the window).
+// 拼刀 prompt: during a tankbuster's windup the player may press the action key (Space) once to
+// enter a parry stance (game/parry.ts). The tankbuster resolves the outcome when it lands; this
+// mechanic only offers the press, draws the ring and shows the verdict.
+import type { FlurryGuard } from '@/core/types'
+import { PARRY_BUFFS, PARRY_ENTRY, PARRY_WINDOWS } from '../parry'
 import type { MechanicFactory } from './mechanic-host'
-import { DEFAULT_WINDOWS, gradeTiming, type TimingGrade } from './timed-input'
 
 export interface BladeClashParams {
   /** Entity delivering the strike (default: boss) */
   source?: string
   /** ms from start until the strike lands */
   windup: number
-  skillName?: string
-  /** Damage (potency × source attack) on a good parry / on a miss */
-  goodPotency: number
-  missPotency: number
-  /** Buff ids applied to the player on just / on a miss */
-  justBuff?: string
-  missBuff?: string
-  /** Presentation only: show the damage taken as this many quick hits */
-  hits?: number
 }
 
-const LABEL: Record<TimingGrade, string> = { just: 'JUST!', perfect: 'PERFECT', good: 'GOOD', early: 'EARLY', late: 'LATE' }
+export type ClashGrade = 'just' | 'perfect' | 'good' | 'early' | 'late'
+
+const LABEL: Record<ClashGrade, string> = { just: 'JUST!', perfect: 'PERFECT', good: 'GOOD', early: 'EARLY', late: 'LATE' }
+const GRADE: Record<FlurryGuard, ClashGrade> = { perfect: 'just', deflect: 'perfect', block: 'good', none: 'late' }
+
+/** Verdict stays on screen this long */
+const SHOW_MS = 800
+/** Give up quietly if the strike never lands (boss died, timeline moved on) */
+const ABANDON_AFTER_MS = 2000
 
 export const bladeClash: MechanicFactory = (ctx, raw, id) => {
   const p = raw as BladeClashParams
@@ -28,55 +29,40 @@ export const bladeClash: MechanicFactory = (ctx, raw, id) => {
   const player = ctx.player
   const startPresses = ctx.input.actionPresses
   let t = 0
-  let pressAt: number | null = null
+  let pressed = false
+  let grade: ClashGrade | null = null
+  let shownUntil = 0
   ctx.bus.emit('mechanic:clash_start', { id, sourceId: source?.id ?? null, targetId: player.id, windup: p.windup })
 
-  let shownUntil = -1
-  const resolve = (grade: TimingGrade) => {
+  const onParry = (e: { targetId: string; guard: FlurryGuard }) => {
+    if (e.targetId !== player.id || grade) return
+    // A press that ran out before the strike is "early"; no press at all is "late"
+    grade = e.guard === 'none' && pressed ? 'early' : GRADE[e.guard]
+    shownUntil = t + SHOW_MS
     ctx.bus.emit('mechanic:clash_result', { id, grade, sourceId: source?.id ?? null, targetId: player.id })
-    ctx.setQte({ elapsed: t, windup: p.windup, windows: DEFAULT_WINDOWS, grade: LABEL[grade] })
-    shownUntil = t + 800
-    if (!player.alive || !source) return
-    const buff = (buffId?: string) => {
-      const def = buffId ? ctx.buffDef(buffId) : undefined
-      if (def) ctx.buffs.applyBuff(player, def, source.id)
-    }
-    // Clean parries take no damage, so they announce their own deflected flurry
-    const parried = (guard: 'perfect' | 'deflect') => {
-      if ((p.hits ?? 1) > 1) ctx.bus.emit('combat:flurry', { sourceId: source.id, targetId: player.id, hits: p.hits, guard })
-    }
-    switch (grade) {
-      case 'just': buff(p.justBuff); parried('perfect'); break
-      case 'perfect': parried('deflect'); break
-      case 'good': ctx.combat.applyDamage(source, player, p.goodPotency, p.skillName, [], [], { hits: p.hits, guard: 'block' }); break
-      default:
-        ctx.combat.applyDamage(source, player, p.missPotency, p.skillName, [], [], { hits: p.hits })
-        buff(p.missBuff)
-    }
+  }
+  ctx.bus.on('combat:parry', onParry)
+  const finish = () => {
+    ctx.bus.off('combat:parry', onParry)
+    ctx.setQte(null)
+    return true
   }
 
   return {
     update(dt) {
       t += dt
-      // Keep the judged prompt on screen briefly, then clear it
-      if (shownUntil >= 0) {
-        if (t < shownUntil) return false
-        ctx.setQte(null)
-        return true
+      // One press per strike; presses made before the prompt opened never count
+      if (!pressed && !grade && player.alive && ctx.input.actionPresses > startPresses) {
+        pressed = true
+        ctx.buffs.applyBuff(player, PARRY_BUFFS[PARRY_ENTRY], player.id)
       }
-      ctx.setQte({ elapsed: t, windup: p.windup, windows: DEFAULT_WINDOWS, grade: null })
-      if (pressAt === null && ctx.input.actionPresses > startPresses) pressAt = t
-      if (pressAt !== null) {
-        const grade = gradeTiming(pressAt - p.windup, DEFAULT_WINDOWS)
-        // An early press is final, but the strike still lands on schedule
-        if (grade === 'early' && t < p.windup) return false
-        resolve(grade)
+      if (grade) {
+        if (t >= shownUntil) return finish()
+        ctx.setQte({ elapsed: t, windup: p.windup, windows: PARRY_WINDOWS, grade: LABEL[grade] })
         return false
       }
-      if (t > p.windup + DEFAULT_WINDOWS.good) {
-        resolve('late')
-        return false
-      }
+      if (t > p.windup + ABANDON_AFTER_MS) return finish()
+      ctx.setQte({ elapsed: t, windup: p.windup, windows: PARRY_WINDOWS, grade: null })
       return false
     },
   }

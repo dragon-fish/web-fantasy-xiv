@@ -37,8 +37,8 @@ export interface QtePrompt {
   elapsed: number
   /** ms from start to the strike */
   windup: number
-  /** Half-widths of the judgement windows (ms) */
-  windows: { just: number; perfect: number; good: number }
+  /** How long before the strike each parry outcome still applies (ms, cumulative) */
+  windows: { perfect: number; block: number; guard: number }
   /** Set once judged; the HUD shows it briefly before the prompt clears */
   grade: string | null
 }
@@ -120,7 +120,7 @@ export class GameScene {
   /** Reference entity for boss HP bar */
   bossEntity: Entity | null = null
   getBossCast: () => EntityCast | null = () => null
-  /** Active timed-input prompt (blade clash) for the HUD; null when none */
+  /** Active parry prompt (blade clash) for the HUD; null when none */
   qte: QtePrompt | null = null
 
   constructor(config: GameSceneConfig) {
