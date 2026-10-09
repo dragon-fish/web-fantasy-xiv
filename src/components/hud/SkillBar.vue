@@ -10,16 +10,14 @@ const battle = useBattleStore()
 const tooltip = useTooltip()
 const triggerSkill = inject<Ref<(idx: number) => void>>(SKILL_TRIGGER_KEY)
 
-const activeBuffIds = computed(() => new Set(battle.buffs.map((b) => b.defId)))
 
 function isLocked(entry: { skill: any }) {
   const skill = entry.skill
   const reqBuffs = (skill as any).requiresBuffs as string[] | undefined
   const reqStacks = (skill as any).requiresBuffStacks as { buffId: string; stacks: number } | undefined
-  const lockedByBuffs = reqBuffs ? !reqBuffs.every((id) => activeBuffIds.value.has(id)) : false
-  const lockedByStacks = reqStacks
-    ? (battle.buffs.find((b) => b.defId === reqStacks.buffId)?.stacks ?? 0) < reqStacks.stacks
-    : false
+  // Read every buff, hidden gauge resources included
+  const lockedByBuffs = reqBuffs ? !reqBuffs.every((id) => (battle.buffStacks[id] ?? 0) > 0) : false
+  const lockedByStacks = reqStacks ? (battle.buffStacks[reqStacks.buffId] ?? 0) < reqStacks.stacks : false
   const lockedByMp = skill.mpCost > 0 && battle.playerMp.current < skill.mpCost
   return lockedByBuffs || lockedByStacks || lockedByMp
 }

@@ -146,6 +146,7 @@ watch(
   HudSkillBar
   HudSkillPanelButton
   HudBuffBar
+  HudJobGauge
   HudCombatAnnounce
   HudDialogBox
   HudQtePrompt

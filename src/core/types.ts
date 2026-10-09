@@ -220,6 +220,8 @@ export interface BuffDef {
   /** Stacks run down one at a time: when the timer ends with more than one stack, drop a stack and run
    *  `stackDurations[stacks - 1]` ms (time past the end carried over) instead of ending. */
   stackDurations?: number[]
+  /** Tracked elsewhere (e.g. the job gauge): kept out of the buff bar and status fly text */
+  hidden?: boolean
   /**
    * If true, this buff survives entity death and remains on the entity.
    * Default false (buff is cleared on death, matching FF14 Raise semantics).

@@ -39,6 +39,13 @@ export const JOB_CATEGORY_LABELS: Record<JobCategory, string> = {
 }
 
 /** Player job definition — bundles stats, skills, and buffs */
+/** One element of a job's simplified gauge (FFXIV "simple" job gauge: pips and bars) */
+export type JobGaugeItem =
+  /** One pip per stack of `buffId` */
+  | { kind: 'stacks'; label: string; buffId: string; max: number; shape: 'diamond' | 'chevron'; color: string }
+  /** Progress towards the next stack of a passive buff (`passiveBuffs`); full while capped at `max` */
+  | { kind: 'timer'; label: string; buffId: string; max: number; color: string }
+
 export interface PlayerJob {
   id: string
   name: string
@@ -63,6 +70,8 @@ export interface PlayerJob {
   skillBar: SkillBarEntry[]
   buffs: Record<string, BuffDef>
   buffMap: Map<string, BuffDef>
+  /** Simplified job gauge, top to bottom */
+  gauge?: JobGaugeItem[]
   /** Buffs applied when combat starts (make them `preserveOnDeath` to outlive deaths) */
   combatBuffs?: string[]
   /** Buffs that passively accumulate during combat */

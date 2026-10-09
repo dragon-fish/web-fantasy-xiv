@@ -55,7 +55,7 @@ export function useStateAdapter(scene: GameScene) {
   let popupKey = 0
   let popups: { key: number; icon?: string; name: string; gained: boolean; debuff: boolean; born: number }[] = []
   const pushPopup = (target: Entity, buff: BuffDef | undefined, gained: boolean) => {
-    if (!buff || target.id !== scene.player.id) return
+    if (!buff || buff.hidden || target.id !== scene.player.id) return
     popups.push({ key: ++popupKey, icon: buff.icon, name: buff.name, gained, debuff: buff.type === 'debuff', born: performance.now() })
     if (popups.length > MAX_POPUPS) popups = popups.slice(-MAX_POPUPS)
   }
@@ -119,6 +119,14 @@ export function useStateAdapter(scene: GameScene) {
       dialogText: scene.dialogText,
       qte: scene.qte ? { ...scene.qte } : null,
       overhead: overhead(player),
+      buffStacks: Object.fromEntries(player.buffs.map((b) => [b.defId, b.stacks])),
+      gauge: scene.jobGauge.map((item) => {
+        const stacks = scene.buffSystem.getStacks(player, item.buffId)
+        return item.kind === 'stacks'
+          ? { kind: 'stacks' as const, label: item.label, count: stacks, max: item.max, shape: item.shape, color: item.color }
+          : { kind: 'timer' as const, label: item.label, color: item.color,
+              progress: stacks >= item.max ? 1 : scene.playerDriver.passiveProgress(item.buffId) }
+      }),
       timelineEntries: scene.timelineEntries,
       currentPhaseInfo: scene.currentPhaseInfo,
       damageLog: scene.damageLog,
@@ -152,7 +160,7 @@ export function useStateAdapter(scene: GameScene) {
             total: boss.casting.castTime,
           }
         : null,
-      buffs: player.buffs.map((inst) => {
+      buffs: player.buffs.filter((inst) => !scene.buffSystem.getDef(inst.defId)?.hidden).map((inst) => {
         const def = scene.buffSystem.getDef(inst.defId)
         return {
           defId: inst.defId,

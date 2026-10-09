@@ -61,6 +61,13 @@ export class PlayerInputDriver {
     })
   }
 
+  /** Progress (0..1) towards the next stack of a passive buff, for gauges */
+  passiveProgress(buffId: string): number {
+    const pb = this.config.passiveBuffs?.find(b => b.buffId === buffId)
+    if (!pb) return 0
+    return Math.min(1, (this.passiveBuffTimers.get(buffId) ?? 0) / pb.interval)
+  }
+
   setDisplacer(displacer: DisplacementAnimator): void {
     this.displacer = displacer
   }

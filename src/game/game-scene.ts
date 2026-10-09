@@ -30,7 +30,7 @@ import type { Entity } from '@/entity/entity'
 import type { CreateEntityOptions } from '@/entity/entity'
 import type { TimelineEntry } from '@/timeline/types'
 import type { DamageLogEntry } from '@/game/types'
-import type { SkillBarEntry } from '@/jobs/shared'
+import type { JobGaugeItem, SkillBarEntry } from '@/jobs/shared'
 
 export interface QtePrompt {
   /** ms elapsed since the prompt started */
@@ -106,6 +106,8 @@ export class GameScene {
   damageLog: DamageLogEntry[] = []
   practiceMode = false
   skillBarEntries: SkillBarEntry[] = []
+  /** The player's job gauge layout (empty = no gauge) */
+  jobGauge: JobGaugeItem[] = []
   buffDefs: Map<string, BuffDef> = new Map()
   private lastTime = performance.now()
   readonly config: GameSceneConfig
