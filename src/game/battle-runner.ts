@@ -11,6 +11,7 @@ import { MECHANICS, FAST_FORWARD } from '@/game/mechanics'
 import { matchesCondition } from '@/combat/conditions'
 import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
 import { PARRY_BUFFS } from '@/game/parry'
+import { createParryPrompt } from '@/game/parry-prompt'
 import type { EventBus } from '@/core/event-bus'
 import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
@@ -518,6 +519,11 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   const variantPicks = new Map<string, number>()
   s.bus.on('timeline:loop', () => variantPicks.clear())
 
+  // Parry prompt: idle until a tankbuster grants `parry_ready`
+  const parryPrompt = createParryPrompt({
+    bus: s.bus, player: s.player, buffs: s.buffSystem, input: s.input, setQte: (prompt) => { s.qte = prompt },
+  })
+
   // Encounter mechanics run on the logic clock (frozen while paused)
   let announceSerial = 0
   const mechanics = new MechanicHost({
@@ -758,6 +764,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       })
       scheduler.update(dt)
       mechanics.update(dt)
+      parryPrompt.update(dt)
     }
 
     // Falling animation (triggered by death zone / out of bounds)

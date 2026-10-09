@@ -4,7 +4,7 @@
 import { Color3, Vector3 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
-import type { ClashGrade } from '@/game/mechanics/blade-clash'
+import type { ClashGrade } from '@/game/parry-prompt'
 import type { VfxRenderer } from './vfx-renderer'
 import { TankbusterMarker } from './tankbuster-marker'
 

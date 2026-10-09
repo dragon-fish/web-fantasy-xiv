@@ -55,7 +55,7 @@ export function useStateAdapter(scene: GameScene) {
   let popupKey = 0
   let popups: { key: number; icon?: string; name: string; gained: boolean; debuff: boolean; born: number }[] = []
   const pushPopup = (target: Entity, buff: BuffDef | undefined, gained: boolean) => {
-    if (!buff || buff.hidden || target.id !== scene.player.id) return
+    if (!buff || target.id !== scene.player.id) return
     popups.push({ key: ++popupKey, icon: buff.icon, name: buff.name, gained, debuff: buff.type === 'debuff', born: performance.now() })
     if (popups.length > MAX_POPUPS) popups = popups.slice(-MAX_POPUPS)
   }
@@ -152,7 +152,7 @@ export function useStateAdapter(scene: GameScene) {
             total: boss.casting.castTime,
           }
         : null,
-      buffs: player.buffs.filter((inst) => !scene.buffSystem.getDef(inst.defId)?.hidden).map((inst) => {
+      buffs: player.buffs.map((inst) => {
         const def = scene.buffSystem.getDef(inst.defId)
         return {
           defId: inst.defId,

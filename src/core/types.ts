@@ -207,8 +207,6 @@ export interface BuffDef {
   onRemove?: SkillEffectDef[]
   /** On natural expiry only (not when consumed or removed), turn into this buff. Needs a registered def. */
   expiresInto?: string
-  /** Internal state: kept out of the buff bar and status fly text */
-  hidden?: boolean
   /**
    * If true, this buff survives entity death and remains on the entity.
    * Default false (buff is cleared on death, matching FF14 Raise semantics).

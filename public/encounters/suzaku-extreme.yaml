@@ -244,7 +244,19 @@ skills:
           - { type: damage, potency: 3800 }
           - { type: apply_buff, buffId: suzaku_vuln, target: target, when: { role: tank } }
 
-  # --- 鬼宿脚：坦克吃死刑，DPS 可拼刀（timeline 里的 blade_clash 只负责空格与光圈） ---
+  # --- 拼刀窗口：由不可见的 helper 与鬼宿脚同一时刻释放（不占 boss 的读条）。
+  #     无伤害，只给 DPS 挂持续到死刑落下的「拼刀预备」（时长 = 鬼宿脚读条）
+  parry_window:
+    name: 鬼宿脚预兆
+    type: ability
+    castTime: 0
+    targetType: single
+    requiresTarget: true
+    range: 99
+    effects:
+      - { type: apply_buff, buffId: parry_ready, target: target, duration: 5000, when: { role: dps } }
+
+  # --- 鬼宿脚：坦克吃死刑，DPS 可拼刀 ---
   # 原版的 17 连踢只是演出：伤害一帧结算，hits 只把伤害数字与受击特效拆成 17 段播放
   # 歼殛战标准：不开减伤打到血皮，不会穿杀（零式才是不开减伤必死）。按减伤最少的战士定：
   # 10000 血满血硬吃常规版剩约 1000，开铁壁（40%）只掉一半。
@@ -562,8 +574,8 @@ phases:
       - { at: 28500, action: hide_dialog }
 
       # 鬼宿脚：死刑（坦克开减伤 / DPS 拼刀）→ 前方半场刀
+      - { at: 32000, use: parry_window, entity: helper }
       - { at: 32000, use: phantom_flurry_tutorial }
-      - { at: 32000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000 } }
       - { at: 37500, use: phantom_half_tutorial }
       - { at: 32000, action: show_dialog, when: { role: tank }, text: 鬼宿脚：坦克死刑！读条结束前开启减伤。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
       - { at: 32000, action: show_dialog, when: { role: dps }, text: 鬼宿脚：拼刀！光圈转满前按 空格 架刀，越接近转满越好，按早了会落空。随后朱雀会朝正面劈出半场刀，立刻绕到它身后。 }
@@ -657,8 +669,8 @@ phases:
       - { at: 158000, use: rekindle, entity: helper }
       - { at: 158000, action: show_dialog, text: 井宿焰：朝你劈下的超宽直线，横向闪开；同时头顶分散圈也会结算。 }
       - { at: 163500, action: hide_dialog }
+      - { at: 168000, use: parry_window, entity: helper }
       - { at: 168000, use: phantom_flurry }
-      - { at: 168000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000 } }
       - { at: 173500, use: phantom_half }
       - { at: 182000, use: ruthless_refrain_tutorial }
       - { at: 182000, action: show_dialog, text: 拒绝旋律：朱雀会把所有人向外击退——贴着内沿站，别被推出场外！ }
@@ -691,8 +703,8 @@ phases:
       - { at: 246000, mechanic: forced_march, params: { delay: 8000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
 
       # 死刑 → 前方刀 → 击退/吸引
+      - { at: 268000, use: parry_window, entity: helper }
       - { at: 268000, use: phantom_flurry }
-      - { at: 268000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000 } }
       - { at: 273500, use: phantom_half }
       - at: 278000
         choose:
@@ -715,8 +727,8 @@ phases:
       - { at: 318000, mechanic: forced_march, params: { delay: 6000, duration: 3000, debuffPrefix: piper, marchBuff: piper_march } }
       - { at: 328500, mechanic: scarlet_hymn, params: { pattern: diagonal, start: random, length: 4, interval: 1600, lead: 5500, potency: 3800, launchBuff: hotspot_launch, vulnBuff: suzaku_vuln, bird: hymn_bird } }
 
+      - { at: 344000, use: parry_window, entity: helper }
       - { at: 344000, use: phantom_flurry }
-      - { at: 344000, mechanic: blade_clash, when: { role: dps }, params: { windup: 5000 } }
       - { at: 349500, use: phantom_half }
       - at: 354000
         choose:

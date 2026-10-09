@@ -7,8 +7,11 @@ const R = 54
 const C = 2 * Math.PI * R
 
 const prompt = computed(() => battle.qte)
-/** Fill fraction: reaches 1 exactly when the strike lands */
-const progress = computed(() => (prompt.value ? Math.min(1, prompt.value.elapsed / prompt.value.windup) : 0))
+/** Fill fraction: reaches 1 exactly when the strike lands; stops where the player pressed */
+const progress = computed(() => {
+  const q = prompt.value
+  return q ? Math.min(1, (q.pressedAt ?? q.elapsed) / q.windup) : 0
+})
 /** Arc length (in circumference units) of the window ending at the strike moment */
 const windowArc = (ms: number) => (prompt.value ? Math.min(1, ms / prompt.value.windup) * C : 0)
 /** One arc per circumference, shifted back so it ends exactly at 12 o'clock (the strike) */

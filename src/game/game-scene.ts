@@ -41,6 +41,8 @@ export interface QtePrompt {
   windows: { perfect: number; block: number; guard: number }
   /** Set once judged; the HUD shows it briefly before the prompt clears */
   grade: string | null
+  /** ms into the prompt when the player pressed; the ring freezes there so the timing is visible */
+  pressedAt: number | null
 }
 
 export interface GameSceneConfig {
