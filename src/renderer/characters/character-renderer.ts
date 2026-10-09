@@ -8,7 +8,7 @@ import {
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
-import type { BuffDef, SkillDef } from '@/core/types'
+import type { BuffDef, FlurryGuard, SkillDef } from '@/core/types'
 import type { EntityVisuals } from '../entity-visuals'
 import type { SceneManager } from '../scene-manager'
 import { buildModel, type ModelKind } from './procedural-models'
@@ -86,7 +86,7 @@ export class CharacterRenderer implements EntityVisuals {
   private now = 0
   private targetRing: TargetRing
   /** Beats of multi-hit attacks still to play (render clock) */
-  private strikes: { at: number; sourceId?: string; targetId: string }[] = []
+  private strikes: { at: number; sourceId?: string; targetId: string; guard: FlurryGuard }[] = []
 
   constructor(private sm: SceneManager, bus: EventBus) {
     this.scene = sm.scene
@@ -120,17 +120,19 @@ export class CharacterRenderer implements EntityVisuals {
       v.airFrom = this.now
       v.airUntil = this.now + Math.max(400, buff.duration)
     })
+    // A flurry plays a swing on every shown hit, in step with the fly text; the target flinches,
+    // or parries when it guarded the attack
+    bus.on('combat:flurry', (p: { sourceId?: string; targetId: string; hits: number; guard: FlurryGuard }) => {
+      for (let i = 0; i < p.hits; i++) {
+        this.strikes.push({ at: this.now + i * HIT_INTERVAL_MS, sourceId: p.sourceId, targetId: p.targetId, guard: p.guard })
+      }
+    })
     bus.on('damage:dealt', (p: { source?: Entity; target: Entity; amount: number; periodic?: boolean; hits?: number }) => {
       if (!(p.amount > 0)) return
       const v = this.views.get(p.target.id)
       if (!v) return
-      // A flurry plays a swing and a flinch on every shown hit, in step with the fly text
-      if ((p.hits ?? 1) > 1 && p.target.hp > 0) {
-        for (let i = 0; i < p.hits!; i++) {
-          this.strikes.push({ at: this.now + i * HIT_INTERVAL_MS, sourceId: p.source?.id, targetId: p.target.id })
-        }
-        return
-      }
+      // Flurries react per beat through `combat:flurry`
+      if ((p.hits ?? 1) > 1) return
       // Bosses reaching 0 HP end the battle without entity:died; treat it as death here
       if (p.target.hp <= 0 && v.deadAt === null) v.deadAt = this.now
       v.flashUntil = this.now + FLASH_MS
@@ -483,9 +485,13 @@ export class CharacterRenderer implements EntityVisuals {
       if (src && src.deadAt === null) this.playOneShot(src, 'attack', { speed: FLURRY_ATTACK_SPEED })
       const tgt = this.views.get(s.targetId)
       if (!tgt || tgt.deadAt !== null) continue
+      tgt.lastHitAnim = this.now
+      if (s.guard !== 'none') {
+        this.playOneShot(tgt, 'attack', { speed: FLURRY_ATTACK_SPEED })
+        continue
+      }
       tgt.flashUntil = this.now + FLASH_MS
       tgt.squashUntil = this.now + SQUASH_MS
-      tgt.lastHitAnim = this.now
       this.playOneShot(tgt, 'hit', { force: true, speed: FLURRY_HIT_SPEED })
     }
   }

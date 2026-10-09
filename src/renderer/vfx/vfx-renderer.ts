@@ -10,7 +10,7 @@ import {
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 import type { EntityManager } from '@/entity/entity-manager'
-import type { SkillDef, VfxElement } from '@/core/types'
+import type { FlurryGuard, SkillDef, VfxElement } from '@/core/types'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import type { SceneManager } from '../scene-manager'
 import { resolveSkillVfx, type SkillVfx } from './vfx-style'
@@ -22,6 +22,7 @@ import { MechanicVfx } from './mechanic-vfx'
 import { HymnVfx } from './hymn-vfx'
 import { ReviveVfx } from './revive-vfx'
 import { HIT_INTERVAL_MS } from '../hit-split'
+import { playClang } from '@/audio/clang'
 
 type QuadKind = 'ground' | 'billboard' | 'billboardY' | 'flat' | 'arc'
 
@@ -55,6 +56,13 @@ const PROJECTILE_SPEED = 28 // m/s
 const DELIVERY_WINDOW = 700 // ms during which a delivery visual suppresses the generic damage impact
 
 type PresetId = 'spark' | 'debris' | 'mote' | 'trail' | 'smoke'
+
+/** Shield tint per guard: steel for a block, gold for a deflect, near-white gold for a perfect deflect */
+const GUARD_COLORS: Record<Exclude<FlurryGuard, 'none'>, Color3> = {
+  block: Color3.FromHexString('#9fd6ff'),
+  deflect: Color3.FromHexString('#ffd27a'),
+  perfect: Color3.FromHexString('#fff2c0'),
+}
 
 export class VfxRenderer {
   private scene: Scene
@@ -97,6 +105,11 @@ export class VfxRenderer {
       this.deliver(caster, skill)
     })
     bus.on('damage:dealt', (p: { source?: Entity; target: Entity; amount: number; periodic?: boolean }) => this.onDamage(p))
+    bus.on('combat:flurry', (p: { sourceId?: string; targetId: string; hits: number; guard: FlurryGuard }) => {
+      for (let i = 0; i < p.hits; i++) {
+        this.later(i * HIT_INTERVAL_MS, () => this.strike(p.targetId, p.sourceId, p.guard, i === p.hits - 1))
+      }
+    })
     bus.on('aoe:zone_resolved', ({ zone }: { zone: ActiveAoeZone }) => this.onZoneResolved(zone))
     bus.on('entity:died', ({ entity }: { entity: Entity }) => this.onDeath(entity))
     // The game loop stops at combat end, so casts never get their interrupt/complete event
@@ -470,12 +483,8 @@ export class VfxRenderer {
     if (p.periodic || !(p.amount > 0)) return
     // Bosses reaching 0 HP end the fight without entity:died
     if (target.hp <= 0 && target.type === 'boss' && !this.dead.has(target.id)) { this.endCast(target.id); this.onDeath(target) }
-    // Multi-hit show: every strike lands with a shockwave on the beat of the split fly text
-    const hits = p.hits ?? 1
-    if (hits > 1) {
-      for (let i = 0; i < hits; i++) this.later(i * HIT_INTERVAL_MS, () => this.strike(target.id, i === hits - 1))
-      return
-    }
+    // Flurries land beat by beat through `combat:flurry`
+    if ((p.hits ?? 1) > 1) return
     const key = `${p.source?.id}>${target.id}`
     const delivered = this.deliveries.get(key)
     if (delivered !== undefined && this.now - delivered < DELIVERY_WINDOW) return
@@ -488,11 +497,30 @@ export class VfxRenderer {
     }
   }
 
-  /** One beat of a flurry: shockwave at the feet, spark at the chest; the last one hits hardest */
-  private strike(targetId: string, last: boolean): void {
+  /**
+   * One beat of a flurry. Clean hits: shockwave at the feet, spark at the chest. Guarded hits
+   * (Sekiro-style): a shield pops on the target, sparks fly where the blows meet and metal rings out.
+   * The last beat hits hardest.
+   */
+  private strike(targetId: string, sourceId: string | undefined, guard: FlurryGuard, last: boolean): void {
     const e = this.entities.get(targetId)
     if (!e) return
     const chest = this.chest(e)
+    if (guard !== 'none') {
+      const src = sourceId ? this.entities.get(sourceId) : undefined
+      const contact = src ? Vector3.Lerp(chest, this.chest(src), 0.3) : chest
+      const shield = src ? Vector3.Lerp(chest, this.chest(src), 0.12) : chest
+      const color = GUARD_COLORS[guard]
+      const big = guard === 'perfect' || last
+      this.flash(shield, 'circleSym', color, big ? 4.6 : 3.6, 200)
+      this.flash(chest, 'glowRing', color, big ? 4.2 : 3.2, 180)
+      this.flash(contact, 'flashStar', color, big ? 3.6 : 2.5, 140)
+      this.burster('spark', 'physical').emit(contact.x, contact.y, contact.z, guard === 'block' ? 20 : big ? 56 : 34, { dirY: 0.4, spread: 2.4, jitter: 0.2 })
+      if (last) this.flash(new Vector3(e.position.x, 0.08, e.position.y), 'ringThick', color, 6, 480, 'ground')
+      if (e.type === 'player') this.sm.shake(guard === 'block' ? 0.12 : last ? 0.3 : 0.06, last ? 260 : 60)
+      playClang(guard, { accent: last })
+      return
+    }
     const feet = new Vector3(e.position.x, 0.08, e.position.y)
     const s = ELEMENTS[this.enemyElement]
     this.flash(feet, 'ringThick', s.color, last ? 7 : 3.2, last ? 520 : 260, 'ground')

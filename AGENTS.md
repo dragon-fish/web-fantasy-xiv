@@ -38,6 +38,7 @@ Three decoupled layers:
 - `src/renderer/` — Scene (lighting, shadows, post-processing), themed arena (`arena-*`), SDF AOE telegraphs (`aoe-*`), overhead HP/damage billboards
 - `src/renderer/characters/` — Animated glTF characters (`public/models/`, CC0): model catalog, animation state, shared `ModelLibrary`
 - `src/renderer/vfx/` — Event-driven skill effects (cast circles, slashes, projectiles, impacts, AOE bursts); textures in `public/vfx/xiv/`, all referenced through `vfx-assets.ts`
+- `src/audio/` — Synthesised sound effects (WebAudio, no audio assets), triggered by the renderers
 
 **UI Layer** (Vue 3 + Pinia + vue-router 5):
 - `src/pages/` — File-based route pages (index, encounters, job, about, encounter/[id])
