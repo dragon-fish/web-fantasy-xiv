@@ -149,9 +149,11 @@ export class MechanicVfx {
       const { x, y } = zone.center
       if (shape.type === 'rect') {
         f.mesh.visibility = 0
-        marker.updateLine(x, y, zone.facing, shape.length, shape.width, f.age, intro)
-        // The member the line is aimed at carries the arrow
+        // Everything rides on the member the line is aimed at
         const aimed = zone.targetId ? this.vfx.entities.get(zone.targetId) : undefined
+        const fwd = { x: Math.sin((zone.facing * Math.PI) / 180), y: Math.cos((zone.facing * Math.PI) / 180) }
+        const at = aimed ? { x: aimed.position.x, y: aimed.position.y } : { x: x + fwd.x * shape.length / 2, y: y + fwd.y * shape.length / 2 }
+        marker.updateLine(at.x, at.y, zone.facing, shape.width, f.age, intro)
         if (aimed) marker.updateHead(aimed.position.x, aimed.position.y, this.vfx.heightOf(aimed), f.age, intro)
         return
       }

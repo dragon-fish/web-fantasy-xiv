@@ -1,7 +1,7 @@
 // src/renderer/vfx/stack-marker.ts
 // FFXIV stack (shared damage) markers: no danger fill, glowing orange chevrons that press inward.
-// Circle stacks: four chevrons closing in from the diagonals. Line stacks: chevron pairs along
-// both edges pointing at the line, and a downward arrow over the head of the member it targets.
+// Circle stacks: four chevrons closing in from the diagonals. Line stacks: chevron pairs on both
+// edges of the line, around the member it targets, and a downward arrow over that member's head.
 import {
   Color3, DynamicTexture, MeshBuilder, StandardMaterial, TransformNode,
   type Mesh, type Scene,
@@ -107,18 +107,18 @@ export class StackMarker {
     }
   }
 
-  /** Line stack from (ox, oz) along `facing`: chevron pairs on both edges pointing in at it */
-  updateLine(ox: number, oz: number, facing: number, length: number, width: number, ageMs: number, intro: number): void {
+  /** Line stack aimed along `facing`: chevron pairs on both edges, centred on the marked member at (tx, tz) */
+  updateLine(tx: number, tz: number, facing: number, width: number, ageMs: number, intro: number): void {
     const f = (facing * Math.PI) / 180
     const fwd = { x: Math.sin(f), z: Math.cos(f) }
     const right = { x: Math.cos(f), z: -Math.sin(f) }
     const k = (ageMs % CYCLE_MS) / CYCLE_MS
     const pulse = intro * (0.55 + 0.45 * Math.sin(Math.PI * k))
-    const along = (t: number, side: number) => ({
-      x: ox + fwd.x * length * t + right.x * side,
-      z: oz + fwd.z * length * t + right.z * side,
+    const along = (d: number, side: number) => ({
+      x: tx + fwd.x * d + right.x * side,
+      z: tz + fwd.z * d + right.z * side,
     })
-    const rows = [0.3, 0.45, 0.6]
+    const rows = [-2.4, 0, 2.4]
     const edge = width / 2 + 0.6 - 0.35 * k
     const size = Math.max(1.2, width * 0.42)
     rows.forEach((t, i) => {

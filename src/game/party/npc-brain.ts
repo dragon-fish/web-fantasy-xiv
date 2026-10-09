@@ -243,26 +243,24 @@ export class NpcBrain {
     return { x: carrier.position.x + this.stackOffset.x, y: carrier.position.y + this.stackOffset.y }
   }
 
-  /** Line stack aimed at someone else: get into the line just behind them (they take the front share) */
+  /**
+   * Line stack aimed at someone else: anywhere inside the line shares it, so stay if already in,
+   * otherwise step to the nearest point inside it (well clear of the edges).
+   */
   private lineToJoin(zone: ActiveAoeZone): Vec2 | null {
-    const w = this.world
     const e = this.entity
-    if (zone.targetId === e.id) return null
-    const aimed = w.entities.get(zone.targetId!)
-    if (!aimed?.alive) return null
-    const dx = aimed.position.x - zone.center.x
-    const dy = aimed.position.y - zone.center.y
-    const len = Math.hypot(dx, dy) || 1
-    const width = zone.def.shape.type === 'rect' ? zone.def.shape.width : 2
-    if (this.stackOffset?.zoneId !== zone.id) {
-      this.stackOffset = { zoneId: zone.id, x: 1.2 + w.rng() * 1.5, y: (w.rng() - 0.5) * width * 0.4 }
-    }
-    const back = this.stackOffset.x
-    const side = this.stackOffset.y
-    return {
-      x: aimed.position.x + (dx / len) * back + (dy / len) * side,
-      y: aimed.position.y + (dy / len) * back - (dx / len) * side,
-    }
+    if (zone.targetId === e.id || zone.def.shape.type !== 'rect') return null
+    const { length, width } = zone.def.shape
+    const f = (zone.facing * Math.PI) / 180
+    const fwd = { x: Math.sin(f), y: Math.cos(f) }
+    const rel = { x: e.position.x - zone.center.x, y: e.position.y - zone.center.y }
+    const along = rel.x * fwd.x + rel.y * fwd.y
+    const across = rel.x * fwd.y - rel.y * fwd.x
+    const half = Math.max(0.3, width / 2 - 1)
+    if (along >= 1 && along <= length - 1 && Math.abs(across) <= half) return pos(e)
+    const a = Math.min(length - 1.5, Math.max(1.5, along))
+    const c = Math.max(-half * 0.5, Math.min(half * 0.5, across))
+    return { x: zone.center.x + fwd.x * a + fwd.y * c, y: zone.center.y + fwd.y * a - fwd.x * c }
   }
 
   /**
