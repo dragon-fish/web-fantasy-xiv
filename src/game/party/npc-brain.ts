@@ -437,19 +437,18 @@ export class NpcBrain {
       return true
     }
     if (e.casting || e.gcdTimer > 0) return action.kind !== 'raise'
-    // On the move only instants go out: the instant party heal stands in for a single heal
-    const heal = action.kind === 'heal' && moving ? { kind: 'aoe_heal' as const } : action
-    switch (heal.kind) {
+    // Every heal has a cast: none goes out on the move (instants keep flowing meanwhile)
+    if (moving) return false
+    switch (action.kind) {
       case 'heal':
-        e.allyTarget = heal.target.id
+        e.allyTarget = action.target.id
         w.skills.tryUse(e, kit.heal!)
         return true
       case 'aoe_heal':
         w.skills.tryUse(e, kit.aoeHeal!)
         return true
       case 'raise':
-        if (moving) return false
-        e.allyTarget = heal.target.id
+        e.allyTarget = action.target.id
         if (w.skills.tryUse(e, kit.raise!)) this.raiseReadyAt = now + NPC_RAISE_COOLDOWN_MS
         return true
     }
