@@ -8,7 +8,7 @@ import type { BuffSystem } from '@/combat/buff'
 import type { BuffInstance, Entity } from '@/entity/entity'
 import type { FlurryGuard } from '@/core/types'
 import type { QtePrompt } from './game-scene'
-import { PARRY_BUFFS, PARRY_ENTRY, PARRY_READY, PARRY_WINDOWS } from './parry'
+import { PARRY_READY, PARRY_WINDOWS, enterParryStance } from './parry'
 
 export type ClashGrade = 'just' | 'perfect' | 'good' | 'early' | 'late'
 
@@ -76,7 +76,7 @@ export function createParryPrompt({ bus, player, buffs, input, setQte }: ParryPr
       if (pressed && ready && open.pressedAt === null && !open.grade && player.alive) {
         open.pressedAt = open.elapsed
         buffs.removeBuff(player, PARRY_READY, 'consumed')
-        buffs.applyBuff(player, PARRY_BUFFS[PARRY_ENTRY], player.id)
+        enterParryStance(buffs, player)
       }
 
       if (open.grade && open.elapsed >= open.shownUntil) return close()

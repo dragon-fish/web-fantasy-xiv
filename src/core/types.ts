@@ -175,8 +175,9 @@ export type BuffEffectDef =
   | { type: 'next_cast_instant'; consumeOnCast: boolean }
   | { type: 'attack_modifier'; value: number }   // base attack × (1 + sum)
   | { type: 'max_hp_modifier'; value: number }   // base maxHp × (1 + sum)
-  /** Parry stance: a tankbuster landing now is spent on it — damage × damageTaken, optional reward buff */
-  | { type: 'parry'; guard: Exclude<FlurryGuard, 'none'>; damageTaken: number; grantBuff?: string }
+  /** Parry stance: a tankbuster landing now is spent on it. `byStacks[stacks - 1]` is the outcome at the
+   *  current stack count — damage × damageTaken, optional reward buff. */
+  | { type: 'parry'; byStacks: { guard: Exclude<FlurryGuard, 'none'>; damageTaken: number; grantBuff?: string }[] }
 
 export interface BuffDef {
   id: string
@@ -205,8 +206,9 @@ export interface BuffDef {
   /** Effects resolved on the holder (as caster and target) whenever the buff ends — expired,
    *  broken or consumed — while alive. Not on death clearing, nor on in-place refresh/replacement. */
   onRemove?: SkillEffectDef[]
-  /** On natural expiry only (not when consumed or removed), turn into this buff. Needs a registered def. */
-  expiresInto?: string
+  /** Stacks run down one at a time: when the timer ends with more than one stack, drop a stack and run
+   *  `stackDurations[stacks - 1]` ms (time past the end carried over) instead of ending. */
+  stackDurations?: number[]
   /**
    * If true, this buff survives entity death and remains on the entity.
    * Default false (buff is cleared on death, matching FF14 Raise semantics).

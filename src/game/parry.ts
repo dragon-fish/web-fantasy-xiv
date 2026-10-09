@@ -1,20 +1,20 @@
 // src/game/parry.ts
-// Parry (拼刀): an encounter grants `parry_ready` ahead of a tankbuster (a boss skill applying it, lasting
-// until the strike). While it is up, pressing the action key (game/parry-prompt.ts) enters a stance that steps down
-// perfect → block → guard as each stage expires. A tankbuster landing during a stance is spent on it
-// (CombatResolver); its outcome depends on the stage. Any penalty for not parrying belongs to the
-// tankbuster itself (`onUnparried`), never to this system.
+// Parry (拼刀): an encounter grants `parry_ready` ahead of a tankbuster (a skill applying it, lasting
+// until the strike). While it is up, pressing the action key (game/parry-prompt.ts) enters the
+// 防御 stance at 3 stacks, which run down one at a time: 3 = perfect, 2 = block, 1 = guard. A tankbuster
+// landing during the stance is spent on it (CombatResolver); its outcome depends on the stacks left.
+// Any penalty for not parrying belongs to the tankbuster itself (`onUnparried`), never to this system.
 import type { BuffDef } from '@/core/types'
+import type { BuffSystem } from '@/combat/buff'
+import type { Entity } from '@/entity/entity'
 import { icon } from '@/jobs/commons/icon-paths'
 
-/** Stage lengths. Exact: the stances opt out of the hidden buff grace (`durationGrace: 0`). */
+/** Stage lengths. Exact: the stance opts out of the hidden buff grace (`durationGrace: 0`). */
 export const PARRY_STAGE_MS = { perfect: 200, block: 250, guard: 450 } as const
 
 /** Granted by the encounter ahead of a tankbuster; the press is only accepted while it is up */
 export const PARRY_READY = 'parry_ready'
-
-/** First stage entered by the parry press */
-export const PARRY_ENTRY = 'parry_perfect'
+export const PARRY_STANCE = 'parry_stance'
 
 /** How long before the strike each outcome still applies (for the HUD ring) */
 export const PARRY_WINDOWS = {
@@ -23,27 +23,39 @@ export const PARRY_WINDOWS = {
   guard: PARRY_STAGE_MS.perfect + PARRY_STAGE_MS.block + PARRY_STAGE_MS.guard,
 }
 
-const stance = (id: string, name: string, image: string, description: string, duration: number, effect: Extract<BuffDef['effects'][number], { type: 'parry' }>, next?: string): BuffDef => ({
-  id, name, icon: image, description, type: 'buff', duration, durationGrace: 0, stackable: false, maxStacks: 1,
-  effects: [effect], expiresInto: next,
-})
-
 export const PARRY_BUFFS: Record<string, BuffDef> = {
   // Its duration is set by the granting skill to end exactly on the strike
   parry_ready: {
-    id: 'parry_ready', name: '拼刀预备', icon: icon('effects', 15944),
+    id: PARRY_READY, name: '拼刀预备', icon: icon('effects', 15944),
     description: '死刑来袭：光圈转满前按 空格 拼刀，每次死刑只能按一次。',
     type: 'buff', duration: 5000, durationGrace: 0, stackable: false, maxStacks: 1, effects: [],
   },
-  parry_perfect: stance('parry_perfect', '完美格挡', icon('player_skill_effects', 13307), '此时被死刑命中：无伤并获得见切。结束后转为格挡。',
-    PARRY_STAGE_MS.perfect, { type: 'parry', guard: 'perfect', damageTaken: 0, grantBuff: 'parry_keen_eye' }, 'parry_block'),
-  parry_block: stance('parry_block', '格挡', icon('effects', 15046), '此时被死刑命中：无伤。结束后转为防御。',
-    PARRY_STAGE_MS.block, { type: 'parry', guard: 'deflect', damageTaken: 0 }, 'parry_guard'),
-  parry_guard: stance('parry_guard', '防御', icon('effects', 15047), '此时被死刑命中：伤害降低 75%。',
-    PARRY_STAGE_MS.guard, { type: 'parry', guard: 'block', damageTaken: 0.25 }),
+  parry_stance: {
+    id: PARRY_STANCE, name: '防御',
+    description: '每层持续时间结束掉 1 层。此时被死刑命中 —— 3 层：完美格挡，无伤并获得见切；2 层：格挡，无伤；1 层：伤害降低 75%。',
+    icon: icon('effects', 15047),
+    iconPerStack: { 3: icon('player_skill_effects', 13307), 2: icon('effects', 15046), 1: icon('effects', 15047) },
+    type: 'buff', stackable: true, maxStacks: 3, durationGrace: 0,
+    // Entered at 3 stacks; index = stacks - 1
+    duration: PARRY_STAGE_MS.perfect,
+    stackDurations: [PARRY_STAGE_MS.guard, PARRY_STAGE_MS.block, PARRY_STAGE_MS.perfect],
+    effects: [{
+      type: 'parry',
+      byStacks: [
+        { guard: 'block', damageTaken: 0.25 },
+        { guard: 'deflect', damageTaken: 0 },
+        { guard: 'perfect', damageTaken: 0, grantBuff: 'parry_keen_eye' },
+      ],
+    }],
+  },
   parry_keen_eye: {
     id: 'parry_keen_eye', name: '见切', description: '完美格挡后看破敌人破绽，伤害提高 20%。',
     type: 'buff', duration: 10000, stackable: false, maxStacks: 1,
     effects: [{ type: 'damage_increase', value: 0.2 }],
   },
+}
+
+/** The parry press: enter the stance at full stacks */
+export function enterParryStance(buffs: BuffSystem, player: Entity): void {
+  buffs.applyBuff(player, PARRY_BUFFS[PARRY_STANCE], player.id, 3)
 }

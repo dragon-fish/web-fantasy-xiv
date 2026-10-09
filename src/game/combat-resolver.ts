@@ -63,11 +63,9 @@ export class CombatResolver {
       if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
     })
 
-    // Buff end hooks (e.g. a shield that heals when it breaks or runs out; staged buffs stepping down)
-    bus.on('buff:removed', ({ target, buff, reason, overshoot }: { target: Entity; buff?: BuffDef; reason?: string; overshoot?: number }) => {
-      if (!buff || !target.alive) return
-      if (buff.onRemove) this.resolveEffects(buff.onRemove, target, target, buff.name)
-      if (reason === 'expired' && buff.expiresInto) this.stepDown(target, buff, overshoot ?? 0)
+    // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
+    bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
+      if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
     })
   }
 
@@ -261,17 +259,6 @@ export class CombatResolver {
       caster.mp = Math.min(caster.maxMp, caster.mp + restoreMp)
     }
     return damageIncrease
-  }
-
-  /** Enter the stage after `buff`, minus the time already spent past its end (skipping stages it covers). */
-  private stepDown(target: Entity, buff: BuffDef, overshoot: number): void {
-    let next = buff.expiresInto ? this.buffDefs.get(buff.expiresInto) : undefined
-    let over = overshoot
-    while (next && over >= next.duration) {
-      over -= next.duration
-      next = next.expiresInto ? this.buffDefs.get(next.expiresInto) : undefined
-    }
-    if (next) this.buffSystem.applyBuff(target, next, target.id, 1, next.duration - over)
   }
 
   /**

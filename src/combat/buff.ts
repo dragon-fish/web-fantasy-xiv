@@ -131,17 +131,22 @@ export class BuffSystem {
     for (let i = entity.buffs.length - 1; i >= 0; i--) {
       const inst = entity.buffs[i]
       if (inst.remaining === 0) continue // permanent
-      // Time past the end of the buff within this tick (lets staged buffs hand over without drift)
-      const overshoot = Math.max(0, dt - inst.remaining)
-      inst.remaining = Math.max(0, inst.remaining - dt)
-      if (inst.remaining <= 0) {
+      let left = inst.remaining - dt
+      // Stack-by-stack buffs drop a stack instead of ending; time past the end carries into the next
+      const steps = this.defs.get(inst.defId)?.stackDurations
+      while (left <= 0 && steps && inst.stacks > 1) {
+        inst.stacks--
+        left += steps[inst.stacks - 1] ?? 0
+        changed = true
+      }
+      inst.remaining = Math.max(0, left)
+      if (left <= 0) {
         entity.buffs.splice(i, 1)
         changed = true
         this.bus.emit('buff:removed', {
           target: entity,
           buff: this.defs.get(inst.defId),
           reason: 'expired',
-          overshoot,
         })
       }
     }
@@ -167,10 +172,12 @@ export class BuffSystem {
   }
 
   /** One entry per buff, scaled by its stacks (a 10% buff at 10 stacks contributes 100%) */
-  /** The parry stance currently held, if any */
+  /** The parry stance currently held and its outcome at the current stack count, if any */
   getParry(entity: Entity): { defId: string; guard: 'perfect' | 'deflect' | 'block'; damageTaken: number; grantBuff?: string } | null {
-    for (const { def, effect } of this.collectEffects(entity)) {
-      if (effect.type === 'parry') return { defId: def.id, guard: effect.guard, damageTaken: effect.damageTaken, grantBuff: effect.grantBuff }
+    for (const { def, inst, effect } of this.collectEffects(entity)) {
+      if (effect.type !== 'parry') continue
+      const stage = effect.byStacks[Math.min(inst.stacks, effect.byStacks.length) - 1]
+      if (stage) return { defId: def.id, ...stage }
     }
     return null
   }

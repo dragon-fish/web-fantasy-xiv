@@ -35,11 +35,11 @@ describe('parry prompt', () => {
     prompt.update(16)
     press()
     prompt.update(16)
-    expect(stances()).toEqual(['parry_perfect'])
+    expect(stances()).toEqual(['parry_stance'])
     expect(player.buffs.some(b => b.defId === PARRY_READY)).toBe(false)
     press()
     prompt.update(16)
-    expect(stances()).toEqual(['parry_perfect'])
+    expect(stances()).toEqual(['parry_stance'])
   })
 
   it('does not count a press made before the ready buff appeared', () => {

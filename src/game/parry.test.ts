@@ -4,7 +4,7 @@ import { BuffSystem } from '@/combat/buff'
 import { Arena } from '@/arena/arena'
 import type { BuffDef, SkillDef, SkillEffectDef } from '@/core/types'
 import { CombatResolver } from './combat-resolver'
-import { PARRY_BUFFS, PARRY_ENTRY } from './parry'
+import { PARRY_BUFFS, enterParryStance } from './parry'
 
 const OPENING: BuffDef = { id: 'opening', name: '破绽', type: 'debuff', duration: 10000, stackable: false, maxStacks: 1, effects: [{ type: 'damage_increase', value: -0.2 }] }
 
@@ -26,29 +26,32 @@ function setup() {
       effects: [{ type: 'damage', potency: 8000, dmgType: ['physical', 'tankbuster'], onUnparried: [{ type: 'apply_buff', buffId: 'opening', target: 'target' }], ...effect }],
     } as SkillDef,
   })
-  const parry = () => buffSystem.applyBuff(player, PARRY_BUFFS[PARRY_ENTRY], player.id)
+  const parry = () => enterParryStance(buffSystem, player)
   const tick = (ms: number) => buffSystem.update(player, ms)
   const has = (id: string) => buffSystem.hasBuff(player, id)
   return { player, strike, parry, tick, has, parries }
 }
 
-describe('parry stances', () => {
-  it('step down perfect → block → guard on exact durations, with no hidden grace', () => {
-    const { parry, tick, has } = setup()
-    parry()
-    tick(199); expect(has('parry_perfect')).toBe(true)
-    tick(1); expect(has('parry_block')).toBe(true)
-    tick(250); expect(has('parry_guard')).toBe(true)
-    tick(450); expect(['parry_perfect', 'parry_block', 'parry_guard'].some(has)).toBe(false)
+describe('parry stance', () => {
+  const stacks = (h: ReturnType<typeof setup>) => h.player.buffs.find(b => b.defId === 'parry_stance')?.stacks ?? 0
+
+  it('loses a stack per stage on exact durations (perfect 3 → block 2 → guard 1), with no hidden grace', () => {
+    const h = setup()
+    h.parry()
+    h.tick(199); expect(stacks(h)).toBe(3)
+    h.tick(1); expect(stacks(h)).toBe(2)
+    h.tick(250); expect(stacks(h)).toBe(1)
+    h.tick(449); expect(stacks(h)).toBe(1)
+    h.tick(1); expect(stacks(h)).toBe(0)
   })
 
-  it('a long tick carries its overshoot into the next stage instead of restarting it', () => {
-    const { parry, tick, has } = setup()
-    parry()
-    tick(450) // 200 of perfect + all 250 of block
-    expect(has('parry_guard')).toBe(true)
-    tick(449); expect(has('parry_guard')).toBe(true)
-    tick(1); expect(has('parry_guard')).toBe(false)
+  it('a long tick carries its overshoot into the next stack instead of restarting it', () => {
+    const h = setup()
+    h.parry()
+    h.tick(450) // 200 at 3 stacks + all 250 at 2 stacks
+    expect(stacks(h)).toBe(1)
+    h.tick(449); expect(stacks(h)).toBe(1)
+    h.tick(1); expect(stacks(h)).toBe(0)
   })
 
   it('a perfect parry takes nothing and grants Keen Eye', () => {
@@ -69,12 +72,11 @@ describe('parry stances', () => {
     expect(parries).toEqual(['block'])
   })
 
-  it('the stance is spent by the hit and never steps down afterwards', () => {
-    const { strike, parry, tick, has } = setup()
+  it('the stance is spent by the hit', () => {
+    const { strike, parry, has } = setup()
     parry()
     strike()
-    tick(1000)
-    expect(['parry_perfect', 'parry_block', 'parry_guard'].some(has)).toBe(false)
+    expect(has('parry_stance')).toBe(false)
   })
 
   it('an unparried tankbuster lands in full plus the encounter-defined penalty', () => {
@@ -90,6 +92,6 @@ describe('parry stances', () => {
     parry()
     strike({ dmgType: 'physical', onUnparried: undefined })
     expect(player.hp).toBe(2000)
-    expect(has('parry_perfect')).toBe(true)
+    expect(has('parry_stance')).toBe(true)
   })
 })
