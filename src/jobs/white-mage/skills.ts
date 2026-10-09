@@ -1,0 +1,138 @@
+import type { SkillDef } from '@/core/types'
+import { icon } from '../commons/icon-paths'
+
+const WHM = (id: number) => icon('skill_icons/24_WHM', id)
+
+export const WHITE_MAGE_SKILLS: SkillDef[] = [
+  // 1: Glare — the damage GCD
+  {
+    id: 'whm_glare',
+    name: '闪耀',
+    vfx: { element: 'holy' },
+    icon: WHM(2642),
+    type: 'spell',
+    castTime: 1500,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'single',
+    requiresTarget: true,
+    range: 25,
+    mpCost: 400,
+    effects: [{ type: 'damage', potency: 1.8, dmgType: 'magical' }],
+  },
+  // 2: Cure II — single heal on the lowest-HP party member in range (yourself when alone)
+  {
+    id: 'whm_cure_ii',
+    name: '救疗',
+    vfx: { element: 'heal' },
+    icon: WHM(406),
+    type: 'spell',
+    castTime: 2000,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'single',
+    requiresTarget: false,
+    allyTarget: 'lowest-hp',
+    range: 30,
+    mpCost: 1000,
+    effects: [{ type: 'heal', potency: 4.0 }],
+  },
+  // 3: Medica II — party heal around you
+  {
+    id: 'whm_medica_ii',
+    name: '医济',
+    vfx: { element: 'heal' },
+    icon: WHM(409),
+    type: 'spell',
+    castTime: 2000,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'aoe',
+    requiresTarget: false,
+    range: 0,
+    mpCost: 1500,
+    effects: [{ type: 'party_heal', potency: 2.5, radius: 15 }],
+  },
+  // 4: Afflatus Rapture — instant free party heal for a Lily; an effective heal grows a Blood Lily
+  {
+    id: 'whm_afflatus_rapture',
+    name: '狂喜之心',
+    vfx: { element: 'heal' },
+    icon: WHM(2643),
+    type: 'spell',
+    castTime: 0,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'aoe',
+    requiresTarget: false,
+    range: 0,
+    mpCost: 0,
+    requiresBuffStacks: { buffId: 'whm_lily', stacks: 1 },
+    effects: [
+      { type: 'consume_buff_stacks', buffId: 'whm_lily', stacks: 1 },
+      { type: 'party_heal', potency: 3.0, radius: 15, onEffective: [{ type: 'apply_buff', buffId: 'whm_blood_lily', target: 'caster' }] },
+    ],
+  },
+  // 5: Afflatus Misery — spends 3 Blood Lilies on a burst around the target (≈ 3 Glares)
+  {
+    id: 'whm_afflatus_misery',
+    name: '苦难之心',
+    vfx: { element: 'holy' },
+    icon: WHM(2644),
+    type: 'spell',
+    castTime: 0,
+    cooldown: 0,
+    gcd: true,
+    targetType: 'aoe',
+    requiresTarget: true,
+    range: 25,
+    mpCost: 0,
+    requiresBuffStacks: { buffId: 'whm_blood_lily', stacks: 3 },
+    zones: [{
+      anchor: { type: 'target' },
+      direction: { type: 'none' },
+      shape: { type: 'circle', radius: 5 },
+      resolveDelay: 0,
+      hitEffectDuration: 500,
+      effects: [{ type: 'damage', potency: 5.4, dmgType: 'magical' }],
+    }],
+    effects: [{ type: 'consume_all_buff_stacks', buffId: 'whm_blood_lily' }],
+  },
+  // 6: Temperance — party mitigation
+  {
+    id: 'whm_temperance',
+    name: '节制',
+    vfx: { element: 'holy' },
+    icon: WHM(2645),
+    type: 'ability',
+    castTime: 0,
+    cooldown: 120000,
+    gcd: false,
+    targetType: 'aoe',
+    requiresTarget: false,
+    range: 0,
+    mpCost: 0,
+    effects: [{ type: 'party_buff', buffId: 'whm_temperance', radius: 30 }],
+  },
+]
+
+/** E: Raise the nearest fallen party member; instant and free while holding Free Raise */
+export const WHITE_MAGE_RAISE: SkillDef = {
+  id: 'whm_raise',
+  name: '复活',
+  vfx: { element: 'holy' },
+  icon: WHM(411),
+  type: 'spell',
+  castTime: 4000,
+  cooldown: 0,
+  gcd: true,
+  targetType: 'single',
+  requiresTarget: false,
+  allyTarget: 'fallen',
+  range: 30,
+  mpCost: 2400,
+  castTimeWithBuff: { buffId: 'whm_free_raise', castTime: 0, consumeStack: false },
+  // Spending Free Raise (instead of MP) starts its 180s recharge — see whm_free_raise.onRemove
+  mpCostAbsorbBuff: 'whm_free_raise',
+  effects: [{ type: 'raise', hpPercent: 0.5 }],
+}
