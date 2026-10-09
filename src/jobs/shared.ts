@@ -63,6 +63,8 @@ export interface PlayerJob {
   skillBar: SkillBarEntry[]
   buffs: Record<string, BuffDef>
   buffMap: Map<string, BuffDef>
+  /** Buffs applied when combat starts (make them `preserveOnDeath` to outlive deaths) */
+  combatBuffs?: string[]
   /** Buffs that passively accumulate during combat */
   passiveBuffs?: { buffId: string; interval: number; stacks: number; requiresBuff?: string }[]
 }

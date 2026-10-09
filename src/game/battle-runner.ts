@@ -440,6 +440,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     combatStarted = true
     s.player.inCombat = true
     boss.inCombat = true
+    for (const id of job.combatBuffs ?? []) s.combatResolver.grantBuff(s.player, id)
     s.setAnnounce('战斗开始')
     s.bus.emit('combat:started', { entities: [s.player, boss] })
   }

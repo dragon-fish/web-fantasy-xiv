@@ -74,6 +74,13 @@ export type SkillEffectDef = (
    *  for not parrying it — the parry system adds none. */
   | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[]; noRevive?: boolean; hits?: number; onUnparried?: SkillEffectDef[] }
   | { type: 'heal'; potency: number }
+  /** Heal every living party member within `radius` of the caster; `onEffective` (on the caster) runs
+   *  once when at least one of them was missing HP */
+  | { type: 'party_heal'; potency: number; radius: number; onEffective?: SkillEffectDef[] }
+  /** Apply a buff to every living party member within `radius` of the caster */
+  | { type: 'party_buff'; buffId: string; radius: number }
+  /** Bring a fallen party member back at this fraction of max HP */
+  | { type: 'raise'; hpPercent: number }
   | { type: 'apply_buff'; buffId: string; stacks?: number; duration?: number; target?: 'caster' | 'target' }
   | { type: 'consume_buffs'; buffIds: string[] }                         // remove listed buffs from caster on resolve
   | { type: 'consume_all_buff_stacks'; buffId: string }                  // remove all stacks of a buff
@@ -130,6 +137,10 @@ export interface SkillDef {
   gcd: boolean
   targetType: TargetType
   requiresTarget: boolean  // true = must have a locked enemy target to cast
+  /** Friendly target picked at cast start among party members within `range` (enemy target ignored):
+   *  'lowest-hp' = lowest HP ratio, falling back to the caster; 'fallen' = nearest fallen member,
+   *  the skill cannot be used without one */
+  allyTarget?: 'lowest-hp' | 'fallen'
   range: number            // max cast distance (only checked when requiresTarget=true)
   mpCost: number           // MP consumed on use (0 = free)
   /** HP consumed on use (0 = free). Skill cannot be used if HP <= hpCost */

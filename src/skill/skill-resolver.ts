@@ -5,6 +5,7 @@ import type { EntityManager } from '@/entity/entity-manager'
 import type { BuffSystem } from '@/combat/buff'
 import type { AoeZoneManager } from '@/skill/aoe-zone'
 import type { Entity } from '@/entity/entity'
+import { pickAllyTarget } from '@/combat/party'
 
 export const GCD_DURATION = 2500 // ms
 
@@ -109,6 +110,14 @@ export class SkillResolver {
       if (skill.range > 0 && rangeTo(caster, target) > skill.range) return false
     }
 
+    // Friendly target (heals, raises): picked now and locked for the whole cast
+    let allyTargetId: string | null = null
+    if (skill.allyTarget) {
+      const ally = pickAllyTarget(caster, this.entityMgr.getAll(), skill.allyTarget, skill.range)
+      if (!ally) return false
+      allyTargetId = ally.id
+    }
+
     // Resolve actual cast time (may be overridden by buff, then reduced by haste)
     let actualCastTime = skill.castTime
     // Cached next_cast_instant buff id to consume after the instant cast resolves.
@@ -146,16 +155,16 @@ export class SkillResolver {
 
     // Execute
     if (skill.type === 'spell' && actualCastTime > 0) {
-      return this.startCast(caster, skill, actualCastTime)
+      return this.startCast(caster, skill, actualCastTime, allyTargetId)
     }
     // Instant path: consume next_cast_instant buff right before resolveImmediate
     if (consumeSwiftBuffId) {
       this.buffSystem.removeBuff(caster, consumeSwiftBuffId, 'consumed')
     }
-    return this.resolveImmediate(caster, skill)
+    return this.resolveImmediate(caster, skill, allyTargetId)
   }
 
-  private startCast(caster: Entity, skill: SkillDef, actualCastTime?: number): boolean {
+  private startCast(caster: Entity, skill: SkillDef, actualCastTime: number | undefined, allyTargetId: string | null): boolean {
     // Auto-face target when starting a cast
     if (caster.target && skill.requiresTarget) {
       const targetEntity = this.entityMgr.get(caster.target)
@@ -167,6 +176,7 @@ export class SkillResolver {
     caster.casting = {
       skillId: skill.id,
       targetId: caster.target,
+      allyTargetId,
       elapsed: 0,
       castTime: actualCastTime ?? skill.castTime,
     }
@@ -182,7 +192,7 @@ export class SkillResolver {
     return true
   }
 
-  private resolveImmediate(caster: Entity, skill: SkillDef): boolean {
+  private resolveImmediate(caster: Entity, skill: SkillDef, allyTargetId: string | null): boolean {
     // Deduct costs
     this.deductMpCost(caster, skill)
     this.deductHpCost(caster, skill)
@@ -204,7 +214,7 @@ export class SkillResolver {
     }
 
     this.spawnZones(caster, skill)
-    this.bus.emit('skill:cast_complete', { caster, skill })
+    this.bus.emit('skill:cast_complete', { caster, skill, allyTargetId })
     return true
   }
 
@@ -296,13 +306,13 @@ export class SkillResolver {
   private completeCast(entity: Entity): void {
     if (!entity.casting) return
 
-    const { skillId, targetId } = entity.casting
+    const { skillId, targetId, allyTargetId } = entity.casting
     entity.casting = null
 
     const skill = this.skillDefs.get(skillId)
 
-    // Second validation: target still alive and in range?
-    if (targetId && skill && skill.range > 0) {
+    // Second validation: enemy target still alive and in range? (friendly skills don't use it)
+    if (targetId && skill && skill.range > 0 && !skill.allyTarget) {
       const target = this.entityMgr.get(targetId)
       if (!target || !target.alive) {
         this.zoneMgr.cancelZones(entity.id, skillId)
@@ -324,7 +334,7 @@ export class SkillResolver {
       this.deductHpCost(entity, skill)
     }
 
-    this.bus.emit('skill:cast_complete', { caster: entity, skill })
+    this.bus.emit('skill:cast_complete', { caster: entity, skill, allyTargetId })
   }
 
   private getHastedGcd(caster: Entity): number {

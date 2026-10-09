@@ -5,6 +5,7 @@ import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
 import type { DamageType, FlurryGuard, SkillDef, SkillEffectDef, BuffDef } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
+import { isPartyMember, partyMembersNear } from '@/combat/party'
 import { applyPeriodicBuff, isPeriodicEffect } from '@/combat/buff-periodic'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import { EASING, type EasingFn } from './displacement-animator'
@@ -34,14 +35,16 @@ export class CombatResolver {
     private gameTimeGetter: () => number = () => 0,
   ) {
     // Single-target skill effects
-    bus.on('skill:cast_complete', (payload: { caster: Entity; skill: SkillDef | any }) => {
+    bus.on('skill:cast_complete', (payload: { caster: Entity; skill: SkillDef | any; allyTargetId?: string | null }) => {
       const skill = payload.skill as SkillDef | undefined
       if (!skill) return
       this.skillNames.set(skill.id, skill.name)
       this.skillDefsMap.set(skill.id, skill)
       if (!skill.effects) return
       const caster = payload.caster
-      const target = caster.target ? this.entityMgr.get(caster.target) : null
+      // Friendly skills resolve on the ally locked at cast start, never on the enemy target
+      const targetId = skill.allyTarget ? payload.allyTargetId : caster.target
+      const target = targetId ? this.entityMgr.get(targetId) : null
 
       const potencyBonus = this.resolvePotencyBonus(caster, skill)
       const potencyWithBuffIncrease = this.resolvePotencyWithBuff(caster, skill)
@@ -67,6 +70,26 @@ export class CombatResolver {
     bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
       if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
     })
+  }
+
+  /** Restore HP (caster's attack × potency, attack modifiers included); returns the HP actually restored */
+  private heal(caster: Entity, target: Entity, potency: number): number {
+    const amount = Math.floor(this.buffSystem.getAttack(caster) * potency)
+    const restored = Math.min(amount, Math.max(0, target.maxHp - target.hp))
+    target.hp = Math.min(target.maxHp, target.hp + amount)
+    this.bus.emit('damage:dealt', { source: caster, target, amount: -amount, skill: null })
+    return restored
+  }
+
+  /** Apply a registered buff the way skills do (periodic effects get their tick schedule) */
+  grantBuff(target: Entity, buffId: string, source: Entity = target): void {
+    const def = this.buffDefs.get(buffId)
+    if (!def) {
+      console.warn(`[combat] grantBuff: unknown buff def '${buffId}'`)
+      return
+    }
+    if (def.effects.some(isPeriodicEffect)) applyPeriodicBuff(target, def, source, this.gameTimeGetter(), this.buffSystem)
+    else this.buffSystem.applyBuff(target, def, source.id)
   }
 
   registerBuffs(defs: Record<string, BuffDef>): void {
@@ -149,11 +172,31 @@ export class CombatResolver {
           // Heal only applies to friendly targets (same type as caster); otherwise fallback to caster
           const friendlyTarget = (target && caster && target.type === caster.type) ? target : caster
           if (!friendlyTarget) break
-          // Route attack through getAttack so attack_modifier buffs scale heals too.
-          const healSource = caster ?? friendlyTarget
-          const healAmount = Math.floor(this.buffSystem.getAttack(healSource) * effect.potency)
-          friendlyTarget.hp = Math.min(friendlyTarget.maxHp, friendlyTarget.hp + healAmount)
-          this.bus.emit('damage:dealt', { source: caster ?? friendlyTarget, target: friendlyTarget, amount: -healAmount, skill: null })
+          this.heal(caster ?? friendlyTarget, friendlyTarget, effect.potency)
+          break
+        }
+
+        case 'party_heal': {
+          if (!caster) break
+          let effective = false
+          for (const member of partyMembersNear(caster, this.entityMgr.getAll(), effect.radius)) {
+            if (this.heal(caster, member, effect.potency) > 0) effective = true
+          }
+          if (effective && effect.onEffective) this.resolveEffects(effect.onEffective, caster, caster, skillName)
+          break
+        }
+
+        case 'party_buff': {
+          if (!caster) break
+          for (const member of partyMembersNear(caster, this.entityMgr.getAll(), effect.radius)) this.grantBuff(member, effect.buffId, caster)
+          break
+        }
+
+        case 'raise': {
+          if (!target || target.alive || !isPartyMember(target)) break
+          target.alive = true
+          target.hp = Math.max(1, Math.floor(target.maxHp * effect.hpPercent))
+          this.bus.emit('party:raised', { entity: target, by: caster })
           break
         }
 

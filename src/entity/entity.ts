@@ -4,6 +4,8 @@ import type { EntityType, Vec3, DamageType, Role } from '@/core/types'
 export interface CastState {
   skillId: string
   targetId: string | null
+  /** Friendly target locked at cast start (skills with `allyTarget`) */
+  allyTargetId?: string | null
   elapsed: number    // ms elapsed
   castTime: number   // ms total
 }

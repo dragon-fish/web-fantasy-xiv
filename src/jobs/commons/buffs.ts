@@ -88,6 +88,19 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     maxStacks: 1,
     effects: [{ type: 'mp_regen', potency: 0.05, interval: 3000 }],
   },
+  // Healer role trait: in combat, a Lucid Dreaming that never ends and survives death
+  healer_lucid_dreaming: {
+    id: 'healer_lucid_dreaming',
+    name: '醒梦',
+    description: '治疗职能特性：战斗中持续恢复 MP。',
+    icon: icon('player_skill_effects', 13909),
+    type: 'buff',
+    duration: 0,
+    stackable: false,
+    maxStacks: 1,
+    preserveOnDeath: true,
+    effects: [{ type: 'mp_regen', potency: 0.05, interval: 3000 }],
+  },
   one_punch_man: {
     id: 'one_punch_man',
     name: '一拳超人',
