@@ -99,6 +99,17 @@ describe('BuffSystem', () => {
     expect(system.getDamageIncreases(entity)).toEqual([0.3])
   })
 
+  it('scales a stackable damage increase by its stacks', () => {
+    const { system, entity } = setup()
+    const stacking: BuffDef = {
+      id: 'resonance', name: 'Resonance', type: 'buff', duration: 5000,
+      stackable: true, maxStacks: 10,
+      effects: [{ type: 'damage_increase', value: 0.1 }],
+    }
+    system.applyBuff(entity, stacking, 'source1', 10)
+    expect(system.getDamageIncreases(entity)).toEqual([1])
+  })
+
   it('should detect silence', () => {
     const { system, entity } = setup()
     expect(system.isSilenced(entity)).toBe(false)

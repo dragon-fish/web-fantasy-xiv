@@ -163,10 +163,11 @@ export class BuffSystem {
       .map((e) => (e.effect as { type: 'mitigation'; value: number }).value)
   }
 
+  /** One entry per buff, scaled by its stacks (a 10% buff at 10 stacks contributes 100%) */
   getDamageIncreases(entity: Entity): number[] {
     return this.collectEffects(entity)
       .filter((e) => e.effect.type === 'damage_increase')
-      .map((e) => (e.effect as { type: 'damage_increase'; value: number }).value)
+      .map((e) => Math.round((e.effect as { type: 'damage_increase'; value: number }).value * e.inst.stacks * 10000) / 10000)
   }
 
   getAttackModifier(entity: Entity): number {

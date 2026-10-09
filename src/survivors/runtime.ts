@@ -67,9 +67,10 @@ export class SurvivorRuntime {
     if (this.result) return
     const card = this.progression.choose(id)
     if (card.buff) {
-      // Shared effects have distinct stacking rules; these four read one total value.
+      // These effects read one total value regardless of stacks, so the rank is baked into the value.
+      // damage_increase already scales with buff stacks (one per rank) — never scale it here too.
       const effects = card.buff.effects.map(effect =>
-        effect.type === 'damage_increase' || effect.type === 'lifesteal' || effect.type === 'speed_modify' || effect.type === 'haste'
+        effect.type === 'lifesteal' || effect.type === 'speed_modify' || effect.type === 'haste'
           ? { ...effect, value: effect.value * this.rank(id) } : effect)
       this.deps.buffSystem.applyBuff(this.player, { ...card.buff, effects }, this.player.id)
     }
