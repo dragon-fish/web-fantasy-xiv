@@ -150,6 +150,16 @@ export interface TimelineAction {
   fastForward?: boolean
   /** Set on actions inside a `choose:` block; only the variant picked for the group runs */
   variant?: { group: string; index: number; count: number }
+  /** Party mode: where NPCs stand for this mechanic (see game/party) */
+  npc?: NpcSpotHint
+}
+
+/** Preset spots NPCs claim for a mechanic; `tolerance` = radius of the random stand point (m) */
+export interface NpcSpotHint {
+  spots: { x: number; y: number; tolerance?: number }[]
+  tolerance?: number
+  /** ms the spots hold from dispatch (default: until the action's zones resolve) */
+  hold?: number
 }
 
 // --- Phase system ---

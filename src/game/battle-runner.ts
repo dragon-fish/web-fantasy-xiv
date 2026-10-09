@@ -12,6 +12,7 @@ import { matchesCondition } from '@/combat/conditions'
 import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
 import { PARRY_BUFFS } from '@/game/parry'
 import { createParryPrompt } from '@/game/parry-prompt'
+import { createPartyRuntime } from '@/game/party/party-runtime'
 import type { EventBus } from '@/core/event-bus'
 import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
@@ -242,12 +243,13 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   s.jobGaugeArt = job.gaugeArt ?? null
   s.buffDefs = job.buffMap
 
+  const playerRole = job.category === JobCategory.Tank ? 'tank' : job.category === JobCategory.Healer ? 'healer' : 'dps'
   s.createPlayer({
     id: 'player', type: 'player',
     position: { x: 0, y: -12, z: 0 },
     ...enc.player,
     model: `job:${job.id}`,
-    role: job.category === JobCategory.Tank ? 'tank' : job.category === JobCategory.Healer ? 'healer' : 'dps',
+    role: playerRole,
     hp: job.stats.hp, maxHp: job.stats.hp,
     mp: job.stats.mp, maxMp: job.stats.mp,
     attack: job.stats.attack,
@@ -313,6 +315,19 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   if (enc.arena.deathZones) deathZoneMgr.loadInitial(enc.arena.deathZones)
   s.arena.setWallZoneProvider(() => deathZoneMgr.getWallZones())
 
+  const party = enc.party
+    ? createPartyRuntime({
+      scene: s, enc, config: enc.party, playerJob: job, playerRole, boss,
+      bossChaseRange: aiMap.get('boss')?.config.chaseRange ?? 5,
+      deathZones: deathZoneMgr,
+      combatElapsed: () => scheduler.combatElapsed,
+      inCombat: () => combatStarted,
+    })
+    : null
+  /** Whom an enemy goes for: its enmity top in party mode, otherwise the player */
+  const targetIdFor = (enemy: Entity): string => party?.targetFor(enemy)?.id ?? s.player.id
+  if (party && import.meta.env.DEV) s.devCommands.register('party', '[dev] party — NPC damage budget and party state', () => party.status())
+
   const scriptRunner = new ScriptRunner({
     bus: s.bus,
     buildCtx: () => ({
@@ -351,7 +366,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
           aiEnabled.add(e.id)
           const ai = aiMap.get(e.id)
           ai?.unlockFacing()
-          e.target = s.player.id
+          party?.engage(e)
+          e.target = targetIdFor(e)
         }
       },
       disableAI: (entityId: string) => {
@@ -361,7 +377,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         const e = entityMap.get(entityId)
         const skill = enc.skills.get(skillId)
         if (e && skill) {
-          if (e.type === 'mob' || e.type === 'boss') e.target = s.player.id
+          if (e.type === 'mob' || e.type === 'boss') e.target = targetIdFor(e)
           s.skillResolver.tryUse(e, skill)
         }
       },
@@ -442,12 +458,13 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     combatStarted = true
     s.player.inCombat = true
     boss.inCombat = true
+    party?.engage(boss)
     for (const b of job.combatBuffs ?? []) {
       if (typeof b === 'string') s.combatResolver.grantBuff(s.player, b)
       else s.combatResolver.grantBuff(s.player, b.buffId, s.player, b.stacks)
     }
     s.setAnnounce('战斗开始')
-    s.bus.emit('combat:started', { entities: [s.player, boss] })
+    s.bus.emit('combat:started', { entities: [s.player, ...(party?.npcs ?? []), boss] })
   }
 
   s.bus.on('damage:dealt', (payload: { source: Entity; target: Entity; amount: number; skill: any; noRevive?: boolean }) => {
@@ -544,7 +561,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     },
   }, MECHANICS)
 
-  const revive = enc.revive
+  // Party mode: a healer player stands back up once on their own (nobody else can raise them)
+  const revive = enc.revive || (party && playerRole === 'healer')
     ? createPlayerRevive({
       bus: s.bus, player: s.player, buffSystem: s.buffSystem,
       schedule: (ms, fn) => mechanics.after(ms, fn),
@@ -596,15 +614,23 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       if (s.player.casting) s.skillResolver.interruptCast(s.player)
       s.bus.emit('entity:died', { entity: s.player })
     }
-    if (noRevive || !revive?.tryRevive()) deathWindow.enter()
+    if (party) {
+      // Party mode: the fight goes on; wait for a raise (or restart from the pause menu)
+      if (!noRevive && revive?.tryRevive()) revive.disable()
+      else s.setAnnounce('等待队友复活，或按 ESC 重新开始')
+    } else if (noRevive || !revive?.tryRevive()) deathWindow.enter()
     handlingDeath = false
   }
+  s.bus.on('party:raised', ({ entity }: { entity: Entity }) => {
+    if (entity.id === s.player.id) s.setAnnounce(null)
+  })
 
   // Revived dormant entities join the fight; optional per-entity follow-up skill
   s.bus.on('entity:revived', ({ entity }: { entity: Entity }) => {
     aiEnabled.add(entity.id)
     aiMap.get(entity.id)?.unlockFacing()
-    entity.target = s.player.id
+    party?.engage(entity)
+    entity.target = targetIdFor(entity)
     entity.inCombat = true
     const hook = enc.reviveHooks.get(entity.id)
     const skill = hook ? enc.skills.get(hook.use) : undefined
@@ -638,8 +664,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         break
       case 'use':
         if (action.use && target) {
-          // Ensure mobs target player so toward_target AOE works
-          if (target.type === 'mob' || target.type === 'boss') target.target = s.player.id
+          // Ensure enemies have a target so toward_target AOE works
+          if (target.type === 'mob' || target.type === 'boss') target.target = targetIdFor(target)
           const skill = enc.skills.get(action.use)
           if (skill) s.skillResolver.tryUse(target, skill)
         }
@@ -655,7 +681,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
           aiEnabled.add(target.id)
           const ai = aiMap.get(target.id)
           ai?.unlockFacing()
-          target.target = s.player.id
+          party?.engage(target)
+          target.target = targetIdFor(target)
         }
         break
       case 'disable_ai':
@@ -822,12 +849,23 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       const ai = aiMap.get(entityId)
       if (!entity?.alive || !ai || entity.casting) continue
 
-      ai.updateFacing(s.player)
-      ai.updateMovement(s.player, dt)
+      const victim = party ? party.targetFor(entity) : s.player
+      if (!victim) continue
+      ai.updateFacing(victim)
+      ai.updateMovement(victim, dt)
 
-      if (bossAutoSkill && ai.tickAutoAttack(dt) && ai.isInAutoAttackRange(s.player)) {
-        entity.target = s.player.id
+      if (bossAutoSkill && ai.tickAutoAttack(dt) && ai.isInAutoAttackRange(victim)) {
+        entity.target = victim.id
         s.skillResolver.tryUse(entity, bossAutoSkill)
+      }
+    }
+
+    if (party) {
+      party.update(dt)
+      if (combatStarted && !s.battleOver && party.allDown() && !revive?.isPending()) {
+        scriptRunner.disposeAll()
+        s.bus.emit('combat:ended', { result: 'wipe', elapsed: scheduler.combatElapsed })
+        s.endBattle('wipe')
       }
     }
 

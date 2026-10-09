@@ -24,7 +24,8 @@ export interface ActiveAoeZone {
 
 let nextZoneId = 0
 
-function followsAnchor(anchor: AoeZoneDef['anchor']): boolean {
+/** Zones that track their anchored entity until they resolve */
+export function followsAnchor(anchor: AoeZoneDef['anchor']): boolean {
   return anchor.type === 'target_live' || (anchor.type === 'party' && anchor.follow !== false)
 }
 

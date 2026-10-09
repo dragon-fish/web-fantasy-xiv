@@ -148,6 +148,7 @@ function flattenEntry(entry: any, baseTime: number, out: TimelineAction[]): void
     out.push({ at, action: 'run_script', script: entry.script })
   }
   if (entry.when && out.length > first) out[first].when = entry.when
+  if (entry.npc && out.length > first) out[first].npc = entry.npc
 
   if (entry.then) {
     for (const child of entry.then) {

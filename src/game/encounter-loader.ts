@@ -6,6 +6,7 @@ import type { ArenaDef, BuffDef, SkillDef } from '@/core/types'
 import type { PhaseDef, TimelineAction } from '@/config/schema'
 import type { BossBehaviorConfig } from '@/ai/boss-behavior'
 import type { CreateEntityOptions } from '@/entity/entity'
+import { parsePartyConfig, type PartyConfig } from './party/party-config'
 
 export interface EncounterData {
   arena: ArenaDef
@@ -37,6 +38,10 @@ export interface EncounterData {
    * longer (~10000) for dramatic boss DoT-comeback windows.
    */
   deathWindowMs?: number
+  /** Party mode (NPC allies); absent = solo rules */
+  party?: PartyConfig
+  /** NPC target priority per entity id (YAML entity `priority`, default 0) */
+  targetPriority: Map<string, number>
 }
 
 /**
@@ -63,12 +68,14 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
   // --- Entities ---
   const entities = new Map<string, CreateEntityOptions>()
   const reviveHooks = new Map<string, { use: string; after: number }>()
+  const targetPriority = new Map<string, number>()
 
   if (raw.entities) {
     // New unified format: entities: { boss: {...}, mob1: {...}, ... }
     for (const [id, def] of Object.entries(raw.entities as Record<string, any>)) {
       entities.set(id, parseEntityOpts(id, def))
       if (def.onRevive?.use) reviveHooks.set(id, { use: def.onRevive.use, after: def.onRevive.after ?? 0 })
+      if (typeof def.priority === 'number') targetPriority.set(id, def.priority)
     }
   }
 
@@ -176,6 +183,8 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
   return {
     arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs, reviveHooks,
     revive: raw.revive === true,
+    targetPriority,
+    ...(raw.party ? { party: parsePartyConfig(raw.party) } : {}),
     checkpoints: raw.checkpoints ?? {},
     ...(conditions !== undefined ? { conditions } : {}),
     ...(deathWindowMs !== undefined ? { deathWindowMs } : {}),

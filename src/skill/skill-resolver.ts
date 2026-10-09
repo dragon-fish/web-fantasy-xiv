@@ -46,6 +46,11 @@ export class SkillResolver {
     this.pickPartyMarkers = picker
   }
 
+  /** A skill seen by `tryUse` / `registerSkill` */
+  getSkill(id: string): SkillDef | undefined {
+    return this.skillDefs.get(id)
+  }
+
   registerSkill(def: SkillDef): void {
     this.skillDefs.set(def.id, def)
   }

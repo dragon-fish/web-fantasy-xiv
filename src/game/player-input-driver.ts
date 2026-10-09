@@ -76,17 +76,15 @@ export class PlayerInputDriver {
   update(dt: number): 'pause' | null {
     const p = this.entity
 
-    // Dead: player input is fully gated. Still tick skillResolver (so boss /
-    // other entities continue casting during the death window) and tickRegen
-    // (internally gates on `p.alive` so player HP/MP regen naturally stops).
+    // Dead: player input is gated except ESC (pause → retry while allies fight on). Still tick
+    // skillResolver (other entities keep casting) and tickRegen (gates on `p.alive` itself).
     if (!p.alive) {
       this.input.consumeSkillPress()
-      this.input.consumeEsc()
       this.input.consumeClick()
       this.queuedSkill = null
       this.skillResolver.updateAll(dt)
       this.tickRegen(p, dt)
-      return null
+      return this.input.consumeEsc() ? 'pause' : null
     }
 
     // ESC priority: interrupt cast → release target → pause

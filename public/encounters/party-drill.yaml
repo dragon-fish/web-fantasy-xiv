@@ -1,0 +1,227 @@
+# 小队演练 — NPC 小队系统的验收副本（隐藏）
+# 设计：docs/superpowers/specs/2026-10-09-npc-party-design.md
+# 数值：boss attack = 1，potency 即固定伤害
+
+# 小队模式：玩家 + 3 名 NPC；目标时间缺省按 boss 血量推算
+party:
+  mistakeRate: 0.03
+  idle: { x: 0, y: -4 }
+  tankSpot: { x: 0, y: 0, facing: north }
+
+checkpoints:
+  分散: 24
+  分摊: 34
+  挡刀: 44
+  点名: 54
+  小怪: 64
+
+arena:
+  name: 演练场
+  shape: circle
+  radius: 20
+  boundary: wall
+  theme: stone
+
+entities:
+  boss:
+    type: boss
+    model: tribal
+    group: boss
+    hp: 520000
+    attack: 1
+    speed: 4
+    size: 2
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 6
+    aggroRange: 8
+  add_1: { type: mob, model: imp, group: adds, hp: 30000, attack: 1, speed: 4, size: 0.6, visible: false, targetable: false, priority: 10, position: { x: -9, y: 8, z: 0 }, autoAttackRange: 3 }
+  add_2: { type: mob, model: imp, group: adds, hp: 30000, attack: 1, speed: 4, size: 0.6, visible: false, targetable: false, priority: 10, position: { x: 9, y: 8, z: 0 }, autoAttackRange: 3 }
+
+player:
+  position: { x: 0, y: -12, z: 0 }
+
+boss_ai:
+  chaseRange: 4
+  autoAttackRange: 6
+  autoAttackInterval: 3000
+  aggroRange: 8
+
+skills:
+  boss_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 8
+    effects: [{ type: damage, potency: 600 }]
+
+  # 全屏：奶妈 NPC 会提前铺 HoT 或群减
+  raidwide:
+    name: 震地
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 4000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1500 }]
+
+  # 死刑：点一仇
+  buster:
+    name: 重击
+    type: spell
+    castTime: 4000
+    targetType: aoe
+    zones:
+      - anchor: { select: enmity, rank: 1 }
+        direction: { type: none }
+        shape: { type: circle, radius: 3 }
+        marker: buster
+        resolveDelay: 4000
+        hitEffectDuration: 300
+        effects: [{ type: damage, potency: 7000, dmgType: tankbuster }]
+
+  # 分散：每人一个
+  spread:
+    name: 散裂
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { select: each }
+        direction: { type: none }
+        shape: { type: circle, radius: 5 }
+        marker: spread
+        resolveDelay: 5000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1500 }]
+
+  # 分摊：随机点一人，伤害平分
+  stack:
+    name: 合击
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { select: count, count: 1 }
+        direction: { type: none }
+        shape: { type: circle, radius: 4 }
+        marker: stack
+        share: even
+        resolveDelay: 5000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 8000 }]
+
+  # 挡刀：朝南的直线，最前面的人承担一半
+  line_stack:
+    name: 贯穿
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: fixed, angle: 180 }
+        shape: { type: rect, length: 25, width: 5 }
+        share: { front: 0.5 }
+        resolveDelay: 5000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 9000 }]
+
+  # 固定 4 个点名：人不够时有人吃两次
+  four_markers:
+    name: 连锁
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { select: count, count: 4 }
+        direction: { type: none }
+        shape: { type: circle, radius: 3 }
+        marker: spread
+        resolveDelay: 5000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 2500 }]
+
+  # 地面 AOE：朝向一仇的扇形，NPC 通用躲避
+  cleave:
+    name: 横扫
+    type: spell
+    castTime: 3500
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        shape: { type: fan, radius: 30, angle: 120 }
+        resolveDelay: 3500
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 3000 }]
+
+  # 软狂暴
+  enrage:
+    name: 大地崩塌
+    type: spell
+    castTime: 8000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 8000
+        hitEffectDuration: 600
+        effects: [{ type: damage, potency: 99999, dmgType: special }]
+
+phases:
+  phase_default:
+    actions:
+      - { at: 0, action: enable_ai }
+      # ===== 第一轮 =====
+      - { at: 6000, use: raidwide }
+      - { at: 14000, use: buster }
+      - { at: 19000, use: cleave }
+      - { at: 24000, use: spread, npc: { spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
+      - { at: 34000, use: stack, npc: { spots: [{ x: 0, y: -7 }] } }
+      - { at: 44000, use: line_stack, npc: { spots: [{ x: 0, y: -8 }], tolerance: 1 } }
+      - { at: 54000, use: four_markers, npc: { spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
+
+      # 小怪阶段：本体不可选中，NPC 转火优先级高的小怪，打完回待机位
+      - { at: 64000, action: disable_ai }
+      - { at: 64000, action: set_targetable, value: false }
+      - { at: 64500, action: set_visible, entity: add_1, value: true }
+      - { at: 64500, action: set_visible, entity: add_2, value: true }
+      - { at: 65000, action: set_targetable, entity: add_1, value: true }
+      - { at: 65000, action: set_targetable, entity: add_2, value: true }
+      - { at: 65000, action: enable_ai, entity: add_1 }
+      - { at: 65000, action: enable_ai, entity: add_2 }
+      - { at: 88000, use: raidwide }
+      - { at: 95000, action: set_targetable, value: true }
+      - { at: 95000, action: enable_ai }
+
+      # ===== 第二轮（无小怪） =====
+      - { at: 100000, use: raidwide }
+      - { at: 108000, use: buster }
+      - { at: 113000, use: cleave }
+      - { at: 118000, use: four_markers, npc: { spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
+      - { at: 128000, use: stack, npc: { spots: [{ x: 0, y: -7 }] } }
+      - { at: 138000, use: spread, npc: { spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
+      - { at: 148000, use: line_stack, npc: { spots: [{ x: 0, y: -8 }], tolerance: 1 } }
+      - { at: 158000, use: raidwide }
+      - { at: 166000, use: buster }
+      - { at: 171000, use: cleave }
+      - { at: 178000, use: spread, npc: { spots: [{ x: -7, y: 7 }, { x: 7, y: 7 }, { x: 7, y: -7 }, { x: -7, y: -7 }] } }
+      - { at: 188000, use: raidwide }
+      - { at: 196000, use: stack, npc: { spots: [{ x: 0, y: -7 }] } }
+      - { at: 206000, use: buster }
+      - { at: 212000, use: four_markers, npc: { spots: [{ x: -8, y: 0 }, { x: 8, y: 0 }, { x: 0, y: 8 }, { x: 0, y: -8 }] } }
+      - { at: 222000, use: raidwide }
+      - { at: 230000, use: cleave }
+      - { at: 236000, use: line_stack, npc: { spots: [{ x: 0, y: -8 }], tolerance: 1 } }
+      - { at: 246000, use: buster }
+
+      # 软狂暴：目标时间约 235s，读条 8s
+      - { at: 256000, use: enrage }

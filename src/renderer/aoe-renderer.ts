@@ -5,7 +5,7 @@ import {
 } from '@babylonjs/core'
 import type { EventBus } from '@/core/event-bus'
 import type { EntityManager } from '@/entity/entity-manager'
-import type { ActiveAoeZone } from '@/skill/aoe-zone'
+import { followsAnchor, type ActiveAoeZone } from '@/skill/aoe-zone'
 import { createTelegraphMaterial, telegraphGeometry } from './aoe-shader'
 
 interface AoeMesh {
@@ -64,8 +64,8 @@ export class AoeRenderer {
     for (const entry of this.meshes.values()) {
       const { zone, material } = entry
       material.setFloat('time', time / 1000)
-      // target_live zones move with their anchor until they resolve
-      if (entry.phase === 'telegraph' && zone.def.anchor.type === 'target_live') this.place(entry.mesh, zone)
+      // Following zones (target_live, party markers) move with their anchor until they resolve
+      if (entry.phase === 'telegraph' && followsAnchor(zone.def.anchor)) this.place(entry.mesh, zone)
       if (entry.phase === 'telegraph') {
         const span = Math.max(1, zone.def.resolveDelay - zone.telegraphAt)
         material.setFloat('progress', Math.min(1, Math.max(0, (zone.elapsed - zone.telegraphAt) / span)))

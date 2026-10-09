@@ -50,5 +50,13 @@
     "file": "deathzone-test.yaml",
     "difficulty": "tutorial",
     "hidden": true
+  },
+  {
+    "label": "小队演练",
+    "description": "与三名 NPC 队友组成轻锐小队的演练场：全屏、死刑、分散、分摊、挡刀、点名与小怪阶段。",
+    "file": "party-drill.yaml",
+    "difficulty": "normal",
+    "duration": "4 分钟",
+    "hidden": true
   }
 ]
