@@ -29,6 +29,9 @@ const ARRIVED = 0.4
 /** The tank drags the boss back toward the tank spot once it strays this far, and lets go this close (m) */
 const PULL_START = 6
 const PULL_STOP = 2
+/** The opener always drags the boss off-centre: for this long the tank settles it on the spot (ms, m) */
+const OPENER_MS = 15000
+const OPENER_TOLERANCE = 1.5
 /** Non-tanks step out of the boss's front only for a spot this close (m, or a share of their distance
  *  from it); it is a preference, not a must */
 const FRONT_STEP = 3
@@ -113,6 +116,8 @@ export class NpcBrain {
   private fight: Vec2 | null = null
   /** Tank: dragging the boss back toward the tank spot */
   private pulling = false
+  /** When the opener's strict centring ends (set on the first tanking think) */
+  private openerUntil: number | null = null
   /** Where this NPC stands relative to a stack carrier (fixed per stack) */
   private stackOffset: { zoneId: string; x: number; y: number } | null = null
   private raiseReadyAt = 0
@@ -347,8 +352,10 @@ export class NpcBrain {
       const reach = Math.max(w.boss.size + 1, w.bossChaseRange - 0.3)
       const off = { x: spot.x - w.boss.position.x, y: spot.y - w.boss.position.y }
       const away = Math.hypot(off.x, off.y)
-      if (away > PULL_START) this.pulling = true
-      else if (away < PULL_STOP) this.pulling = false
+      this.openerUntil ??= w.now() + OPENER_MS
+      const opener = w.now() < this.openerUntil
+      if (away > (opener ? OPENER_TOLERANCE : PULL_START)) this.pulling = true
+      else if (away < (opener ? OPENER_TOLERANCE * 0.5 : PULL_STOP)) this.pulling = false
       if (this.pulling) return { x: spot.x + (off.x / away) * reach, y: spot.y + (off.y / away) * reach }
       return { x: w.boss.position.x + face.x * reach, y: w.boss.position.y + face.y * reach }
     }
