@@ -25,6 +25,11 @@ const CORPSE_FADE_DELAY = 1400
 const CORPSE_FADE_MS = 700
 /** Fraction of an airborne buff spent flipping through the air; the rest is the landing rebound */
 const AIR_FLIGHT = 0.78
+/** Resurrection: the body lies still, then floats up under the light pillar and drops on revive */
+const REVIVE_RISE_FROM = 0.38
+const REVIVE_RISE_TO = 0.92
+const REVIVE_LIFT = 1.0
+const REVIVE_LAND_MS = 350
 
 /** Shortest signed angular distance from `from` to `to` in degrees. */
 function angleDelta(from: number, to: number): number {
@@ -64,6 +69,9 @@ interface CharacterView {
   /** Airborne arc (launched by an 'airborne' buff) */
   airFrom: number
   airUntil: number
+  /** Resurrection timing (render clock): death with a revive pending, and the moment it stood up */
+  revive: { at: number; delay: number } | null
+  landAt: number | null
 }
 
 export class CharacterRenderer implements EntityVisuals {
@@ -80,6 +88,14 @@ export class CharacterRenderer implements EntityVisuals {
     this.targetRing = new TargetRing(this.scene)
 
     bus.on('entity:created', ({ entity }: { entity: Entity }) => this.create(entity))
+    bus.on('player:reviving', ({ entity, delay }: { entity: Entity; delay: number }) => {
+      const v = this.views.get(entity.id)
+      if (v) v.revive = { at: this.now, delay }
+    })
+    bus.on('player:revived', ({ entity }: { entity: Entity }) => {
+      const v = this.views.get(entity.id)
+      if (v && v.revive) { v.revive = null; v.landAt = this.now }
+    })
     bus.on('entity:died', ({ entity }: { entity: Entity }) => {
       const v = this.views.get(entity.id)
       if (v && v.deadAt === null) v.deadAt = this.now
@@ -160,6 +176,7 @@ export class CharacterRenderer implements EntityVisuals {
       flashUntil: 0, squashUntil: 0, lastHitAnim: -Infinity,
       deadAt: null, baseEmissive: new Map(),
       airFrom: 0, airUntil: 0,
+      revive: null, landAt: null,
     }
     this.views.set(entity.id, v)
 
@@ -373,7 +390,7 @@ export class CharacterRenderer implements EntityVisuals {
     }
 
     const fallY = (entity as any)._fallOffset ?? 0
-    v.root.position.set(entity.position.x, -fallY, entity.position.y)
+    v.root.position.set(entity.position.x, -fallY + this.landingLift(v), entity.position.y)
 
     // Velocity (m/s) from frame-to-frame displacement, lightly smoothed
     if (dt > 0) {
@@ -443,6 +460,22 @@ export class CharacterRenderer implements EntityVisuals {
     }
   }
 
+  /** Height of a body floating up while its revive is pending */
+  private risingLift(v: CharacterView): number {
+    if (!v.revive) return 0
+    const k = ((this.now - v.revive.at) / v.revive.delay - REVIVE_RISE_FROM) / (REVIVE_RISE_TO - REVIVE_RISE_FROM)
+    const c = Math.max(0, Math.min(1, k))
+    return REVIVE_LIFT * (1 - (1 - c) * (1 - c))
+  }
+
+  /** Height left while dropping back to the ground right after standing up */
+  private landingLift(v: CharacterView): number {
+    if (v.landAt === null) return 0
+    const k = (this.now - v.landAt) / REVIVE_LAND_MS
+    if (k >= 1) { v.landAt = null; return 0 }
+    return REVIVE_LIFT * (1 - k * k)
+  }
+
   private updateCorpse(v: CharacterView, dt: number): void {
     this.animate(v, dt)
     this.applyFeedback(v)
@@ -452,6 +485,7 @@ export class CharacterRenderer implements EntityVisuals {
     if (v.aggroFan) v.aggroFan.isVisible = false
     if (v.entity.type === 'player') {
       this.applyCorpseTint(v)
+      v.root.position.y = this.risingLift(v)
       return
     }
     const t = (this.now - (v.deadAt ?? this.now) - CORPSE_FADE_DELAY) / CORPSE_FADE_MS

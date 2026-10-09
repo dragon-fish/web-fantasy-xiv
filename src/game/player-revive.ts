@@ -7,7 +7,8 @@ import type { BuffDef } from '@/core/types'
 import type { BuffSystem } from '@/combat/buff'
 import { icon } from '@/jobs/commons/icon-paths'
 
-export const REVIVE_DELAY_MS = 1000
+/** Hard stun from death to standing up; the renderer's resurrection sequence is timed to it */
+export const REVIVE_DELAY_MS = 2600
 
 export const REVIVE_BUFFS = {
   revive_transcendent: {
@@ -77,6 +78,7 @@ export function createPlayerRevive({ bus, player, buffSystem, schedule, relocate
       if (!tier) return false
       pending = true
       buffSystem.clearDeathBuffs(player)
+      bus.emit('player:reviving', { entity: player, tier, delay: REVIVE_DELAY_MS })
       schedule(REVIVE_DELAY_MS, () => {
         pending = false
         relocate?.()

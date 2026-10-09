@@ -20,6 +20,7 @@ import { ParticleBurster, type BurstPreset } from './particle-burster'
 import { createVfxMaterial } from './vfx-material'
 import { MechanicVfx } from './mechanic-vfx'
 import { HymnVfx } from './hymn-vfx'
+import { ReviveVfx } from './revive-vfx'
 
 type QuadKind = 'ground' | 'billboard' | 'billboardY' | 'flat' | 'arc'
 
@@ -66,6 +67,7 @@ export class VfxRenderer {
   /** `${sourceId}>${targetId}` → render clock ms of the last delivery visual */
   private deliveries = new Map<string, number>()
   private arcTemplate: Mesh
+  private revive: ReviveVfx
   private now = 0
 
   constructor(
@@ -80,6 +82,7 @@ export class VfxRenderer {
     this.arcTemplate = this.buildArcTemplate()
     new MechanicVfx(this, bus)
     new HymnVfx(this, bus)
+    this.revive = new ReviveVfx(this, bus)
 
     bus.on('skill:cast_start', ({ caster, skill }: { caster: Entity; skill: SkillDef }) => {
       this.skills.set(skill.id, skill)
@@ -605,6 +608,7 @@ export class VfxRenderer {
     }
     this.tickCasts()
     this.tickAuras(dt)
+    this.revive.update(dt)
     this.tickProjectiles(dt)
     for (let i = this.fx.length - 1; i >= 0; i--) {
       const f = this.fx[i]

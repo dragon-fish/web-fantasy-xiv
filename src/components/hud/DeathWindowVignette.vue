@@ -5,26 +5,42 @@ import type { EventBus } from '@/core/event-bus'
 const props = defineProps<{ bus: EventBus }>()
 const active = ref(false)
 
+/** A death that will be revived flashes harder and clears once the player stands up */
+const reviving = ref(false)
+
 function onDied() {
   active.value = true
 }
 function onEnded() {
   active.value = false
+  reviving.value = false
+}
+function onReviving() {
+  reviving.value = true
+}
+function onRevived() {
+  reviving.value = false
 }
 
 onMounted(() => {
   props.bus.on('player:died', onDied)
   props.bus.on('combat:ended', onEnded)
+  props.bus.on('player:reviving', onReviving)
+  props.bus.on('player:revived', onRevived)
 })
 onUnmounted(() => {
   props.bus.off('player:died', onDied)
   props.bus.off('combat:ended', onEnded)
+  props.bus.off('player:reviving', onReviving)
+  props.bus.off('player:revived', onRevived)
 })
 </script>
 
 <template lang="pug">
 Transition(name="vignette")
-  .death-vignette(v-if="active")
+  .death-vignette(v-if="active && !reviving")
+Transition(name="vignette")
+  .death-vignette.death-vignette--reviving(v-if="reviving")
 </template>
 
 <style lang="scss" scoped>
@@ -35,6 +51,19 @@ Transition(name="vignette")
   box-shadow: inset 0 0 80px rgba(255, 0, 0, 0.45);
   animation: death-pulse 1.2s ease-in-out infinite alternate;
   z-index: 500;
+}
+
+.death-vignette--reviving {
+  animation: revive-flash 0.45s ease-in-out infinite alternate;
+}
+
+@keyframes revive-flash {
+  from {
+    box-shadow: inset 0 0 50px rgba(255, 20, 20, 0.35);
+  }
+  to {
+    box-shadow: inset 0 0 160px rgba(255, 20, 20, 0.8);
+  }
 }
 
 @keyframes death-pulse {
