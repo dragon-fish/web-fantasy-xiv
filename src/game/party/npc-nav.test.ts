@@ -1,9 +1,9 @@
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import type { AoeShapeDef } from '@/core/types'
-import { findSafeSpot, isSafe, pathIsSafe, SAFE_MARGIN } from './npc-nav'
+import { findSafeSpot, inHazard, isSafe, pathIsSafe, SAFE_MARGIN } from './npc-nav'
 
-const zone = (shape: AoeShapeDef, x = 0, y = 0, facing = 0) =>
-  ({ center: { x, y }, facing, def: { shape } }) as unknown as ActiveAoeZone
+const zone = (shape: AoeShapeDef, x = 0, y = 0, facing = 0, trackTarget = false) =>
+  ({ center: { x, y }, facing, def: { shape, trackTarget } }) as unknown as ActiveAoeZone
 const arena = { standable: (p: { x: number; y: number }) => Math.hypot(p.x, p.y) <= 20 }
 const fixed = () => 0
 
@@ -31,5 +31,11 @@ describe('npc-nav', () => {
     expect(pathIsSafe({ x: -5, y: 0 }, { x: 5, y: 0 }, hazards, arena)).toBe(false)
     expect(pathIsSafe({ x: -5, y: 0 }, { x: -5, y: 8 }, hazards, arena)).toBe(true)
     expect(pathIsSafe({ x: -15, y: 0 }, { x: -25, y: 0 }, [], arena)).toBe(false)
+  })
+
+  it('keeps clear of a little more than a fan that turns after its target', () => {
+    const justOutside = { x: Math.sin((65 * Math.PI) / 180) * 8, y: Math.cos((65 * Math.PI) / 180) * 8 } // 65° off a 120° fan's axis
+    expect(inHazard(justOutside, [zone({ type: 'fan', radius: 16, angle: 120 })])).toBe(false)
+    expect(inHazard(justOutside, [zone({ type: 'fan', radius: 16, angle: 120 }, 0, 0, 0, true)])).toBe(true)
   })
 })

@@ -192,6 +192,8 @@ export class NpcBrain {
   private holdFire = false
   /** Tank: dragging the boss back toward the tank spot */
   private pulling = false
+  /** No dash or backstep before this: being thrown, then a beat to react after landing */
+  private travelReadyAt = 0
   /** When the opener's strict centring ends (set on the first tanking think) */
   private openerUntil: number | null = null
   /** Where this NPC stands relative to a stack carrier (fixed per stack) */
@@ -247,6 +249,8 @@ export class NpcBrain {
     const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && riding(z) && !z.def.share && !z.def.targeted).map(z => z.anchorEntityId))
     const avoid = zones.filter((z) => {
       if (z.def.telegraph === false || z.def.share || z.def.targeted) return false
+      // A cleave that keeps turning to this NPC can't be stepped out of: walking only swings it round
+      if (z.def.trackTarget && z.targetId === e.id) return false
       if (z.anchorEntityId === e.id) return !riding(z)
       const carrier = z.anchorEntityId ? this.world.entities.get(z.anchorEntityId) : undefined
       if (!riding(z) || !carrier || !isPartyMember(carrier) || !marked.has(e.id)) return true
@@ -294,6 +298,7 @@ export class NpcBrain {
     // Down, or jailed (untargetable, stunned): nothing to decide
     if (!e.alive || !e.targetable) { this.dest = null; return }
     const now = w.now()
+    if (w.displacer.isAnimating(e.id)) this.travelReadyAt = now + between(w.rng, REACTION_MS)
     const threats = this.threats(now)
     const hazards = this.dodgeable(threats)
     const knockbacks = this.knockbacks(threats)
@@ -544,6 +549,7 @@ export class NpcBrain {
   private travelSkills(target: Entity | null, hazards: ActiveAoeZone[]): void {
     const w = this.world
     const e = this.entity
+    if (w.now() < this.travelReadyAt) return
     const dest = this.dest!
     const here = pos(e)
     const melee = this.kit.style === 'melee' || this.kit.style === 'tank'

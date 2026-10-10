@@ -1,6 +1,6 @@
 // src/game/party/npc-nav.ts
 // Where an NPC may stand: outside pending enemy AOEs (with a margin), inside the arena, off death zones.
-import type { Vec2 } from '@/core/types'
+import type { AoeShapeDef, Vec2 } from '@/core/types'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import { isPointInAoeShape } from '@/skill/aoe-shape'
 
@@ -14,8 +14,20 @@ export interface Ground {
 
 const RING = Array.from({ length: 8 }, (_, i) => (i * Math.PI) / 4)
 
+/** Extra sweep kept clear of a zone that turns after its target (a fan's degrees, a line's width) */
+const TRACKING_SLACK = { angle: 40, width: 4 }
+
+/** Shape to keep out of: a zone that turns after its target is widened, so a spot stays clear while it swings a little */
+function avoidShape(z: ActiveAoeZone): AoeShapeDef {
+  const s = z.def.shape
+  if (!z.def.trackTarget) return s
+  if (s.type === 'fan') return { ...s, angle: Math.min(360, s.angle + TRACKING_SLACK.angle) }
+  if (s.type === 'rect') return { ...s, width: s.width + TRACKING_SLACK.width }
+  return s
+}
+
 export function inHazard(p: Vec2, hazards: readonly ActiveAoeZone[]): boolean {
-  return hazards.some(z => isPointInAoeShape(p, z.center, z.def.shape, z.facing))
+  return hazards.some(z => isPointInAoeShape(p, z.center, avoidShape(z), z.facing))
 }
 
 /** `p` and a ring of `margin` around it are clear of every hazard, and `p` is standable */
