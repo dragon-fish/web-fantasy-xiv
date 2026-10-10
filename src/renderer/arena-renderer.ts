@@ -204,6 +204,12 @@ export class ArenaRenderer {
   private breakFloor(): void {
     if (this.def.shape.type !== 'circle') return
     const radius = this.def.shape.radius
+    // The platform shrank: the floor goes with it (the rim beyond it has broken off)
+    if (this.circleGround && radius < this.circleGround.radius) {
+      const k = radius / this.circleGround.radius
+      this.circleGround.mesh.scaling.x = k
+      this.circleGround.mesh.scaling.y = k
+    }
     for (const m of this.wallParts) m.dispose()
     this.wallParts = []
 
@@ -241,6 +247,8 @@ export class ArenaRenderer {
       if (!alive) this.scene.onBeforeRenderObservable.remove(obs)
     })
   }
+
+  private circleGround: { mesh: Mesh; radius: number } | null = null
 
   private removeDeathZoneMesh(id: string): void {
     const mesh = this.deathZoneMeshes.get(id)
@@ -291,6 +299,7 @@ export class ArenaRenderer {
 
     const ground = MeshBuilder.CreateDisc('arena-ground', { radius, tessellation: 96 }, scene)
     ground.rotation.x = Math.PI / 2 // flat on ground
+    this.circleGround = { mesh: ground, radius }
     ground.material = this.floorMaterial(radius * 2, radius * 2, 'circle', decor)
     ground.receiveShadows = true
     if (decor) this.sm.addGlow(ground)

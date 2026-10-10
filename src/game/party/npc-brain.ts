@@ -499,7 +499,8 @@ export class NpcBrain {
     if (w.skills.getCharges(e.id, mit) <= 0 || w.buffs.hasBuff(e, 'npc_tank_mit')) return
     let busterIn = Infinity
     for (const z of threats) {
-      if (z.anchorEntityId !== e.id || !isBuster(damageEffects(z))) continue
+      // On this tank, or fired from the boss aimed at it (a cleave at the top of the enmity list)
+      if ((z.anchorEntityId !== e.id && z.targetId !== e.id) || !isBuster(damageEffects(z))) continue
       busterIn = Math.min(busterIn, z.def.resolveDelay - z.elapsed)
       if (!this.busterLead.has(z.id)) this.busterLead.set(z.id, between(w.rng, BUSTER_LEAD_MS))
       if (z.def.resolveDelay - z.elapsed <= this.busterLead.get(z.id)!) { w.skills.tryUse(e, mit); return }

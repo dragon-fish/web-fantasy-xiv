@@ -47,6 +47,7 @@ export function parsePhases(
     phases.push({
       id, name: raw.name, trigger, actions,
       ...(raw.exclusive ? { exclusive: true } : {}),
+      ...(raw.background ? { background: true } : {}),
       ...(typeof raw.hpFloor === 'number' ? { hpFloor: raw.hpFloor } : {}),
     })
   }
@@ -62,6 +63,7 @@ export function parsePhases(
  */
 function parseTrigger(raw: any): PhaseTrigger {
   if (!raw) return { type: 'manual' }
+  if (raw === 'on_combat_start' || raw.on_combat_start) return { type: 'on_combat_start' }
 
   if (raw.on_all_killed) {
     return { type: 'on_all_killed', group: raw.on_all_killed.group ?? 'mob' }

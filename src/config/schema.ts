@@ -179,8 +179,11 @@ export interface PhaseDef {
   name?: string
   trigger: PhaseTrigger
   actions: TimelineAction[]
-  /** Activating it stops every other running phase (HP-pushed bosses: the old timeline is cut short) */
+  /** Activating it stops every other running phase except background ones (HP-pushed bosses: the
+   *  old timeline is cut short) */
   exclusive?: boolean
+  /** Runs alongside the HP phases and survives exclusive ones (e.g. an enrage timed from the pull) */
+  background?: boolean
   /** While it runs, the boss's HP cannot drop below this percent (it waits there for the push) */
   hpFloor?: number
 }

@@ -72,7 +72,7 @@ export class PhaseScheduler {
     const def = this.phases.find((p) => p.id === phaseId)
     if (!def) return
 
-    if (def.exclusive) this.activePhases = []
+    if (def.exclusive) this.activePhases = this.activePhases.filter(a => a.def.background)
     this.activePhases.push({ def, elapsed: 0, pointer: 0 })
     this.bus.emit('phase:activated', { phaseId })
   }

@@ -60,4 +60,19 @@ describe('PhaseScheduler HP push', () => {
     scheduler.update(4000)
     expect(fired).toEqual(['p1a', 'p2a'])
   })
+  it('background phases survive an exclusive phase', () => {
+    const bus = new EventBus()
+    const fired: string[] = []
+    bus.on('timeline:action', (a: any) => fired.push(a.use))
+    const phases: PhaseDef[] = [
+      { id: 'phase_default', trigger: { type: 'on_combat_start' }, actions: [{ at: 3000, action: 'use', use: 'p1' }] },
+      { id: 'enrage', trigger: { type: 'on_combat_start' }, background: true, actions: [{ at: 3000, action: 'use', use: 'enrage' }] },
+      { id: 'p2', trigger: { type: 'on_hp_below', group: 'boss', percent: 85 }, exclusive: true, actions: [] },
+    ]
+    const scheduler = new PhaseScheduler(bus, phases)
+    scheduler.update(1000)
+    scheduler.checkTriggers({ groupHpBelow: () => true })
+    scheduler.update(3000)
+    expect(fired).toEqual(['enrage'])
+  })
 })
