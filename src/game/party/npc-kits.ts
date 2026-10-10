@@ -155,7 +155,7 @@ export function buildNpcKit(job: PlayerJob): NpcKit {
       effects: [{ type: 'damage', potency: burstWeight, dmgType }],
     }),
     weightPerGcd: 1 + burstWeight * 2500 / BURST_COOLDOWN,
-    dash: { ...ROLE_DASH, id: id('dash'), cooldown: 20000, range: 20 },
+    dash: { ...ROLE_DASH, id: id('dash'), range: 20 },
     backstep: { ...ROLE_BACKSTEP, id: id('backstep'), cooldown: 20000 },
   }
   if (look.rangedGcd) {
