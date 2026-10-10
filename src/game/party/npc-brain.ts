@@ -516,7 +516,12 @@ export class NpcBrain {
     return { x: target.position.x + (away.x / len) * (target.size + 1.5), y: target.position.y + (away.y / len) * (target.size + 1.5) }
   }
 
-  /** Melee close in with a dash after dodging; anyone may backstep away from danger */
+  /**
+   * Melee close in with a dash after dodging when the landing is where they were headed anyway.
+   * The tank dashes back whenever its target is out of reach (pull, after a dodge): every second
+   * spent walking lets the boss wander after it instead of being dragged back mid-arena.
+   * Anyone may backstep away from danger.
+   */
   private travelSkills(target: Entity | null, hazards: ActiveAoeZone[]): void {
     const w = this.world
     const e = this.entity
@@ -527,7 +532,7 @@ export class NpcBrain {
       const toward = { x: target.position.x - here.x, y: target.position.y - here.y }
       const len = Math.hypot(toward.x, toward.y) || 1
       const landing = { x: target.position.x - (toward.x / len) * Math.max(0, target.size - 0.1), y: target.position.y - (toward.y / len) * Math.max(0, target.size - 0.1) }
-      if (dist(landing, dest) < 3 && pathIsSafe(here, landing, hazards, this.ground) && isSafe(landing, hazards, this.ground)) {
+      if ((this.kit.style === 'tank' || dist(landing, dest) < 3) && pathIsSafe(here, landing, hazards, this.ground) && isSafe(landing, hazards, this.ground)) {
         w.skills.tryUse(e, this.kit.dash)
         return
       }
