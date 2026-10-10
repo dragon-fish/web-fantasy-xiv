@@ -722,7 +722,7 @@ phases:
           - [{ use: bury_clock_ccw, entity: helper }]
           - [{ use: bury_clock_cw_rev, entity: helper }]
           - [{ use: bury_clock_ccw_rev, entity: helper }]
-      - { at: 93000, use: landslide }
+      # 环形九连桶 12s 才炸完：循环回到 8s 的地裂正好接在它后面
       - { at: 99000, loop: 8000 }
 
   # ===== P3 心核（30s DPS 检测）=====
