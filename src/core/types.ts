@@ -35,8 +35,12 @@ export type AnchorType =
   | { type: 'target' }
   | { type: 'target_live' }
   | { type: 'position'; x: number; y: number }
-  /** `follow` (default true): the zone tracks its member until it resolves */
-  | ({ type: 'party'; follow?: boolean } & PartySelect)
+  /**
+   * `follow` (default true): the zone tracks its member until it resolves.
+   * `exclude`: roles never picked. `origin: 'caster'`: the zone starts at the caster and points at
+   * the member (aim locked when it spawns) instead of sitting on them.
+   */
+  | ({ type: 'party'; follow?: boolean; exclude?: Role | Role[]; origin?: 'caster' } & PartySelect)
 
 export type DirectionType =
   | { type: 'caster_facing' }

@@ -115,4 +115,15 @@ describe('party mechanics', () => {
     expect(prisoner.visible).toBe(true)
     expect(prisoner.targetable).toBe(true)
   })
+  it('origin: caster — the zone starts at the caster, aimed at the member when it spawned', () => {
+    const { zones, member, cast } = setup()
+    const aimed = member('npc1', 10, 10) // due east of the boss at (0, 10)
+    cast({ anchor: { type: 'party', select: 'each', origin: 'caster' }, shape: { type: 'fan', radius: 30, angle: 30 } })
+    const zone = zones.getActiveZones()[0]!
+    expect(zone.center).toEqual({ x: 0, y: 10 })
+    expect(Math.round(zone.facing)).toBe(90)
+    aimed.position.y = 0
+    zones.update(500)
+    expect(Math.round(zone.facing)).toBe(90)
+  })
 })

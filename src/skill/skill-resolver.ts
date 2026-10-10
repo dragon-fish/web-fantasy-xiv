@@ -244,8 +244,12 @@ export class SkillResolver {
     for (const zoneDef of skill.zones) {
       if (zoneDef.anchor.type === 'party') {
         const picked = this.pickPartyMarkers?.(caster, zoneDef.anchor) ?? (targetEntity ? [targetEntity] : [])
+        // From the caster, aimed at the member (locked now): a plain caster zone pointed their way
+        const aimed: AoeZoneDef | null = zoneDef.anchor.origin === 'caster'
+          ? { ...zoneDef, anchor: { type: 'caster' }, direction: { type: 'toward_target' } }
+          : null
         for (const member of picked) {
-          this.zoneMgr.spawn(zoneDef, skill.id, casterPos, caster.facing,
+          this.zoneMgr.spawn(aimed ?? zoneDef, skill.id, casterPos, caster.facing,
             { x: member.position.x, y: member.position.y }, caster.id, member.id)
         }
         continue

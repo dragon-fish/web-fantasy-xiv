@@ -1,6 +1,6 @@
 // src/combat/party.ts
 // Factions, the player's party, and how skills pick party members.
-import type { PartySelect } from '@/core/types'
+import type { PartySelect, Role } from '@/core/types'
 import { NEUTRAL_TEAM, PARTY_TEAM, type Entity } from '@/entity/entity'
 
 /** The player's party: the player plus NPC allies */
@@ -57,8 +57,9 @@ export function pickAllyTarget(caster: Entity, entities: Iterable<Entity>, mode:
  * `members`: living party members (untargetable ones, e.g. jailed, are never picked);
  * `enmity`: the caster's ranking, top first.
  */
-export function selectPartyTargets(sel: PartySelect, living: Entity[], enmity: Entity[], rng: () => number = Math.random): Entity[] {
-  const members = living.filter(m => m.targetable)
+export function selectPartyTargets(sel: PartySelect & { exclude?: Role | Role[] }, living: Entity[], enmity: Entity[], rng: () => number = Math.random): Entity[] {
+  const excluded = sel.exclude == null ? [] : Array.isArray(sel.exclude) ? sel.exclude : [sel.exclude]
+  const members = living.filter(m => m.targetable && !(m.role && excluded.includes(m.role)))
   if (members.length === 0) return []
   const pickRandom = () => members[Math.floor(rng() * members.length)]!
   switch (sel.select) {

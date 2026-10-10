@@ -118,4 +118,10 @@ describe('selectPartyTargets', () => {
     expect(selectPartyTargets({ select: 'enmity', rank: [1, 2] }, members, [tank, dps])).toEqual([tank, dps])
     expect(selectPartyTargets({ select: 'enmity', rank: 3 }, members, [tank, dps])).toEqual([])
   })
+  it('exclude: those roles are never picked, even to fill a count', () => {
+    const { members } = party()
+    const picked = selectPartyTargets({ select: 'count', count: 3, exclude: 'tank' }, members, [], seq(0, 0.9, 0.4))
+    expect(picked.map(e => e.role)).not.toContain('tank')
+    expect(picked).toHaveLength(3)
+  })
 })
