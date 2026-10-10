@@ -115,11 +115,11 @@ describe('party mechanics', () => {
     expect(prisoner.visible).toBe(true)
     expect(prisoner.targetable).toBe(true)
   })
-  it('onlyTarget: a gaol takes the marked member only, not someone standing on them', () => {
+  it('targeted: a gaol takes the marked member only, not someone standing on them', () => {
     const { mgr, zones, member, cast } = setup()
     const marked = member('npc1', 5, 0)
     const bystander = member('npc2', 5, 0)
-    cast({ anchor: { type: 'party', select: 'count', count: 1, exclude: 'healer' }, onlyTarget: true, shape: { type: 'circle', radius: 0.6 }, effects: [{ type: 'imprison', hp: 5000 }] })
+    cast({ anchor: { type: 'party', select: 'count', count: 1, exclude: 'healer' }, targeted: true, effects: [{ type: 'imprison', hp: 5000 }] })
     const targetId = zones.getActiveZones()[0]!.targetId
     zones.update(1000)
     const jailed = [marked, bystander].filter(m => !m.targetable).map(m => m.id)

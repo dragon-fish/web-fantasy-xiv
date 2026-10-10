@@ -91,6 +91,12 @@ function parseZone(raw: any): AoeZoneDef {
   // Party marker sugar: `anchor: { select: each }` → `{ type: 'party', select: 'each' }`
   if (anchor && anchor.type == null && anchor.select != null) anchor = { type: 'party', ...anchor }
 
+  // Targeted skills have no area
+  if (raw.targeted) {
+    shape ??= { type: 'circle', radius: 0 }
+    direction ??= { type: 'none' }
+  }
+
   return {
     anchor,
     direction,
@@ -101,9 +107,9 @@ function parseZone(raw: any): AoeZoneDef {
     effects: raw.effects ?? [],
     displacementHint: raw.displacementHint,
     marker: raw.marker,
-    telegraph: raw.telegraph,
+    telegraph: raw.targeted ? false : raw.telegraph,
     share: raw.share,
-    onlyTarget: raw.onlyTarget,
+    targeted: raw.targeted,
   }
 }
 

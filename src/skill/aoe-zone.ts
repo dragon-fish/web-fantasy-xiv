@@ -135,9 +135,8 @@ export class AoeZoneManager {
       if (!entity.targetable) continue
       if (caster && !isHostile(caster, entity)) continue
       if (zone.def.exceptTarget && entity.id === zone.targetId) continue
-      if (zone.def.onlyTarget && entity.id !== zone.targetId) continue
       const point: Vec2 = { x: entity.position.x, y: entity.position.y }
-      if (isPointInAoeShape(point, zone.center, zone.def.shape, zone.facing)) {
+      if (zone.def.targeted ? entity.id === zone.targetId : isPointInAoeShape(point, zone.center, zone.def.shape, zone.facing)) {
         hitEntities.push(entity)
       }
     }

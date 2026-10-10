@@ -143,7 +143,7 @@ export interface AoeZoneDef {
   /** false = no ground telegraph (raidwides: FFXIV shows only the cast bar). Default true. */
   telegraph?: boolean
   /** Overhead marker on the anchored entity while the zone is pending (renderer-only) */
-  marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull'
+  marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull' | 'lockon'
   /**
    * Damage split among everyone hit: `even` divides it equally; `{ front }` (lines / fans) puts
    * `front` of it on the member nearest the origin and splits the rest among the others.
@@ -152,8 +152,11 @@ export interface AoeZoneDef {
   share?: 'even' | { front: number }
   /** Splash of a single-target skill: skips the caster's target, which takes the skill's own hit */
   exceptTarget?: boolean
-  /** Lands on the marked member only, whoever else stands in it (gaols, debuff markers) */
-  onlyTarget?: boolean
+  /**
+   * Targeted skill (点名), not an AOE: the effects land on the marked member alone. Nothing is
+   * drawn on the floor and there is nothing to dodge or spread from; `shape` is unused.
+   */
+  targeted?: boolean
 }
 
 export interface SkillDef {

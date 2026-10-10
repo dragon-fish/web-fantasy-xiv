@@ -32,6 +32,7 @@ const MARKER_COLORS = {
   buster: Color3.FromHexString('#ff4a3a'),
   knockback: Color3.FromHexString('#ff9a3c'),
   pull: Color3.FromHexString('#7fb8ff'),
+  lockon: Color3.FromHexString('#ff6fd8'),
 }
 const DANCE_GOLD = Color3.FromHexString('#ffd27a')
 const CLASH_GOLD = Color3.FromHexString('#ffe6a0')
@@ -107,7 +108,7 @@ export class MechanicVfx {
       this.markers.set(zone.id, [driver])
       return
     }
-    if (kind === 'spread') {
+    if (kind === 'spread' || kind === 'lockon') {
       // FFXIV lock-on: red crystal sigil over the head, dark red ring at the feet
       const marker = new LockOnMarker(this.vfx.sm.scene)
       const driver = this.vfx.spawn('ground', 'glowDisc', color, Infinity, (f) => {

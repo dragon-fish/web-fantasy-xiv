@@ -235,9 +235,9 @@ export class NpcBrain {
     const e = this.entity
     // Markers that ride on their carrier; circles locked where someone stood are plain ground AOEs
     const riding = (z: ActiveAoeZone) => followsAnchor(z.def.anchor)
-    const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && riding(z) && !z.def.share).map(z => z.anchorEntityId))
+    const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && riding(z) && !z.def.share && !z.def.targeted).map(z => z.anchorEntityId))
     const avoid = zones.filter((z) => {
-      if (z.def.telegraph === false || z.def.share) return false
+      if (z.def.telegraph === false || z.def.share || z.def.targeted) return false
       if (z.anchorEntityId === e.id) return !riding(z)
       const carrier = z.anchorEntityId ? this.world.entities.get(z.anchorEntityId) : undefined
       if (!riding(z) || !carrier || !isPartyMember(carrier) || !marked.has(e.id)) return true

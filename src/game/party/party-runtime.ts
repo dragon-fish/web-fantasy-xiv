@@ -165,7 +165,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     if (spots.hasHint()) return
     const groups = new Map<string, ActiveAoeZone[]>()
     for (const z of s.zoneMgr.getActiveZones()) {
-      if (z.resolved || z.def.share || !followsAnchor(z.def.anchor) || z.def.anchor.type !== 'party' || !z.anchorEntityId || !z.casterId) continue
+      if (z.resolved || z.def.share || z.def.targeted || !followsAnchor(z.def.anchor) || z.def.anchor.type !== 'party' || !z.anchorEntityId || !z.casterId) continue
       const key = `${z.casterId}:${z.skillId}`
       groups.set(key, [...(groups.get(key) ?? []), z])
     }

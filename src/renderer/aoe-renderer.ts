@@ -125,7 +125,7 @@ export class AoeRenderer {
 
   private createMesh(zone: ActiveAoeZone): void {
     // Shared damage shows FFXIV's stack chevrons instead (MechanicVfx), never a danger fill
-    if (zone.def.telegraph === false || zone.def.share) return
+    if (zone.def.telegraph === false || zone.def.share || zone.def.targeted) return
     const isPlayer = this.isPlayerCaster(zone)
     const geo = telegraphGeometry(zone.def.shape)
     if (!geo) return

@@ -263,11 +263,8 @@ skills:
     targetType: aoe
     zones:
       - anchor: { select: count, count: 1, exclude: tank }
-        direction: { type: none }
-        shape: { type: circle, radius: 0.6 }
-        marker: spread
-        onlyTarget: true
-        telegraph: false
+        targeted: true
+        marker: lockon
         resolveDelay: 3000
         hitEffectDuration: 0
         effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
@@ -278,11 +275,8 @@ skills:
     targetType: aoe
     zones:
       - anchor: { select: count, count: 2, exclude: tank }
-        direction: { type: none }
-        shape: { type: circle, radius: 0.6 }
-        marker: spread
-        onlyTarget: true
-        telegraph: false
+        targeted: true
+        marker: lockon
         resolveDelay: 3000
         hitEffectDuration: 0
         effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
