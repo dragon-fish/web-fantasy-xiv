@@ -32,6 +32,12 @@ const AOE_HEAL_BELOW = 0.7
 const SELF_SAVE_BELOW = 0.33
 /** Someone this low is single-healed before any party heal, whatever the numbers say */
 const CRITICAL_BELOW = 0.25
+/** A tankbuster's target is healed up to this before it lands */
+const BUSTER_TOP_UP = 0.9
+/** Its urgency climbs over this last stretch of the cast… */
+const BUSTER_WINDOW_MS = 6000
+/** …and inside this it beats everything but the healer's own rescue */
+const BUSTER_LAST_CALL_MS = 2500
 /** ±share of random wobble on urgency and on the heal comparison */
 const HEAL_JITTER = 0.1
 /** Party mitigation goes out in a panic when this many members are under this HP ratio */
@@ -96,6 +102,8 @@ export interface HealerSense {
   player: Entity
   /** A raidwide is coming and has not been answered yet */
   raidwideComing: boolean
+  /** A pending tankbuster: whom it is aimed at, and how soon it lands */
+  buster: { target: Entity; inMs: number } | null
   /** HP one single heal / one party heal restores */
   singleHeal: number
   partyHeal: number
@@ -105,10 +113,11 @@ export interface HealerSense {
 const ratio = (e: Entity) => e.hp / Math.max(1, e.maxHp)
 
 /**
- * Healer duty. Self-save first (< 33%), then anyone critical (< 25%), then raises — a fight that
- * keeps chipping the party would otherwise starve them forever. Then single heals (tank < 70%,
- * others < 60%) by a curved urgency and party heals (two or more < 70%): when both apply, the party
- * heal goes first if it restores more in total. Then raidwide prep.
+ * Healer duty. Self-save first (< 33%), then a tankbuster about to land on a target under 90%, then
+ * anyone critical (< 25%), then raises — a fight that keeps chipping the party would otherwise
+ * starve them forever. Then single heals (tank < 70%, others < 60%, a tankbuster's target < 90%) by
+ * a curved urgency that the coming tankbuster raises as it nears, and party heals (two or more
+ * < 70%): when both apply, the party heal goes first if it restores more in total. Then raidwide prep.
  */
 export function chooseHealerAction(sense: HealerSense): HealerAction {
   const { party, self, player, rng } = sense
@@ -116,11 +125,15 @@ export function chooseHealerAction(sense: HealerSense): HealerAction {
   const alive = party.filter(e => e.alive)
   if (self.alive && ratio(self) < SELF_SAVE_BELOW) return { kind: 'heal', target: self }
 
-  // Urgency grows steeply as HP falls below the member's threshold
-  const threshold = (e: Entity) => (e.role === 'tank' ? TANK_HEAL_BELOW : SINGLE_HEAL_BELOW)
+  const buster = sense.buster?.target.alive ? sense.buster : null
+  if (buster && buster.inMs <= BUSTER_LAST_CALL_MS && ratio(buster.target) < BUSTER_TOP_UP) return { kind: 'heal', target: buster.target }
+
+  // Urgency grows steeply as HP falls below the member's threshold, and as a tankbuster on them nears
+  const threshold = (e: Entity) => (e === buster?.target ? BUSTER_TOP_UP : e.role === 'tank' ? TANK_HEAL_BELOW : SINGLE_HEAL_BELOW)
+  const busterBoost = (e: Entity) => (e === buster?.target ? 1 + 2 * Math.max(0, Math.min(1, 1 - buster.inMs / BUSTER_WINDOW_MS)) : 1)
   const single = alive
     .filter(e => ratio(e) < threshold(e))
-    .map(e => ({ e, urgency: Math.pow((threshold(e) - ratio(e)) / threshold(e), 0.6) * wobble() }))
+    .map(e => ({ e, urgency: Math.pow((threshold(e) - ratio(e)) / threshold(e), 0.6) * busterBoost(e) * wobble() }))
     .sort((a, b) => b.urgency - a.urgency)[0]?.e
   const aoe = alive.filter(e => ratio(e) < AOE_HEAL_BELOW).length >= 2
 
@@ -289,7 +302,7 @@ export class NpcBrain {
       : w.ground
     const target = this.pickTarget(threats)
     if (target) e.target = target.id
-    this.dest = this.chooseDestination(target, hazards, threats, knockbacks.length > 0)
+    this.dest = this.chooseDestination(target, hazards, threats)
     const moving = dist(pos(e), this.dest) > ARRIVED
 
     // Casters and healers get to safety first, then cast again from there (even with the AOE still pending)
@@ -365,7 +378,7 @@ export class NpcBrain {
    * Movement state: a mechanic spot wins; with nothing to attack, the idle formation; the tank holds
    * the boss at the tank spot; everyone else is in free mode (`fightSpot`).
    */
-  private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[], threats: ActiveAoeZone[], knockback: boolean): Vec2 {
+  private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[], threats: ActiveAoeZone[]): Vec2 {
     const w = this.world
     const e = this.entity
     const stack = this.stackToJoin(threats)
@@ -376,7 +389,8 @@ export class NpcBrain {
     this.fight = null
     const preferred = this.preferredPosition(target)
     const here = pos(e)
-    if (hazards.length === 0 && (!knockback || this.ground.standable(preferred))) {
+    // Lava (a damage death zone) can sit right where the tank would hold the boss: step off it too
+    if (hazards.length === 0 && this.ground.standable(preferred)) {
       this.dodge = null
       // Close enough already: don't chase every small drift of the boss
       return dist(here, preferred) < 1.2 ? here : preferred
@@ -598,8 +612,12 @@ export class NpcBrain {
       const effect = skill?.effects?.find(x => x.type === 'heal' || x.type === 'party_heal')
       return effect && 'potency' in effect ? effect.potency * e.attack : 0
     }
+    const busterZone = threats.find(z => isBuster(damageEffects(z)))
+    const busterOn = busterZone ? w.entities.get(busterZone.targetId ?? busterZone.anchorEntityId ?? '') : undefined
+    const buster = busterZone && busterOn && isPartyMember(busterOn)
+      ? { target: busterOn, inMs: busterZone.def.resolveDelay - busterZone.elapsed } : null
     const action = chooseHealerAction({
-      party, self: e, player: w.player, raidwideComing: !!raidwide,
+      party, self: e, player: w.player, raidwideComing: !!raidwide, buster,
       singleHeal: healOf(kit.heal), partyHeal: healOf(kit.aoeHeal), rng: w.rng,
     })
     if (!action) return false

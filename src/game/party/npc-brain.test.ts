@@ -11,7 +11,7 @@ const member = (id: string, role: 'tank' | 'healer' | 'dps', hpRatio: number, al
 function sense(party: ReturnType<typeof member>[], over: Partial<HealerSense> = {}): HealerSense {
   return {
     party, self: party.find(e => e.role === 'healer')!, player: party[0]!,
-    raidwideComing: false, singleHeal: 4000, partyHeal: 2500, rng: () => 0.5, ...over,
+    raidwideComing: false, buster: null, singleHeal: 4000, partyHeal: 2500, rng: () => 0.5, ...over,
   }
 }
 
@@ -68,5 +68,16 @@ describe('chooseHealerAction', () => {
     const tank = member('tank', 'tank', 0.2)
     const healer = member('healer', 'healer', 1)
     expect(chooseHealerAction(sense([player, tank, healer], { player }))).toEqual({ kind: 'heal', target: tank })
+  })
+
+  it('tops the tank up to 90% before a tankbuster lands, the more urgently the closer it is', () => {
+    const tank = member('tank', 'tank', 0.8)
+    const dps = member('dps', 'dps', 0.3)
+    const healer = member('healer', 'healer', 1)
+    expect(chooseHealerAction(sense([tank, healer]))).toBeNull()
+    expect(chooseHealerAction(sense([tank, healer], { buster: { target: tank, inMs: 6000 } }))).toEqual({ kind: 'heal', target: tank })
+    // Far off: someone much lower comes first; about to land: the tank does
+    expect(chooseHealerAction(sense([tank, dps, healer], { buster: { target: tank, inMs: 6000 } }))).toEqual({ kind: 'heal', target: dps })
+    expect(chooseHealerAction(sense([tank, dps, healer], { buster: { target: tank, inMs: 1500 } }))).toEqual({ kind: 'heal', target: tank })
   })
 })
