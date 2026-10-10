@@ -89,7 +89,7 @@ export class PhaseScheduler {
    * without replaying casts.
    */
   seek(ms: number): void {
-    const active = this.activePhases[this.activePhases.length - 1]
+    const active = this.latest()
     if (!active) return
     if (ms > active.elapsed) {
       const actions = active.def.actions
@@ -131,10 +131,16 @@ export class PhaseScheduler {
     }
   }
 
+  /** The most recently activated phase that is not a background one (what the HUD calls "the" phase) */
+  private latest(): ActivePhase | undefined {
+    const main = this.activePhases.filter(a => !a.def.background)
+    return main[main.length - 1] ?? this.activePhases[this.activePhases.length - 1]
+  }
+
   /** Flat list of upcoming/recent actions from the latest active phase, with absolute times for display */
   getAllActions(): { action: TimelineAction; phaseId: string; absoluteAt: number }[] {
     // Only show actions from the most recently activated phase
-    const active = this.activePhases[this.activePhases.length - 1]
+    const active = this.latest()
     if (!active) return []
 
     const result: { action: TimelineAction; phaseId: string; absoluteAt: number }[] = []
@@ -152,10 +158,10 @@ export class PhaseScheduler {
 
   /** Get the latest active phase info for UI display */
   getLatestPhase(): { id: string; name?: string; index: number; total: number } | null {
-    if (this.activePhases.length === 0) return null
-    const latest = this.activePhases[this.activePhases.length - 1]
-    const index = this.phases.indexOf(latest.def)
-    return { id: latest.def.id, name: latest.def.name, index: index + 1, total: this.phases.length }
+    const latest = this.latest()
+    if (!latest) return null
+    const main = this.phases.filter(p => !p.background)
+    return { id: latest.def.id, name: latest.def.name, index: main.indexOf(latest.def) + 1, total: main.length }
   }
 
   getPhaseElapsed(phaseId: string): number | null {
