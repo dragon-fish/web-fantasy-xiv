@@ -1,0 +1,596 @@
+# 泰坦歼灭战 — 4 人小队简单版
+# 设计：docs/superpowers/specs/2026-10-10-titan-hard-design.md
+# 时间轴参照 cactbot ui/raidboss/data/02-arr/trial/titan-hm.txt；技能定义来自歼殛战，数值调低。
+# 数值：boss attack = 1，potency 即固定伤害。可躲机制 2800，爆破岩石 2000，全屏 1200–2000。
+# 场地全程 15m、有围栏；血量压到节点即切下一阶段（exclusive），剩余时间轴跳过。
+
+party:
+  # NPC 输出按本体血量向这个时间收敛；心核与石牢的停顿不在其中
+  targetTime: 240
+  mistakeRate: 0.02
+  idle: { x: 0, y: -4 }
+  tankSpot: { x: 0, y: 0, facing: north }
+
+checkpoints:
+  p2: 0
+  九连桶: 13
+
+arena:
+  name: 纳沃尔
+  shape: circle
+  radius: 15
+  boundary: wall
+  theme: stone
+
+entities:
+  boss:
+    name: 泰坦
+    type: boss
+    model: giant
+    group: boss
+    hp: 350000
+    attack: 1
+    speed: 4
+    size: 5
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 7
+    aggroRange: 9
+  # 不可见的施法辅助：与泰坦本体并行的爆破岩石
+  helper:
+    type: mob
+    group: helper
+    hp: 1
+    attack: 1
+    size: 0.1
+    visible: false
+    targetable: false
+    position: { x: 0, y: 0, z: 0 }
+  # P4：泰坦的核心（DPS 检测）
+  heart:
+    name: 泰坦的核心
+    type: mob
+    model: titan-heart
+    group: heart
+    hp: 30000
+    attack: 1
+    speed: 0
+    size: 1.2
+    visible: false
+    targetable: false
+    priority: 50
+    position: { x: 0, y: -1, z: 0 }
+    autoAttackRange: 0
+  # 花岗石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「花岗岩坟墓」。
+  # NPC 先救人：优先级高于泰坦的核心（50）
+  gaol:
+    template: true
+    name: 花岗石牢
+    type: mob
+    model: jail
+    group: gaol
+    hp: 10000
+    attack: 1
+    speed: 0
+    size: 1
+    priority: 60
+    autoAttackRange: 0
+    onSpawn: [gaol_lock, gaol_burst]
+
+player:
+  position: { x: 0, y: -10, z: 0 }
+
+boss_ai:
+  chaseRange: 5
+  autoAttackRange: 8
+  autoAttackInterval: 3000
+  aggroRange: 9
+
+local_buffs:
+  # 石牢施加：隐藏、不可选中、无法行动；石牢死亡（被打破或崩塌）即解除
+  imprisoned:
+    name: 花岗石牢
+    type: debuff
+    icon: https://r2.epb.wiki/ffxiv/effects/015001_hr1.png
+    description: 被关在石牢中，无法行动。石牢被破坏后解除。
+    preserveOnDeath: true
+    effects: [{ type: stun }, { type: hidden }, { type: untargetable }]
+  rock_throw_stun:
+    name: 眩晕
+    type: debuff
+    duration: 1000
+    effects: [{ type: stun }]
+  titan_invuln:
+    name: 无敌
+    type: buff
+    effects:
+      - { type: invulnerable }
+
+skills:
+  boss_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 10
+    effects: [{ type: damage, potency: 450 }]
+
+  # --- 怒震：全屏（P1–P4 3 段，P5 4 段） ---
+  tumult:
+    name: 怒震
+    type: spell
+    castTime: 2000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 2000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 1500, hits: 3 }]
+
+  tumult_four:
+    name: 怒震
+    type: spell
+    castTime: 2000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 2000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 2000, hits: 4 }]
+
+  # --- 地裂：正前一路直线 + 击退（撞墙即停） ---
+  landslide:
+    name: 地裂
+    type: spell
+    castTime: 2200
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: 0 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 2800 }
+          - { type: knockback, distance: 12 }
+
+  # --- 大地之重：每人脚下，点名瞬间锁定位置 ---
+  weight_of_land:
+    name: 大地之重
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { select: each, follow: false }
+        direction: { type: none }
+        shape: { type: circle, radius: 6 }
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 2800 }]
+
+  # --- 碎岩（P1–P3）：朝一仇的小顺劈 ---
+  rock_buster:
+    name: 碎岩
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        # 一直对着一仇转，直到结算：一仇硬吃，其他人别站泰坦正面
+        trackTarget: true
+        shape: { type: fan, radius: 10, angle: 90 }
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 3500 }]
+      # 头顶死刑标记
+      - anchor: { select: enmity, rank: 1 }
+        direction: { type: none }
+        shape: { type: circle, radius: 0.5 }
+        marker: buster
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 0
+        effects: []
+
+  # --- 山崩（P5）：朝一仇的扇形死刑 ---
+  mountain_buster:
+    name: 山崩
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        # 躲不掉：一直对着一仇转，直到结算
+        trackTarget: true
+        shape: { type: fan, radius: 16, angle: 120 }
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 6500, dmgType: tankbuster, when: { role: tank } }
+          - { type: damage, potency: 4500, when: { role: [dps, healer] } }
+      # 头顶死刑标记
+      - anchor: { select: enmity, rank: 1 }
+        direction: { type: none }
+        shape: { type: circle, radius: 0.5 }
+        marker: buster
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 0
+        effects: []
+
+  # --- 大地粉碎（转 P2）：全屏 ---
+  geocrush_transition:
+    name: 大地粉碎
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 600
+        effects: [{ type: damage, potency: 1200 }]
+
+  # --- 大地粉碎（之后）：中心大圆 + 外沿月环，安全带 10–14m ---
+  geocrush:
+    name: 大地粉碎
+    type: spell
+    castTime: 3500
+    targetType: aoe
+    zones:
+      - anchor: { type: position, x: 0, y: 0 }
+        direction: { type: none }
+        shape: { type: circle, radius: 10 }
+        resolveDelay: 3500
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 4000 }]
+      - anchor: { type: position, x: 0, y: 0 }
+        direction: { type: none }
+        shape: { type: ring, innerRadius: 14, outerRadius: 30 }
+        resolveDelay: 3500
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 4000 }]
+
+  # --- 花岗岩牢狱：点 1 名非坦克关进石牢 ---
+  rock_throw_single:
+    name: 花岗岩牢狱
+    type: ability
+    targetType: aoe
+    zones:
+      - anchor: { select: count, count: 1, exclude: tank }
+        targeted: true
+        marker: target
+        resolveDelay: 3000
+        hitEffectDuration: 0
+        # 泰坦先把被点名者眩晕一小会儿，石牢再出现在他身上
+        effects: [{ type: apply_buff, buffId: rock_throw_stun }, { type: spawn, entity: gaol }]
+
+  # --- 石牢出现即锁住目标 ---
+  gaol_lock:
+    name: 花岗石牢
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 0
+    effects: [{ type: apply_buff, buffId: imprisoned, target: target }]
+
+  # --- 石牢自己的读条（目标是被关的人）：读完时杀死里面的人、全屏伤害、石牢自毁；石牢被打破则读条取消 ---
+  gaol_burst:
+    name: 花岗岩坟墓
+    type: spell
+    castTime: 40000
+    targetType: aoe
+    effects:
+      - { type: damage, potency: 999999, dmgType: special }
+      - { type: self_destruct }
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 40000
+        hitEffectDuration: 600
+        effects: [{ type: damage, potency: 2500 }]
+
+  # --- 九连桶·环形：外圈 6 块 + 中心 1 块，每秒出现一块，出现 6s 后爆炸 ---
+  bury_clock_cw:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+  bury_clock_ccw:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+  bury_clock_cw_rev:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+  bury_clock_ccw_rev:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+
+  # --- 九连桶·正斜：四个正点一波、四个斜点和中心一波，相隔 2.5s ---
+  bury_cross_cardinal:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0.0, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 11.0, y: 0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: -11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -11.0, y: -0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+  bury_cross_diagonal:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 11.0, y: 0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0.0, y: -11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -11.0, y: -0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+
+  # --- 三穿一：三排依次落下、依次爆炸（落下顺序 = 爆炸顺序） ---
+  row_w:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: -9, y: -9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -9, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: -9, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+  row_c:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: -9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 0, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+  row_e:
+    name: 爆炸
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 9, y: -9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 9, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+      - { anchor: { type: position, x: 9, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 2000 }] }
+
+  # --- 泰坦的核心阶段 ---
+  titan_shield:
+    name: 大地之心
+    type: ability
+    targetType: single
+    effects: [{ type: apply_buff, buffId: titan_invuln, target: caster }]
+  titan_unshield:
+    name: 大地之怒
+    type: ability
+    targetType: single
+    effects: [{ type: consume_buffs, buffIds: [titan_invuln] }]
+  earthen_fury:
+    name: 大地之怒
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 800
+        effects: [{ type: damage, potency: 1200 }]
+  earthen_fury_fail:
+    name: 大地之怒
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 800
+        effects:
+          - { type: apply_buff, buffId: revive_denied, duration: 5000 }
+          - { type: damage, potency: 99999, dmgType: special }
+
+  # --- 软狂暴 ---
+  upheaval_enrage:
+    name: 大怒震
+    type: spell
+    castTime: 8000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 8000
+        hitEffectDuration: 800
+        effects:
+          - { type: apply_buff, buffId: revive_denied, duration: 5000 }
+          - { type: damage, potency: 99999, dmgType: special }
+
+phases:
+  # ===== P1（100–80%）=====
+  phase_default:
+    hpFloor: 80
+    actions:
+      - { at: 0, action: enable_ai }
+      - { at: 3000, use: rock_buster }
+      - { at: 9000, use: landslide }
+      - { at: 15000, use: tumult }
+      - { at: 22000, use: rock_buster }
+      - { at: 28000, use: landslide }
+      - { at: 34000, use: tumult }
+      - { at: 41000, loop: 3000 }
+
+  # ===== P2（80–60%）=====
+  p2:
+    name: P2
+    trigger: { on_hp_below: { group: boss, percent: 80 } }
+    exclusive: true
+    hpFloor: 60
+    actions:
+      - { at: 0, action: disable_ai }
+      - { at: 0, action: teleport, position: { x: 0, y: 0 } }
+      - { at: 300, use: geocrush_transition }
+      - { at: 3500, action: enable_ai }
+      - { at: 8000, use: weight_of_land }
+      - { at: 14000, use: rock_buster }
+      - { at: 19000, use: landslide }
+      - { at: 25000, use: tumult }
+      - { at: 32000, use: geocrush }
+      - { at: 39000, use: weight_of_land }
+      - { at: 45000, use: rock_buster }
+      - { at: 50000, use: landslide }
+      - { at: 56000, use: tumult }
+      - { at: 63000, loop: 8000 }
+
+  # ===== P3（60–40%）=====
+  p3:
+    name: P3
+    trigger: { on_hp_below: { group: boss, percent: 60 } }
+    exclusive: true
+    hpFloor: 40
+    actions:
+      - { at: 2000, use: landslide }
+      - { at: 7000, use: weight_of_land }
+      # 九连桶·环形：顺/逆时针，或中间先炸（12s 才炸完）
+      - at: 13000
+        choose:
+          - [{ use: bury_clock_cw, entity: helper }]
+          - [{ use: bury_clock_ccw, entity: helper }]
+          - [{ use: bury_clock_cw_rev, entity: helper }]
+          - [{ use: bury_clock_ccw_rev, entity: helper }]
+      - { at: 27000, use: rock_buster }
+      - { at: 32000, use: rock_throw_single }
+      - { at: 37000, use: landslide }
+      - { at: 43000, use: weight_of_land }
+      - { at: 49000, use: rock_buster }
+      - { at: 54000, use: tumult }
+      # 九连桶·正斜：正点先 / 斜点和中间先
+      - at: 61000
+        choose:
+          - [{ use: bury_cross_cardinal, entity: helper }]
+          - [{ use: bury_cross_diagonal, entity: helper }]
+      - { at: 71000, use: landslide }
+      - { at: 77000, use: geocrush }
+      - { at: 84000, loop: 2000 }
+
+  # ===== P4 心核（30s DPS 检测）=====
+  p4:
+    name: 泰坦的核心
+    trigger: { on_hp_below: { group: boss, percent: 40 } }
+    exclusive: true
+    hpFloor: 40
+    actions:
+      - { at: 0, action: disable_ai }
+      - { at: 0, use: titan_shield }
+      - { at: 0, action: set_targetable, value: false }
+      - { at: 500, action: set_visible, entity: heart, value: true }
+      - { at: 1000, action: set_targetable, entity: heart, value: true }
+      - { at: 3000, use: tumult }
+      - { at: 18000, use: tumult }
+      - { at: 30000, use: earthen_fury_fail }
+
+  # ===== P5（40–0%）=====
+  p5:
+    name: P5
+    trigger: { on_all_killed: { group: heart } }
+    exclusive: true
+    actions:
+      - { at: 0, use: earthen_fury }
+      - { at: 3000, use: titan_unshield }
+      - { at: 3000, action: set_targetable, value: true }
+      - { at: 3500, action: enable_ai }
+      - { at: 7000, use: mountain_buster }
+      - { at: 12000, use: tumult_four }
+      # 三穿一：三排依次落下（落下顺序即爆炸顺序）
+      - at: 20000
+        choose:
+          - [{ use: row_w, entity: helper }, { after: 1500, use: row_c, entity: helper }, { after: 3000, use: row_e, entity: helper }]
+          - [{ use: row_e, entity: helper }, { after: 1500, use: row_c, entity: helper }, { after: 3000, use: row_w, entity: helper }]
+          - [{ use: row_c, entity: helper }, { after: 1500, use: row_w, entity: helper }, { after: 3000, use: row_e, entity: helper }]
+          - [{ use: row_c, entity: helper }, { after: 1500, use: row_e, entity: helper }, { after: 3000, use: row_w, entity: helper }]
+          - [{ use: row_w, entity: helper }, { after: 1500, use: row_e, entity: helper }, { after: 3000, use: row_c, entity: helper }]
+          - [{ use: row_e, entity: helper }, { after: 1500, use: row_w, entity: helper }, { after: 3000, use: row_c, entity: helper }]
+      - { at: 31000, use: landslide }
+      - { at: 36000, use: weight_of_land }
+      - { at: 42000, use: rock_throw_single }
+      - { at: 47000, use: mountain_buster }
+      - { at: 52000, use: landslide }
+      - at: 58000
+        choose:
+          - [{ use: bury_clock_cw, entity: helper }]
+          - [{ use: bury_clock_ccw, entity: helper }]
+          - [{ use: bury_clock_cw_rev, entity: helper }]
+          - [{ use: bury_clock_ccw_rev, entity: helper }]
+      - { at: 72000, use: tumult_four }
+      - { at: 79000, use: weight_of_land }
+      - { at: 84000, use: mountain_buster }
+      - { at: 89000, use: geocrush }
+      - { at: 96000, loop: 7000 }
+
+  # ===== 软狂暴：开怪 6:30 =====
+  enrage:
+    trigger: on_combat_start
+    background: true
+    actions:
+      - { at: 390000, use: upheaval_enrage }
+      - { at: 400000, loop: 390000 }
