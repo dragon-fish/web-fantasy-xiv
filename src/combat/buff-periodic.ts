@@ -39,12 +39,14 @@ export function buildPeriodicSnapshot(
       targetMaxMp: target.maxMp,
     }
   }
-  // dot / hot
+  // dot / hot: a HoT freezes the caster's healing increase (it keeps ticking boosted after the
+  // buff ends, until the HoT is reapplied); a DoT freezes damage increases
+  const heal = buffSystem.getHealIncrease(caster)
   return {
     // Route through BuffSystem.getAttack so attack_modifier buffs are frozen
     // into the snapshot (spec §12 contract 5).
     attack: buffSystem.getAttack(caster),
-    casterIncreases: buffSystem.getDamageIncreases(caster),
+    casterIncreases: effect.type === 'hot' ? (heal ? [heal] : []) : buffSystem.getDamageIncreases(caster),
     potency: effect.potency,
   }
 }

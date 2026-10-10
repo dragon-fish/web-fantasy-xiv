@@ -50,6 +50,17 @@ export const WHITE_MAGE_BUFFS: Record<string, BuffDef> = {
     maxStacks: 1,
     effects: [{ type: 'mitigation', value: 0.1 }],
   },
+  whm_temperance_heal: {
+    id: 'whm_temperance_heal',
+    name: '节制',
+    description: '治疗量提高 20%。持续治疗在施加时计入。',
+    icon: icon('player_skill_effects', 12633),
+    type: 'buff',
+    duration: 20000,
+    stackable: false,
+    maxStacks: 1,
+    effects: [{ type: 'heal_increase', value: 0.2 }],
+  },
   // Free Raise ↔ its recharge: spending one starts the other, so a free raise returns 180s after use
   whm_free_raise: {
     id: 'whm_free_raise',

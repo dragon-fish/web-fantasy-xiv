@@ -43,8 +43,13 @@ export const NPC_BUFFS: Record<string, BuffDef> = {
   },
   npc_party_mit: {
     id: 'npc_party_mit', name: '节制', description: '受到的伤害降低 10%。',
-    icon: icon('player_skill_effects', 12634), type: 'buff', duration: 15000,
+    icon: icon('player_skill_effects', 12634), type: 'buff', duration: 20000,
     stackable: false, maxStacks: 1, effects: [{ type: 'mitigation', value: 0.1 }],
+  },
+  npc_heal_up: {
+    id: 'npc_heal_up', name: '节制', description: '治疗量提高 20%。',
+    icon: icon('player_skill_effects', 12633), type: 'buff', duration: 20000,
+    stackable: false, maxStacks: 1, effects: [{ type: 'heal_increase', value: 0.2 }],
   },
   npc_regen: {
     id: 'npc_regen', name: '医济', description: '体力持续恢复。',
@@ -177,7 +182,11 @@ export function buildNpcKit(job: PlayerJob): NpcKit {
       ...cast(2000), effects: [{ type: 'party_heal', potency: 1.5, radius: 20 }, { type: 'party_buff', buffId: 'npc_regen', radius: 20 }],
     })
     kit.partyMit = skill(id('party_mit'), borrow(job, look.partyMit!), {
-      cooldown: 60000, effects: [{ type: 'party_buff', buffId: 'npc_party_mit', radius: 30 }],
+      cooldown: 25000,
+      effects: [
+        { type: 'party_buff', buffId: 'npc_party_mit', radius: 30 },
+        { type: 'apply_buff', buffId: 'npc_heal_up', target: 'caster' },
+      ],
     })
     kit.raise = {
       ...WHITE_MAGE_RAISE, id: id('raise'), mpCost: 0,

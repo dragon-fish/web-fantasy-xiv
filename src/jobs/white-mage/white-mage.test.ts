@@ -101,4 +101,15 @@ describe('White Mage', () => {
     expect(buffs.hasBuff(near, 'whm_temperance')).toBe(true)
     expect(buffs.hasBuff(far, 'whm_temperance')).toBe(false)
   })
+  it("Temperance boosts the caster's heals by 20%, and a HoT applied under it keeps the boost", () => {
+    const { buffs, whm, ally, use } = setup()
+    const tank = ally('tank', 5, 1000)
+    use('whm_temperance')
+    expect(buffs.hasBuff(whm, 'whm_temperance_heal')).toBe(true)
+    use('whm_cure_ii')
+    expect(tank.hp).toBe(1000 + 4000 * 1.2)
+    use('whm_medica_ii')
+    const regen = tank.buffs.find(b => b.defId === 'whm_medica_ii')!
+    expect(regen.periodic!.snapshot.casterIncreases).toEqual([0.2])
+  })
 })

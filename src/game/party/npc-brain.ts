@@ -34,6 +34,9 @@ const SELF_SAVE_BELOW = 0.33
 const CRITICAL_BELOW = 0.25
 /** ±share of random wobble on urgency and on the heal comparison */
 const HEAL_JITTER = 0.1
+/** Party mitigation goes out in a panic when this many members are under this HP ratio */
+const PANIC_MIT_COUNT = 3
+const PANIC_MIT_BELOW = 0.5
 const ARRIVED = 0.4
 /** The tank drags the boss back toward the tank spot once it strays this far, and lets go this close (m) */
 const PULL_START = 6
@@ -481,7 +484,13 @@ export class NpcBrain {
     const e = this.entity
     const kit = this.kit
     const party = w.entities.getAll().filter(isPartyMember)
+    // Mitigation is spent ahead of raidwides and multi-target markers — or in a panic when the party
+    // is low, which can leave it on cooldown for the next raidwide
+    if (party.filter(m => m.alive && ratio(m) < PANIC_MIT_BELOW).length >= PANIC_MIT_COUNT
+      && w.skills.getCharges(e.id, kit.partyMit!) > 0) w.skills.tryUse(e, kit.partyMit!)
+    const markers = threats.filter(z => z.def.anchor.type === 'party' && !z.def.share && damageEffects(z).length > 0)
     const raidwide = threats.find(z => z.def.telegraph === false && !this.prepared.has(z.id) && damageEffects(z).length > 0)
+      ?? (markers.length >= 2 && !this.prepared.has(markers[0]!.id) ? markers[0] : undefined)
     const healOf = (skill: typeof kit.heal) => {
       const effect = skill?.effects?.find(x => x.type === 'heal' || x.type === 'party_heal')
       return effect && 'potency' in effect ? effect.potency * e.attack : 0

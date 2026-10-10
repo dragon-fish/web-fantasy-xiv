@@ -193,6 +193,7 @@ export interface SkillDef {
 export type BuffEffectDef =
   | { type: 'damage_increase'; value: number }
   | { type: 'mitigation'; value: number }
+  | { type: 'heal_increase'; value: number }  // healing done +value (additive); HoTs snapshot it when applied
   | { type: 'speed_modify'; value: number }
   | { type: 'dot'; potency: number; interval: number }
   | { type: 'hot'; potency: number; interval: number }

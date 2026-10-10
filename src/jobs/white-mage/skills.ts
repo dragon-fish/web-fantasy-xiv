@@ -101,7 +101,7 @@ export const WHITE_MAGE_SKILLS: SkillDef[] = [
     }],
     effects: [{ type: 'consume_all_buff_stacks', buffId: 'whm_blood_lily' }],
   },
-  // 6: Temperance — party mitigation
+  // 6: Temperance — party mitigation, and the caster's own heals hit harder
   {
     id: 'whm_temperance',
     name: '节制',
@@ -109,13 +109,16 @@ export const WHITE_MAGE_SKILLS: SkillDef[] = [
     icon: WHM(2645),
     type: 'ability',
     castTime: 0,
-    cooldown: 120000,
+    cooldown: 25000,
     gcd: false,
     targetType: 'aoe',
     requiresTarget: false,
     range: 0,
     mpCost: 0,
-    effects: [{ type: 'party_buff', buffId: 'whm_temperance', radius: 30 }],
+    effects: [
+      { type: 'party_buff', buffId: 'whm_temperance', radius: 30 },
+      { type: 'apply_buff', buffId: 'whm_temperance_heal', target: 'caster' },
+    ],
   },
 ]
 

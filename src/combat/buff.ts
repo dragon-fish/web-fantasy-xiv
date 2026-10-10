@@ -188,6 +188,14 @@ export class BuffSystem {
       .map((e) => Math.round((e.effect as { type: 'damage_increase'; value: number }).value * e.inst.stacks * 10000) / 10000)
   }
 
+  /** Sum of `heal_increase` effects (healing done × (1 + sum)) */
+  getHealIncrease(entity: Entity): number {
+    const raw = this.collectEffects(entity)
+      .filter((e) => e.effect.type === 'heal_increase')
+      .reduce((sum, e) => sum + (e.effect as { type: 'heal_increase'; value: number }).value * e.inst.stacks, 0)
+    return Math.round(raw * 10000) / 10000
+  }
+
   getAttackModifier(entity: Entity): number {
     const raw = this.collectEffects(entity)
       .filter((e) => e.effect.type === 'attack_modifier')
