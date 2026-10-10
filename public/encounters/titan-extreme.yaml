@@ -264,7 +264,7 @@ skills:
     zones:
       - anchor: { select: count, count: 1, exclude: tank }
         targeted: true
-        marker: lockon
+        marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
         effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
@@ -276,7 +276,7 @@ skills:
     zones:
       - anchor: { select: count, count: 2, exclude: tank }
         targeted: true
-        marker: lockon
+        marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
         effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]

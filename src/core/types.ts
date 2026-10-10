@@ -143,7 +143,7 @@ export interface AoeZoneDef {
   /** false = no ground telegraph (raidwides: FFXIV shows only the cast bar). Default true. */
   telegraph?: boolean
   /** Overhead marker on the anchored entity while the zone is pending (renderer-only) */
-  marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull' | 'lockon'
+  marker?: 'spread' | 'stack' | 'buster' | 'knockback' | 'pull' | 'target'
   /**
    * Damage split among everyone hit: `even` divides it equally; `{ front }` (lines / fans) puts
    * `front` of it on the member nearest the origin and splits the rest among the others.

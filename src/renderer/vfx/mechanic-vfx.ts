@@ -8,6 +8,7 @@ import type { ClashGrade } from '@/game/parry-prompt'
 import type { VfxRenderer } from './vfx-renderer'
 import { TankbusterMarker } from './tankbuster-marker'
 import { LockOnMarker } from './lockon-marker'
+import { TargetMarker } from './target-marker'
 import { StackMarker, STACK_CIRCLE_CHEVRONS, STACK_LINE_CHEVRONS } from './stack-marker'
 
 type Fx = ReturnType<VfxRenderer['spawn']>
@@ -32,7 +33,7 @@ const MARKER_COLORS = {
   buster: Color3.FromHexString('#ff4a3a'),
   knockback: Color3.FromHexString('#ff9a3c'),
   pull: Color3.FromHexString('#7fb8ff'),
-  lockon: Color3.FromHexString('#ff6fd8'),
+  target: Color3.FromHexString('#ff8a1c'),
 }
 const DANCE_GOLD = Color3.FromHexString('#ffd27a')
 const CLASH_GOLD = Color3.FromHexString('#ffe6a0')
@@ -108,7 +109,18 @@ export class MechanicVfx {
       this.markers.set(zone.id, [driver])
       return
     }
-    if (kind === 'spread' || kind === 'lockon') {
+    if (kind === 'target') {
+      const marker = new TargetMarker(this.vfx.sm.scene)
+      const driver = this.vfx.spawn('ground', 'glowDisc', color, Infinity, (f) => {
+        f.mesh.visibility = 0
+        const e = this.vfx.entities.get(id)
+        if (e) marker.update(e.position.x, e.position.y, this.vfx.heightOf(e), e.size, f.age)
+      })
+      driver.onDone = () => marker.dispose()
+      this.markers.set(zone.id, [driver])
+      return
+    }
+    if (kind === 'spread') {
       // FFXIV lock-on: red crystal sigil over the head, dark red ring at the feet
       const marker = new LockOnMarker(this.vfx.sm.scene)
       const driver = this.vfx.spawn('ground', 'glowDisc', color, Infinity, (f) => {
