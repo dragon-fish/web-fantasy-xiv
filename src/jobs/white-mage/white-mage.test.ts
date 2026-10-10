@@ -37,7 +37,7 @@ function setup() {
     whm.gcdTimer = 0
     return ok
   }
-  return { mgr, buffs, combat, whm, ally, use }
+  return { mgr, buffs, combat, skills, whm, ally, use }
 }
 
 describe('White Mage', () => {
@@ -49,6 +49,18 @@ describe('White Mage', () => {
     expect(dps.hp).toBe(6000)
     expect(tank.hp).toBe(6000)
     expect(whm.hp).toBe(9000)
+  })
+
+  it('a heal whose target dies mid-cast does not land on the body', () => {
+    const { whm, ally, skills } = setup()
+    const dps = ally('dps', 8, 2000)
+    const cure = skill(WHITE_MAGE_JOB, 'whm_cure_ii')
+    expect(cure.castTime).toBeGreaterThan(0)
+    expect(skills.tryUse(whm, cure)).toBe(true)
+    dps.hp = 0
+    dps.alive = false
+    skills.updateAll(cure.castTime)
+    expect(dps.hp).toBe(0)
   })
 
   it('Afflatus Rapture grows a Blood Lily only when it heals someone hurt', () => {

@@ -103,6 +103,8 @@ export class CombatResolver {
 
   /** Restore HP (caster's attack × potency, attack modifiers included); returns the HP actually restored */
   private heal(caster: Entity, target: Entity, potency: number): number {
+    // A heal cast on someone who died meanwhile lands on nothing (only a raise stands a body up)
+    if (!target.alive) return 0
     const amount = Math.floor(this.buffSystem.getAttack(caster) * potency * (1 + this.buffSystem.getHealIncrease(caster)))
     const restored = Math.min(amount, Math.max(0, target.maxHp - target.hp))
     target.hp = Math.min(target.maxHp, target.hp + amount)
