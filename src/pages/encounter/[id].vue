@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useLocalStorage } from '@vueuse/core'
 import { useJobStore } from '@/stores/job'
+import { useBattleStore } from '@/stores/battle'
 import { COMMON_BUFFS } from '@/jobs'
 import type { BattleInitCallback } from '@/game/battle-runner'
 import type { GameScene } from '@/game/game-scene'
@@ -10,6 +11,7 @@ import type { GameScene } from '@/game/game-scene'
 const route = useRoute('/encounter/[id]')
 const router = useRouter()
 const jobStore = useJobStore()
+const battle = useBattleStore()
 const tutorialSeen = useLocalStorage('xiv-tutorial-seen', '')
 const gameKey = ref(0)
 
@@ -69,7 +71,8 @@ TowerEncounterRunner(
 )
   template(#overlay)
     HudPauseMenu(@resume="handleResume" @retry="handleRetry")
-      HudJobSwitcher(v-if="!isTutorial")
+      //- No job switching mid-fight: only before the pull (and on the battle-end screen)
+      HudJobSwitcher(v-if="!isTutorial && battle.combatElapsed === null")
     HudBattleEndOverlay(@retry="handleRetry")
       HudJobSwitcher(v-if="!isTutorial")
     .skip-tutorial(v-if="isTutorial" @click="handleSkipTutorial") 跳过教程 &gt;
