@@ -13,6 +13,7 @@ import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
 import { PARRY_BUFFS } from '@/game/parry'
 import { createParryPrompt } from '@/game/parry-prompt'
 import { createPartyRuntime } from '@/game/party/party-runtime'
+import { isPartyMember } from '@/combat/party'
 import type { EventBus } from '@/core/event-bus'
 import type { TimelineEntry } from '@/timeline/types'
 import type { TimelineAction } from '@/config/schema'
@@ -416,13 +417,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         return entity
       },
       addDeathZone: (def: any) => {
-        deathZoneMgr.add({
-          id: def.id,
-          center: { x: def.center.x, y: def.center.y },
-          facing: def.facing ?? 0,
-          shape: def.shape,
-          behavior: def.behavior ?? 'lethal',
-        })
+        deathZoneMgr.add({ ...def, center: { x: def.center.x, y: def.center.y }, facing: def.facing ?? 0, behavior: def.behavior ?? 'lethal' })
       },
       removeDeathZone: (id: string) => deathZoneMgr.remove(id),
     }),
@@ -489,8 +484,12 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     // Player dead → revive (if the encounter allows and a tier is left) or the death window.
     // Finalization (victory / wipe) happens from deathWindow.tick() in the logic loop.
     if (payload.target.id === s.player.id && payload.target.hp <= 0) handlePlayerDeath(payload.noRevive)
-    // Mob death: destroy entity when hp reaches 0
+    // Mob death: leave its remains (encounter `onDeath.deathZone`), then destroy the entity
     if (payload.target.type === 'mob' && payload.target.hp <= 0 && payload.target.alive) {
+      const remains = enc.deathZonesOnDeath.get(payload.target.id)
+      if (remains) {
+        deathZoneMgr.add({ ...remains, id: `${payload.target.id}:remains`, center: { x: payload.target.position.x, y: payload.target.position.y }, facing: remains.facing ?? 0, behavior: remains.behavior ?? 'damage' })
+      }
       s.entityMgr.destroy(payload.target.id)
     }
     // Damage log for death recap HUD
@@ -727,13 +726,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         break
       case 'add_death_zone':
         if (action.deathZone) {
-          deathZoneMgr.add({
-            id: action.deathZone.id,
-            center: { x: action.deathZone.center.x, y: action.deathZone.center.y },
-            facing: action.deathZone.facing ?? 0,
-            shape: action.deathZone.shape,
-            behavior: action.deathZone.behavior ?? 'lethal',
-          })
+          const { center, facing, behavior, ...rest } = action.deathZone
+          deathZoneMgr.add({ ...rest, center: { x: center.x, y: center.y }, facing: facing ?? 0, behavior: behavior ?? 'lethal' })
         }
         break
       case 'remove_death_zone':
@@ -784,6 +778,26 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   })
 
   s.getCombatElapsed = () => combatStarted ? scheduler.combatElapsed : null
+
+  /** Damage zones (lava) hurt party members standing in them: on entry, then every interval */
+  const hazardTimers = new Map<string, number>()
+  function tickDamageZones(dt: number): void {
+    const touched = new Set<string>()
+    for (const member of s.entityMgr.getAlive()) {
+      if (!isPartyMember(member) || !member.targetable) continue
+      for (const zone of deathZoneMgr.damageZonesAt({ x: member.position.x, y: member.position.y })) {
+        if (!zone.damage) continue
+        const key = `${zone.id}:${member.id}`
+        touched.add(key)
+        const t = (hazardTimers.get(key) ?? zone.damage.interval) + dt
+        if (t >= zone.damage.interval) {
+          s.combatResolver.applyDamage(boss, member, zone.damage.potency, zone.damage.name ?? '岩浆', zone.damage.dmgType ? [zone.damage.dmgType] : ['magical'])
+          hazardTimers.set(key, t - zone.damage.interval)
+        } else hazardTimers.set(key, t)
+      }
+    }
+    for (const key of hazardTimers.keys()) if (!touched.has(key)) hazardTimers.delete(key)
+  }
 
   const DEATH_ZONE_DAMAGE = 999999
   const FALL_DURATION = 600 // ms to fall before dying
@@ -844,7 +858,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     // Death zone: instant kill (no fall animation)
     if (s.player.alive && !falling) {
       const pos = { x: s.player.position.x, y: s.player.position.y }
-      if (deathZoneMgr.isInAnyZone(pos)) {
+      if (deathZoneMgr.isLethalAt(pos)) {
         s.player.hp -= DEATH_ZONE_DAMAGE
         s.bus.emit('damage:dealt', {
           source: { id: '场地' } as any, target: s.player,
@@ -853,6 +867,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         })
       }
     }
+
+    tickDamageZones(dt)
 
     // Update AI for all enabled entities
     for (const entityId of aiEnabled) {

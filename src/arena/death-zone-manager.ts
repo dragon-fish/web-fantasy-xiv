@@ -30,6 +30,7 @@ export class DeathZoneManager {
     }
   }
 
+  /** Inside any zone at all, damage zones included (somewhere not to stand) */
   isInAnyZone(point: Vec2): boolean {
     for (const zone of this.zones.values()) {
       if (isPointInAoeShape(point, zone.center, zone.shape, zone.facing)) {
@@ -37,6 +38,20 @@ export class DeathZoneManager {
       }
     }
     return false
+  }
+
+  /** Inside a zone that kills on contact (lethal pits, and walls one is already inside) */
+  isLethalAt(point: Vec2): boolean {
+    for (const zone of this.zones.values()) {
+      if (zone.behavior === 'damage') continue
+      if (isPointInAoeShape(point, zone.center, zone.shape, zone.facing)) return true
+    }
+    return false
+  }
+
+  /** Damage zones covering the point */
+  damageZonesAt(point: Vec2): DeathZoneDef[] {
+    return [...this.zones.values()].filter(z => z.behavior === 'damage' && isPointInAoeShape(point, z.center, z.shape, z.facing))
   }
 
   getAll(): DeathZoneDef[] {

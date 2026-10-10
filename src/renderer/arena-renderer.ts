@@ -58,8 +58,8 @@ export class ArenaRenderer {
 
     // Listen for dynamic death zone events
     if (bus) {
-      bus.on('deathzone:added', (payload: { zone: { id: string; center: { x: number; y: number }; facing: number; shape: AoeShapeDef; behavior?: string } }) => {
-        this.addDeathZoneMesh(payload.zone.id, payload.zone.center, payload.zone.shape, payload.zone.facing, payload.zone.behavior)
+      bus.on('deathzone:added', (payload: { zone: { id: string; center: { x: number; y: number }; facing: number; shape: AoeShapeDef; behavior?: string; color?: string } }) => {
+        this.addDeathZoneMesh(payload.zone.id, payload.zone.center, payload.zone.shape, payload.zone.facing, payload.zone.behavior, payload.zone.color)
       })
       bus.on('deathzone:removed', (payload: { id: string }) => {
         this.removeDeathZoneMesh(payload.id)
@@ -68,7 +68,7 @@ export class ArenaRenderer {
     }
   }
 
-  private addDeathZoneMesh(id: string, center: { x: number; y: number }, shape: AoeShapeDef, facing: number, behavior?: string): void {
+  private addDeathZoneMesh(id: string, center: { x: number; y: number }, shape: AoeShapeDef, facing: number, behavior?: string, color?: string): void {
     // Remove existing mesh with same id
     this.removeDeathZoneMesh(id)
 
@@ -132,6 +132,22 @@ export class ArenaRenderer {
       mesh.position.set(center.x, 0.02, center.y)
     }
     mesh.material = isWall ? this.wallMat : this.dzMat
+    // Damage zones (lava and the like): a glowing floor in their own colour with a bright rim
+    if (behavior === 'damage') {
+      const tint = Color3.FromHexString(color ?? '#ff6a1a')
+      mesh.material = this.hazardMaterial(tint)
+      mesh.position.y = 0.03
+      if (shape.type === 'circle') {
+        const rim = MeshBuilder.CreateTorus(`deathzone-rim-${id}`, { diameter: shape.radius * 2, thickness: 0.22, tessellation: 96 }, this.scene)
+        rim.parent = mesh
+        rim.rotation.x = -Math.PI / 2
+        rim.scaling.y = 0.3
+        rim.material = this.hazardMaterial(tint.add(new Color3(0.25, 0.25, 0.2)), 1)
+        this.sm.addGlow(rim)
+      }
+      this.deathZoneMeshes.set(id, mesh)
+      return
+    }
     // Lethal pits read as an abyss: near-black floor with a glowing danger rim
     if (!isWall && shape.type === 'circle') {
       mesh.material = this.abyssMaterial()
@@ -143,6 +159,21 @@ export class ArenaRenderer {
       this.sm.addGlow(rim)
     }
     this.deathZoneMeshes.set(id, mesh)
+  }
+
+  private hazardMats = new Map<string, StandardMaterial>()
+  private hazardMaterial(tint: Color3, alpha = 0.78): StandardMaterial {
+    const key = `${tint.toHexString()}:${alpha}`
+    let m = this.hazardMats.get(key)
+    if (!m) {
+      m = new StandardMaterial(`hazard-${key}`, this.scene)
+      m.diffuseColor = tint.scale(0.5)
+      m.emissiveColor = tint.scale(0.85)
+      m.specularColor = Color3.Black()
+      m.alpha = alpha
+      this.hazardMats.set(key, m)
+    }
+    return m
   }
 
   private abyss: StandardMaterial | null = null

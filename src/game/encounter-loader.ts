@@ -2,7 +2,7 @@
 import { parse as parseYaml } from 'yaml'
 import { parseArenaConfig, parseSkillConfig } from '@/config/schema'
 import { flattenTimeline, parsePhases } from '@/timeline/timeline-parser'
-import type { ArenaDef, BuffDef, SkillDef } from '@/core/types'
+import type { ArenaDef, BuffDef, DeathZoneDef, SkillDef } from '@/core/types'
 import type { PhaseDef, TimelineAction } from '@/config/schema'
 import type { BossBehaviorConfig } from '@/ai/boss-behavior'
 import type { CreateEntityOptions } from '@/entity/entity'
@@ -42,6 +42,8 @@ export interface EncounterData {
   party?: PartyConfig
   /** NPC target priority per entity id (YAML entity `priority`, default 0) */
   targetPriority: Map<string, number>
+  /** Death zone left where an entity dies (YAML entity `onDeath.deathZone`; centre = where it fell) */
+  deathZonesOnDeath: Map<string, Omit<DeathZoneDef, 'id' | 'center' | 'facing' | 'behavior'> & Partial<Pick<DeathZoneDef, 'facing' | 'behavior'>>>
 }
 
 /**
@@ -69,6 +71,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
   const entities = new Map<string, CreateEntityOptions>()
   const reviveHooks = new Map<string, { use: string; after: number }>()
   const targetPriority = new Map<string, number>()
+  const deathZonesOnDeath: EncounterData['deathZonesOnDeath'] = new Map()
 
   if (raw.entities) {
     // New unified format: entities: { boss: {...}, mob1: {...}, ... }
@@ -76,6 +79,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
       entities.set(id, parseEntityOpts(id, def))
       if (def.onRevive?.use) reviveHooks.set(id, { use: def.onRevive.use, after: def.onRevive.after ?? 0 })
       if (typeof def.priority === 'number') targetPriority.set(id, def.priority)
+      if (def.onDeath?.deathZone) deathZonesOnDeath.set(id, def.onDeath.deathZone)
     }
   }
 
@@ -184,6 +188,7 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
     arena, entities, boss, player, bossAI, skills, timeline, phases, localBuffs, reviveHooks,
     revive: raw.revive === true,
     targetPriority,
+    deathZonesOnDeath,
     ...(raw.party ? { party: parsePartyConfig(raw.party) } : {}),
     checkpoints: raw.checkpoints ?? {},
     ...(conditions !== undefined ? { conditions } : {}),

@@ -272,8 +272,12 @@ export interface DeathZoneDef {
   center: Vec2
   facing: number
   shape: AoeShapeDef
-  /** 'lethal' = instant death, 'wall' = blocks movement (death if already inside) */
-  behavior: 'lethal' | 'wall'
+  /** 'lethal' = instant death, 'wall' = blocks movement (death if already inside),
+   *  'damage' = hurts party members standing in it every `damage.interval` ms (e.g. lava) */
+  behavior: 'lethal' | 'wall' | 'damage'
+  damage?: { potency: number; interval: number; dmgType?: DamageType; name?: string }
+  /** Floor colour (CSS hex); lethal pits default to the black-purple abyss */
+  color?: string
 }
 
 export interface ArenaDef {

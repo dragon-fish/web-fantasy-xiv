@@ -242,7 +242,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
       spreadUnhinted()
       for (const b of brains) b.update(dt)
       for (const n of npcs) {
-        if (n.alive && deps.deathZones.isInAnyZone({ x: n.position.x, y: n.position.y })) {
+        if (n.alive && deps.deathZones.isLethalAt({ x: n.position.x, y: n.position.y })) {
           n.hp = 0
           s.bus.emit('damage:dealt', { source: { id: '场地' } as Entity, target: n, amount: 999999, skill: { name: '死亡区域' } })
         }

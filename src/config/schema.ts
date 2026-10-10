@@ -120,7 +120,7 @@ export interface TimelineAction {
   value?: boolean     // for set_visible / set_targetable
   speed?: number      // for set_speed (0 = rooted; AI still turns and auto-attacks)
   // death zone fields
-  deathZone?: { id: string; center: { x: number; y: number }; facing?: number; shape: any; behavior?: 'lethal' | 'wall' }
+  deathZone?: { id: string; center: { x: number; y: number }; facing?: number; shape: any } & Partial<Pick<DeathZoneDef, 'behavior' | 'damage' | 'color'>>
   deathZoneId?: string   // for remove_death_zone
   // dialog fields
   dialogText?: string     // for show_dialog
