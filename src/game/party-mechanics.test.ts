@@ -32,7 +32,8 @@ function setup() {
     }
     skills.tryUse(boss, skill)
   }
-  return { mgr, zones, boss, member, cast }
+  const tick = (e: ReturnType<typeof member>, ms: number) => buffs.update(e, ms)
+  return { mgr, zones, boss, member, cast, tick }
 }
 
 describe('party mechanics', () => {
@@ -114,6 +115,22 @@ describe('party mechanics', () => {
     mgr['bus'].emit('damage:dealt', { source: boss, target: jail, amount: 5000 })
     expect(prisoner.visible).toBe(true)
     expect(prisoner.targetable).toBe(true)
+  })
+  it('a gaol left standing past its fuse kills its prisoner and hits the whole party', () => {
+    const { mgr, zones, member, cast, tick } = setup()
+    const prisoner = member('npc1', 5, 0)
+    const other = member('npc2', -5, 0)
+    cast({ anchor: { type: 'party', select: 'count', count: 1, exclude: 'tank' }, targeted: true,
+      effects: [{ type: 'imprison', hp: 5000, fuse: 4000, burst: { potency: 3000 } }] })
+    const targetId = zones.getActiveZones()[0]!.targetId
+    zones.update(1000)
+    const [jailed, free] = targetId === 'npc1' ? [prisoner, other] : [other, prisoner]
+    expect(jailed.targetable).toBe(false)
+    tick(jailed, 4600)
+    expect(jailed.hp).toBe(0)
+    expect(jailed.visible).toBe(true)
+    expect(free.hp).toBe(100000 - 3000)
+    expect(mgr.getAll().some(e => e.customData.prisonerId)).toBe(false)
   })
   it('targeted: a gaol takes the marked member only, not someone standing on them', () => {
     const { mgr, zones, member, cast } = setup()

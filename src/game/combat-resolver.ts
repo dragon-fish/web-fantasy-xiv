@@ -92,8 +92,10 @@ export class CombatResolver {
     })
 
     // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
-    bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
+    bus.on('buff:removed', ({ target, buff, reason }: { target: Entity; buff?: BuffDef; reason?: string }) => {
       if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
+      // The jail's fuse is its prisoner's Imprisoned timer
+      if (buff?.id === IMPRISONED.id && reason === 'expired') this.burstJail(target)
     })
   }
 
@@ -327,10 +329,11 @@ export class CombatResolver {
     prisoner.visible = false
     prisoner.targetable = false
     this.buffSystem.registerDef(IMPRISONED)
-    this.buffSystem.applyBuff(prisoner, IMPRISONED, prisoner.id)
+    this.buffSystem.applyBuff(prisoner, IMPRISONED, prisoner.id, 1, effect.fuse)
     const jail = this.entityMgr.create({
       id: `jail_${prisoner.id}_${++this.jailSerial}`, type: 'mob', group: 'jail',
-      hp: effect.hp, maxHp: effect.hp, attack: 0, speed: 0, size: effect.size ?? 1,
+      // attack 1: `burst` potency is its damage, like every enemy
+      hp: effect.hp, maxHp: effect.hp, attack: 1, speed: 0, size: effect.size ?? 1,
       model: effect.model ?? 'jail', position: { x: prisoner.position.x, y: prisoner.position.y, z: 0 },
       facing: prisoner.facing,
     })
@@ -338,7 +341,29 @@ export class CombatResolver {
     jail.customData.prisonerId = prisoner.id
     jail.customData.displayName = effect.name ?? '石牢'
     if (effect.priority != null) jail.customData.priority = effect.priority
+    if (effect.burst) jail.customData.burst = effect.burst
     this.bus.emit('party:imprisoned', { prisoner, jail })
+  }
+
+  /** Fuse ran out: the prisoner dies inside, the blast hits the whole party, the jail is gone */
+  private burstJail(prisoner: Entity): void {
+    const jail = this.entityMgr.getAll().find(e => e.customData.prisonerId === prisoner.id && !e.customData.released)
+    if (!jail) return
+    jail.customData.released = true
+    this.release(jail)
+    const name = jail.customData.burst?.name ?? jail.customData.displayName
+    if (prisoner.alive && prisoner.hp > 0) {
+      const amount = prisoner.hp
+      prisoner.hp = 0
+      this.bus.emit('damage:dealt', { source: jail, target: prisoner, amount, skill: { name } })
+    }
+    const burst = jail.customData.burst as { potency: number } | undefined
+    if (burst) {
+      for (const m of this.entityMgr.getAll()) {
+        if (m !== prisoner && isPartyMember(m) && m.alive && m.targetable) this.applyDamage(jail, m, burst.potency, name, ['magical'])
+      }
+    }
+    this.entityMgr.destroy(jail.id)
   }
 
   private release(jail: Entity): void {

@@ -267,7 +267,8 @@ skills:
         marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
-        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
+        # 30s 内没被打破：石牢崩塌，秒杀里面的人并对全队造成伤害
+        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, fuse: 30000, burst: { potency: 3000, name: 石牢崩塌 } }]
 
   rock_throw:
     name: 花岗岩牢狱
@@ -279,7 +280,8 @@ skills:
         marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
-        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
+        # 30s 内没被打破：石牢崩塌，秒杀里面的人并对全队造成伤害
+        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, fuse: 30000, burst: { potency: 3000, name: 石牢崩塌 } }]
 
   # --- 石牢期间：朝随机队员的窄扇形击退（读条开始时锁定方向） ---
   gaol_landslide:

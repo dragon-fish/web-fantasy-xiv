@@ -114,7 +114,8 @@ export type SkillEffectDef = (
   | { type: 'revive' }                                                   // wake dormant entities caught in the zone
   /** Encase a party member: hidden, untargetable, unable to act, inside a jail entity spawned where
    *  they stand; destroying the jail sets them free. `priority`: NPC target priority of the jail */
-  | { type: 'imprison'; hp: number; name?: string; model?: string; size?: number; priority?: number }
+  /** `fuse` (ms): a jail still standing then bursts — its prisoner dies and every party member takes `burst` */
+  | { type: 'imprison'; hp: number; name?: string; model?: string; size?: number; priority?: number; fuse?: number; burst?: { potency: number; name?: string } }
 ) & { when?: EffectCondition }
 
 /** Visual element of a skill's effects (renderer-only hint) */

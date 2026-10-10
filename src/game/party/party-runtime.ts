@@ -265,7 +265,8 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
         }
       }
     },
-    allDown: () => s.entityMgr.getAll().every(e => !isPartyMember(e) || !e.alive),
+    // Untargetable members (jailed) count as down: nobody is left to break them out
+    allDown: () => s.entityMgr.getAll().every(e => !isPartyMember(e) || !e.alive || !e.targetable),
     status() {
       const d = director.snapshot()
       const r = (v: number) => Math.round(v)
