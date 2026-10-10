@@ -22,7 +22,7 @@ describe('npc spots', () => {
   })
 
   it('an NPC whose spot the player takes moves to the free one', () => {
-    const spots = new SpotCoordinator(() => 0.5, 0)
+    const spots = new SpotCoordinator(() => 0.5, () => 0)
     const npcs = [{ id: 'a', position: { x: -6, y: 6 } }, { id: 'b', position: { x: 6, y: 6 } }, { id: 'c', position: { x: 6, y: -6 } }]
     spots.activate({ spots: square, tolerance: 0 }, npcs, 0, 5000)
     expect(spots.pointFor('a')).toEqual({ x: -6, y: 6 })
@@ -33,12 +33,12 @@ describe('npc spots', () => {
   })
 
   it('stands inside the tolerance, and only a mistake puts an NPC further out', () => {
-    const near = new SpotCoordinator(() => 0.99, 0)
+    const near = new SpotCoordinator(() => 0.99, () => 0)
     near.activate({ spots: [{ x: 0, y: 0 }], tolerance: 1 }, [{ id: 'a', position: { x: 0, y: 0 } }], 0, 1000)
     const p = near.pointFor('a')!
     expect(Math.hypot(p.x, p.y)).toBeLessThanOrEqual(1)
 
-    const sloppy = new SpotCoordinator(() => 0.99, 1)
+    const sloppy = new SpotCoordinator(() => 0.99, () => 1)
     sloppy.activate({ spots: [{ x: 0, y: 0 }], tolerance: 1 }, [{ id: 'a', position: { x: 0, y: 0 } }], 0, 1000)
     const q = sloppy.pointFor('a')!
     expect(Math.hypot(q.x, q.y)).toBeGreaterThan(2)
@@ -48,7 +48,7 @@ describe('npc spots', () => {
     const hint = { frame: 'boss' as const, spots: [{ x: 0, y: 6 }, { x: 0, y: -6 }, { x: 6, y: 0 }, { x: -6, y: 0 }], tolerance: 0 }
     const world = worldSpots(hint, { x: 10, y: 0, facing: 90 })
     expect(world.map(p => [Math.round(p.x) + 0, Math.round(p.y) + 0])).toEqual([[16, 0], [4, 0], [10, -6], [10, 6]])
-    const spots = new SpotCoordinator(() => 0.5, 0)
+    const spots = new SpotCoordinator(() => 0.5, () => 0)
     const npcs = ['a', 'b', 'c'].map(id => ({ id, position: { x: 10, y: 0 } }))
     spots.activate(hint, npcs, 0, 1000, { x: 10, y: 0, facing: 90 })
     const taken = npcs.map(n => spots.pointFor(n.id)!).map(p => [Math.round(p.x) + 0, Math.round(p.y) + 0])

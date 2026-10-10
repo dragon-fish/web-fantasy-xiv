@@ -85,14 +85,14 @@ interface ActiveHint {
 export class SpotCoordinator {
   private active: ActiveHint | null = null
 
-  constructor(private rng: () => number, private mistakeRate: number) {}
+  constructor(private rng: () => number, private mistakeRateOf: (npcId: string) => number) {}
 
   activate(hint: NpcSpotHint, npcs: SpotClaimant[], now: number, holdMs: number, origin: SpotOrigin | null = null): void {
     const spots = worldSpots(hint, origin)
     // The player's spot is picked in the hint's own frame (southernmost / behind the boss)
     const claims = assignSpots(spots, npcs, playerSpotIndex(hint.spots))
     const active: ActiveHint = { hint, spots, until: now + holdMs, claims, points: new Map(), unique: spots.length >= npcs.length }
-    for (const [id, i] of claims) active.points.set(id, this.standPoint(active, i))
+    for (const [id, i] of claims) active.points.set(id, this.standPoint(active, i, id))
     this.active = active
   }
 
@@ -110,7 +110,7 @@ export class SpotCoordinator {
       if (free.length === 0) return
       const next = free.reduce((b, k) => (dist(spots[k]!, spots[i]!) < dist(spots[b]!, spots[i]!) ? k : b))
       a.claims.set(id, next)
-      a.points.set(id, this.standPoint(a, next))
+      a.points.set(id, this.standPoint(a, next, id))
       return
     }
   }
@@ -127,10 +127,10 @@ export class SpotCoordinator {
     return a.spots[i]!.tolerance ?? a.hint.tolerance ?? DEFAULT_SPOT_TOLERANCE
   }
 
-  private standPoint(a: ActiveHint, i: number): Vec2 {
+  private standPoint(a: ActiveHint, i: number, npcId: string): Vec2 {
     const tol = this.tolerance(a, i)
     const spot = a.spots[i]!
-    if (this.rng() >= this.mistakeRate) return scatter(spot, tol, this.rng)
+    if (this.rng() >= this.mistakeRateOf(npcId)) return scatter(spot, tol, this.rng)
     // A sloppy NPC ends up 2–3 tolerances off the spot
     const angle = this.rng() * Math.PI * 2
     const r = tol * (2 + this.rng())

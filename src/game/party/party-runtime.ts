@@ -15,7 +15,7 @@ import { DamageDirector, defaultTargetTime } from './damage-director'
 import { NpcBrain } from './npc-brain'
 import { buildNpcKit, NPC_BUFFS, NPC_JOBS, npcStyleOf, type NpcKit } from './npc-kits'
 import { SpotCoordinator } from './npc-spots'
-import type { PartyConfig } from './party-config'
+import { mistakeRateFor, type PartyConfig } from './party-config'
 
 const GCD_MS = 2500
 const DAMAGE_JITTER = 0.1
@@ -78,7 +78,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
 
   const enmity = new EnmitySystem(s.bus, s.entityMgr)
   const director = new DamageDirector(deps.playerRole, config.targetTime ?? defaultTargetTime(boss.maxHp))
-  const spots = new SpotCoordinator(rng, config.mistakeRate)
+  const spots = new SpotCoordinator(rng, id => mistakeRateFor(config, s.entityMgr.get(id)?.role))
   let spotsSince = -Infinity
   const spotReaction = new Map<string, number>()
 

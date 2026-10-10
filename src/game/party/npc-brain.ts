@@ -13,7 +13,7 @@ import { rangeTo } from '@/skill/skill-resolver'
 import { canBeRaised, isHostile, isPartyMember } from '@/combat/party'
 import { findSafeSpot, inHazard, isSafe, pathIsSafe, type Ground } from './npc-nav'
 import type { NpcKit } from './npc-kits'
-import type { PartyConfig } from './party-config'
+import { mistakeRateFor, type PartyConfig } from './party-config'
 import { REGEN_INTERVAL, REGEN_RATE_COMBAT, REGEN_RATE_IDLE } from '../player-input-driver'
 
 /** NPCs think this often (ms); movement runs every tick */
@@ -211,7 +211,7 @@ export class NpcBrain {
       if (!caster || !isHostile(caster, this.entity)) continue
       live.add(z.id)
       if (!this.seen.has(z.id)) {
-        const late = w.rng() < w.config.mistakeRate
+        const late = w.rng() < mistakeRateFor(w.config, this.entity.role)
         this.seen.set(z.id, now + between(w.rng, REACTION_MS) + (late ? between(w.rng, LATE_REACTION_MS) : 0))
       }
       if (now >= this.seen.get(z.id)!) out.push(z)
