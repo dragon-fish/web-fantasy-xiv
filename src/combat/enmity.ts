@@ -77,7 +77,7 @@ export class EnmitySystem {
   /** Living party members by enmity on `enemy`, top first; ties go to tanks, then the human player */
   ranking(enemy: Entity): Entity[] {
     const table = this.tables.get(enemy.id)
-    const members = this.entities.getAll().filter(e => isPartyMember(e) && e.alive)
+    const members = this.entities.getAll().filter(e => isPartyMember(e) && e.alive && e.targetable)
     const tieBreak = (e: Entity) => (e.role === 'tank' ? 0 : e.npc ? 2 : 1)
     return members.sort((a, b) => (table?.get(b.id) ?? 0) - (table?.get(a.id) ?? 0) || tieBreak(a) - tieBreak(b))
   }

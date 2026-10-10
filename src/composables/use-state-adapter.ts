@@ -89,7 +89,7 @@ export function useStateAdapter(scene: GameScene) {
   function allyTags(): AllyTag[] {
     const out: AllyTag[] = []
     for (const e of scene.entityMgr.getAll()) {
-      if (!e.npc) continue
+      if (!e.npc || !e.visible) continue
       const height = scene.entityRenderer.getHeight?.(e) ?? 1.8
       const pos = scene.sceneManager.worldToCss(e.position.x, e.position.y, height + 0.35)
       if (!pos) continue

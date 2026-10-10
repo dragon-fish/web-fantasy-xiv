@@ -72,6 +72,7 @@ describe('White Mage', () => {
     fallen.alive = false
     expect(use('whm_raise')).toBe(true)
     expect(fallen.alive).toBe(true)
+    expect(fallen.position.x).toBe(whm.position.x) // stands up where the caster is, not at the body
     expect(fallen.hp).toBe(4500)
     expect(whm.mp).toBe(10000)
     expect(buffs.hasBuff(whm, 'whm_free_raise')).toBe(false)

@@ -201,7 +201,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     player: s.player,
     boss,
     bossChaseRange: deps.bossChaseRange,
-    priority: (e: Entity) => enc.targetPriority.get(e.id) ?? 0,
+    priority: (e: Entity) => enc.targetPriority.get(e.id) ?? e.customData.priority ?? 0,
     spotFor: (npc: Entity) => (now() - spotsSince >= (spotReaction.get(npc.id) ?? 0) ? spots.pointFor(npc.id) : null),
     slot: (npc: Entity) => npcs.indexOf(npc),
     rng,

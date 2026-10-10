@@ -26,7 +26,7 @@ function distance(a: Entity, b: Entity): number {
 export function partyMembersNear(center: Entity, entities: Iterable<Entity>, radius: number): Entity[] {
   const out: Entity[] = []
   for (const e of entities) {
-    if (isPartyMember(e) && e.alive && distance(center, e) <= radius) out.push(e)
+    if (isPartyMember(e) && e.alive && e.targetable && distance(center, e) <= radius) out.push(e)
   }
   return out
 }
@@ -38,7 +38,8 @@ export function partyMembersNear(center: Entity, entities: Iterable<Entity>, rad
  * - 'fallen': nearest fallen member in range; null when there is none
  */
 export function pickAllyTarget(caster: Entity, entities: Iterable<Entity>, mode: 'lowest-hp' | 'fallen', range: number): Entity | null {
-  const fits = (e: Entity) => isPartyMember(e) && distance(caster, e) <= range && (mode === 'fallen' ? !e.alive : e.alive)
+  // Untargetable members (jailed) can be neither healed nor raised
+  const fits = (e: Entity) => isPartyMember(e) && e.targetable && distance(caster, e) <= range && (mode === 'fallen' ? !e.alive : e.alive)
   const picked = caster.allyTarget ?? caster.target
   let best: Entity | null = null
   let bestScore = Infinity
@@ -53,9 +54,11 @@ export function pickAllyTarget(caster: Entity, entities: Iterable<Entity>, mode:
 
 /**
  * Party members picked by a marker (one entry per zone to spawn; a member may appear twice).
- * `members`: living party members; `enmity`: the caster's ranking, top first.
+ * `members`: living party members (untargetable ones, e.g. jailed, are never picked);
+ * `enmity`: the caster's ranking, top first.
  */
-export function selectPartyTargets(sel: PartySelect, members: Entity[], enmity: Entity[], rng: () => number = Math.random): Entity[] {
+export function selectPartyTargets(sel: PartySelect, living: Entity[], enmity: Entity[], rng: () => number = Math.random): Entity[] {
+  const members = living.filter(m => m.targetable)
   if (members.length === 0) return []
   const pickRandom = () => members[Math.floor(rng() * members.length)]!
   switch (sel.select) {

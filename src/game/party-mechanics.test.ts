@@ -98,4 +98,21 @@ describe('party mechanics', () => {
     zones.update(100)
     expect(Math.round(zone.facing)).toBe(90)
   })
+  it('a jailed member is hidden, untargetable and stunned until the jail breaks', () => {
+    const { mgr, zones, boss, member, cast } = setup()
+    const prisoner = member('npc1', 5, 0)
+    cast({ anchor: { type: 'party', select: 'each' }, shape: { type: 'circle', radius: 0.5 }, effects: [{ type: 'imprison', hp: 5000 }] })
+    zones.update(1000)
+    expect(prisoner.visible).toBe(false)
+    expect(prisoner.targetable).toBe(false)
+    const jail = mgr.getAll().find(e => e.customData.prisonerId === 'npc1')!
+    expect(jail.position.x).toBe(5)
+    // jailed: out of reach of the next marker
+    cast({ anchor: { type: 'party', select: 'each' } })
+    expect(zones.getActiveZones().filter(z => !z.resolved).map(z => z.anchorEntityId)).not.toContain('npc1')
+    jail.hp = 0
+    mgr['bus'].emit('damage:dealt', { source: boss, target: jail, amount: 5000 })
+    expect(prisoner.visible).toBe(true)
+    expect(prisoner.targetable).toBe(true)
+  })
 })

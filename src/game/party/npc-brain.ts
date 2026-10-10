@@ -229,11 +229,12 @@ export class NpcBrain {
   private think(): void {
     const e = this.entity
     const w = this.world
-    if (!e.alive) { this.dest = null; return }
+    // Down, or jailed (untargetable, stunned): nothing to decide
+    if (!e.alive || !e.targetable) { this.dest = null; return }
     const now = w.now()
     const threats = this.threats(now)
     const hazards = this.dodgeable(threats)
-    const target = this.pickTarget()
+    const target = this.pickTarget(threats)
     if (target) e.target = target.id
     this.dest = this.chooseDestination(target, hazards, threats)
     const moving = dist(pos(e), this.dest) > ARRIVED
@@ -248,10 +249,12 @@ export class NpcBrain {
   }
 
   /** Highest-priority attackable enemy (nearest among equals); the NPC tank sticks to the boss */
-  private pickTarget(): Entity | null {
+  private pickTarget(threats: ActiveAoeZone[]): Entity | null {
     const w = this.world
     const e = this.entity
-    const attackable = (t: Entity) => t.alive && t.visible && t.targetable && !t.dormant && isHostile(e, t)
+    // A jail is not broken while an enemy AOE is about to land where its prisoner would step out
+    const unsafeJail = (t: Entity) => !!t.customData.prisonerId && threats.some(z => inHazard(pos(t), [z]))
+    const attackable = (t: Entity) => t.alive && t.visible && t.targetable && !t.dormant && isHostile(e, t) && !unsafeJail(t)
     if (this.kit.style === 'tank' && attackable(w.boss)) return w.boss
     // Among equals: nearest; a tank first goes for whatever is not on it yet
     const score = (t: Entity) => dist(pos(e), pos(t)) + (this.kit.style === 'tank' && t.target === e.id ? 100 : 0)

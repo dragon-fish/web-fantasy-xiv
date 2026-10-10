@@ -19,11 +19,19 @@ import type { DisplacementAnimator } from './displacement-animator'
  * applies damage, healing, displacement, and buff effects
  * for ANY caster/target combination.
  */
+/** Inside a jail: cannot move or act (also hidden and untargetable while it lasts) */
+export const IMPRISONED: BuffDef = {
+  id: 'imprisoned', name: '石牢', description: '被关在石牢中，无法行动。石牢被破坏后解除。',
+  icon: 'https://r2.epb.wiki/ffxiv/effects/015001_hr1.png', type: 'debuff', duration: 0,
+  stackable: false, maxStacks: 1, effects: [{ type: 'stun' }],
+}
+
 export class CombatResolver {
   private buffDefs = new Map<string, BuffDef>()
   private skillNames = new Map<string, string>()
   private skillDefsMap = new Map<string, SkillDef>()
   private lifestealRemainders = new WeakMap<Entity, number>()
+  private jailSerial = 0
   /** Attack an NPC's damage is computed from (the party director's budget); heals keep the real stat */
   private npcDamageAttack: ((caster: Entity) => number | null) | null = null
 
@@ -73,6 +81,14 @@ export class CombatResolver {
       })
       const revive = (payload.zone.def.effects as SkillEffectDef[]).find(e => e.type === 'revive')
       if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
+    })
+
+    // A broken jail lets its prisoner out
+    bus.on('damage:dealt', ({ target }: { target: Entity }) => {
+      if (target.customData.prisonerId && target.hp <= 0 && !target.customData.released) {
+        target.customData.released = true
+        this.release(target)
+      }
     })
 
     // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
@@ -213,9 +229,18 @@ export class CombatResolver {
           if (!target || target.alive || !isPartyMember(target)) break
           target.alive = true
           target.hp = Math.max(1, Math.floor(target.maxHp * effect.hpPercent))
+          // FFXIV: the raised stand up where the caster is when the raise lands, not at their body
+          if (caster) {
+            target.position.x = caster.position.x
+            target.position.y = caster.position.y
+          }
           this.bus.emit('party:raised', { entity: target, by: caster })
           break
         }
+
+        case 'imprison':
+          if (target && isPartyMember(target) && target.alive && target.targetable) this.imprison(target, effect)
+          break
 
         case 'dash_to_ley_lines': {
           if (!caster) break
@@ -290,6 +315,39 @@ export class CombatResolver {
   }
 
   /** Wake a dormant entity (corpse) — it becomes a live, targetable combatant. */
+  /** Encase a party member in a jail entity; destroying it lets them out (see the damage listener) */
+  private imprison(prisoner: Entity, effect: Extract<SkillEffectDef, { type: 'imprison' }>): void {
+    if (prisoner.casting) {
+      const skillId = prisoner.casting.skillId
+      prisoner.casting = null
+      this.bus.emit('skill:cast_interrupted', { caster: prisoner, skillId, reason: 'imprisoned' })
+    }
+    prisoner.visible = false
+    prisoner.targetable = false
+    this.buffSystem.registerDef(IMPRISONED)
+    this.buffSystem.applyBuff(prisoner, IMPRISONED, prisoner.id)
+    const jail = this.entityMgr.create({
+      id: `jail_${prisoner.id}_${++this.jailSerial}`, type: 'mob', group: 'jail',
+      hp: effect.hp, maxHp: effect.hp, attack: 0, speed: 0, size: effect.size ?? 1,
+      model: effect.model ?? 'jail', position: { x: prisoner.position.x, y: prisoner.position.y, z: 0 },
+      facing: prisoner.facing,
+    })
+    jail.inCombat = true
+    jail.customData.prisonerId = prisoner.id
+    jail.customData.displayName = effect.name ?? '石牢'
+    if (effect.priority != null) jail.customData.priority = effect.priority
+    this.bus.emit('party:imprisoned', { prisoner, jail })
+  }
+
+  private release(jail: Entity): void {
+    const prisoner = this.entityMgr.get(jail.customData.prisonerId)
+    if (!prisoner) return
+    prisoner.visible = true
+    prisoner.targetable = true
+    this.buffSystem.removeBuff(prisoner, IMPRISONED.id, 'consumed')
+    this.bus.emit('party:released', { prisoner, jail })
+  }
+
   revive(entity: Entity, by: Entity | null | undefined): void {
     if (!entity.dormant || !entity.alive) return
     entity.dormant = false

@@ -172,6 +172,10 @@ export const MODELS: Record<string, ModelSpec> = {
     id: 'feather', url: 'models/props/crystal.glb', height: 1.8, hover: 0.5, placeholder: 'bat', tint: '#ff9a52', tintMode: 'replace', nominalRadius: 0.6,
     clips: {},
   },
+  // Granite Gaol: a boulder encasing a party member
+  jail: {
+    id: 'jail', url: 'models/props/rock-large.glb', height: 2.2, nominalRadius: 1, placeholder: 'golem', tint: '#a89a86', clips: {},
+  },
   'slime-frost': {
     id: 'slime-frost', url: 'models/monsters/slime.glb', height: 1.3, placeholder: 'imp', tint: '#8fd0ff', tintMode: 'replace',
     clips: { idle: ['Slime_Idle'], move: ['Slime_Walk'], attack: ['Slime_Attack'], castRelease: ['Slime_Attack'], death: ['Slime_Death'] },

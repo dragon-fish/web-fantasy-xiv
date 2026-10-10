@@ -108,6 +108,9 @@ export type SkillEffectDef = (
   | { type: 'knockback'; distance: number; source?: DisplacementSource } // push target away from source (default: caster)
   | { type: 'pull'; distance: number; source?: DisplacementSource }      // pull target toward source (default: caster)
   | { type: 'revive' }                                                   // wake dormant entities caught in the zone
+  /** Encase a party member: hidden, untargetable, unable to act, inside a jail entity spawned where
+   *  they stand; destroying the jail sets them free. `priority`: NPC target priority of the jail */
+  | { type: 'imprison'; hp: number; name?: string; model?: string; size?: number; priority?: number }
 ) & { when?: EffectCondition }
 
 /** Visual element of a skill's effects (renderer-only hint) */
