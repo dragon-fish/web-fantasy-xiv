@@ -283,13 +283,15 @@ skills:
         # 石牢自己读条「石牢崩塌」：30s 内没被打破就秒杀里面的人并对全队造成伤害
         effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, cast: gaol_burst }]
 
-  # --- 石牢自己的读条：读完时里面的人死亡，全队受到伤害；石牢被打破则读条取消 ---
+  # --- 石牢自己的读条（目标是被关的人）：读完时杀死里面的人、全屏伤害、石牢自毁；石牢被打破则读条取消 ---
   gaol_burst:
     name: 石牢崩塌
     type: spell
     castTime: 30000
     targetType: aoe
-    effects: [{ type: kill_prisoner }]
+    effects:
+      - { type: damage, potency: 999999, dmgType: special }
+      - { type: self_destruct }
     zones:
       - anchor: { type: caster }
         direction: { type: none }

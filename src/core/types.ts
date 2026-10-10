@@ -113,10 +113,10 @@ export type SkillEffectDef = (
   | { type: 'revive' }                                                   // wake dormant entities caught in the zone
   /** Encase a party member: hidden, untargetable, unable to act, inside a jail entity spawned where
    *  they stand; destroying the jail sets them free. `priority`: NPC target priority of the jail */
-  /** `cast`: skill the jail starts casting as it appears (e.g. its own burst, ending in `kill_prisoner`) */
+  /** The jail targets its prisoner; `cast`: a skill it starts casting as it appears (e.g. its own burst) */
   | { type: 'imprison'; hp: number; name?: string; model?: string; size?: number; priority?: number; cast?: string }
-  /** Cast by a jail: its prisoner dies inside and the jail is gone */
-  | { type: 'kill_prisoner' }
+  /** The caster falls once the skill has gone off, its zones included (self-destruct, Final Sting) */
+  | { type: 'self_destruct' }
 ) & { when?: EffectCondition }
 
 /** Visual element of a skill's effects (renderer-only hint) */
@@ -272,6 +272,9 @@ export interface BuffDef {
    * definitions can declare their intent without requiring later migration.
    */
   preserveOnDeath?: boolean
+  /** Ends when the entity that applied it dies (a jail's Imprisoned). Not the default: a fallen
+   *  player's DoTs keep ticking through the death window. */
+  endsWithSource?: boolean
   effects: BuffEffectDef[]
 }
 

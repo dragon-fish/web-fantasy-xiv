@@ -7,6 +7,7 @@ import { SkillResolver } from '@/skill/skill-resolver'
 import { selectPartyTargets, isPartyMember } from '@/combat/party'
 import { CombatResolver } from './combat-resolver'
 import type { AoeZoneDef, SkillDef } from '@/core/types'
+import type { Entity } from '@/entity/entity'
 
 function setup() {
   const bus = new EventBus()
@@ -15,6 +16,8 @@ function setup() {
   const zones = new AoeZoneManager(bus, mgr)
   const skills = new SkillResolver(bus, mgr, buffs, zones)
   new CombatResolver(bus, mgr, buffs, new Arena({ name: 't', shape: { type: 'circle', radius: 60 }, boundary: 'wall' }), zones)
+  // As the battle runner does: a mob at 0 HP leaves the field
+  bus.on('damage:dealt', (p: { target: Entity }) => { if (p.target.type === 'mob' && p.target.hp <= 0 && p.target.alive) mgr.destroy(p.target.id) })
   skills.setPartyMarkerPicker((_caster, anchor) =>
     selectPartyTargets(anchor, mgr.getAlive().filter(isPartyMember), []))
   const boss = mgr.create({ id: 'boss', type: 'boss', hp: 100000, attack: 100, position: { x: 0, y: 10, z: 0 } })
@@ -115,11 +118,12 @@ describe('party mechanics', () => {
     expect(prisoner.visible).toBe(true)
     expect(prisoner.targetable).toBe(true)
   })
-  it('a gaol finishing its own cast kills its prisoner and hits the rest of the party', () => {
+  it('a gaol casting at its prisoner: the prisoner dies, the party is hit, the gaol self-destructs', () => {
     const { mgr, zones, member, cast, skills } = setup()
     const burst: SkillDef = {
       id: 'burst', name: 'burst', type: 'spell', castTime: 4000, cooldown: 0, gcd: false,
-      targetType: 'aoe', requiresTarget: false, range: 0, effects: [{ type: 'kill_prisoner' }],
+      targetType: 'aoe', requiresTarget: false, range: 0,
+      effects: [{ type: 'damage', potency: 999999, dmgType: 'special' }, { type: 'self_destruct' }],
       zones: [{ anchor: { type: 'caster' }, direction: { type: 'none' }, shape: { type: 'circle', radius: 60 },
         telegraph: false, resolveDelay: 4000, hitEffectDuration: 0, effects: [{ type: 'damage', potency: 30 }] }],
     }
@@ -135,7 +139,7 @@ describe('party mechanics', () => {
     expect(jailed.hp).toBe(0)
     expect(jailed.visible).toBe(true)
     expect(free.hp).toBe(100000 - 30)
-    expect(mgr.getAll().find(e => e.customData.prisonerId)?.hp).toBe(0)
+    expect(mgr.getAll().some(e => e.customData.prisonerId)).toBe(false)
   })
   it('targeted: a gaol takes the marked member only, not someone standing on them', () => {
     const { mgr, zones, member, cast } = setup()
