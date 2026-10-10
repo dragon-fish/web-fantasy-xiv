@@ -55,6 +55,17 @@ describe('BuffSystem', () => {
     expect(handler).toHaveBeenCalled()
   })
 
+  it('a refresh keeps the longer timer; a permanent debuff never downgrades to a timed one', () => {
+    const { system, entity } = setup()
+    const mark: BuffDef = { ...silenceDebuff, id: 'mark', duration: 0, effects: [] }
+    system.applyBuff(entity, mark, 's', 1, 5000)
+    system.applyBuff(entity, mark, 's', 1, 2000)
+    expect(entity.buffs[0].remaining).toBe(5500)
+    system.applyBuff(entity, mark, 's')
+    system.applyBuff(entity, mark, 's', 1, 5000)
+    expect(entity.buffs[0].remaining).toBe(0)
+  })
+
   it('should tick down buff duration', () => {
     const { system, entity } = setup()
     system.applyBuff(entity, mitBuff, 'source1')

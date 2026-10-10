@@ -3,6 +3,11 @@ import type { BuffDef, BuffEffectDef } from '@/core/types'
 import type { EventBus } from '@/core/event-bus'
 import type { Entity, BuffInstance } from '@/entity/entity'
 
+/** Remaining time after a refresh: the longer one, a permanent (0) buff never downgrades to timed */
+function longer(a: number, b: number): number {
+  return a === 0 || b === 0 ? 0 : Math.max(a, b)
+}
+
 export class BuffSystem {
   private defs = new Map<string, BuffDef>()
 
@@ -55,14 +60,14 @@ export class BuffSystem {
 
     if (existing && !def.stackable) {
       // Non-stackable: just refresh duration (take longer)
-      existing.remaining = Math.max(existing.remaining, effectiveDuration)
+      existing.remaining = longer(existing.remaining, effectiveDuration)
       existing.sourceId = sourceId
       return
     }
     if (existing && def.stackable) {
       // Stackable: add stacks (capped), refresh duration (take longer)
       existing.stacks = Math.min(existing.stacks + addStacks, def.maxStacks)
-      existing.remaining = Math.max(existing.remaining, effectiveDuration)
+      existing.remaining = longer(existing.remaining, effectiveDuration)
       existing.sourceId = sourceId
       this.syncModifiers(entity)
       return
