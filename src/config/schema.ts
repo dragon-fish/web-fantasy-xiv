@@ -110,6 +110,8 @@ function parseZone(raw: any): AoeZoneDef {
     telegraph: raw.targeted ? false : raw.telegraph,
     share: raw.share,
     targeted: raw.targeted,
+    offset: raw.offset,
+    trackTarget: raw.trackTarget,
   }
 }
 

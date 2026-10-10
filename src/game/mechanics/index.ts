@@ -5,6 +5,7 @@ import { moveAlong } from './move-along'
 import { arenaRing } from './arena-ring'
 import { scarletHymn } from './scarlet-hymn'
 import { forcedMarch } from './forced-march'
+import { cornerJump } from './corner-jump'
 
 /** Mechanics addressable from encounter timelines (`mechanic: <name>`). */
 export const MECHANICS: Record<string, MechanicFactory> = {
@@ -13,6 +14,7 @@ export const MECHANICS: Record<string, MechanicFactory> = {
   arena_ring: arenaRing,
   scarlet_hymn: scarletHymn,
   forced_march: forcedMarch,
+  corner_jump: cornerJump,
 }
 
 /**

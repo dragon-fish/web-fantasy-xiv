@@ -49,6 +49,11 @@ export class AoeZoneManager {
     targetId: string | null = null,
   ): ActiveAoeZone {
     const center = this.resolveAnchor(def.anchor, casterPos, targetPos)
+    if (def.offset && def.anchor.type === 'caster') {
+      const a = (casterFacing * Math.PI) / 180
+      center.x += def.offset.y * Math.sin(a) + def.offset.x * Math.cos(a)
+      center.y += def.offset.y * Math.cos(a) - def.offset.x * Math.sin(a)
+    }
     const facing = this.resolveDirection(def.direction, casterFacing, center, targetPos)
 
     // telegraphBefore defaults to resolveDelay (show immediately on creation)
@@ -86,8 +91,7 @@ export class AoeZoneManager {
     for (let i = this.zones.length - 1; i >= 0; i--) {
       const zone = this.zones[i]
       zone.elapsed += dt
-      // Line stacks keep aiming at the marked member until they resolve
-      if (!zone.resolved && zone.def.share && zone.def.direction.type === 'toward_target' && zone.targetId) {
+      if (!zone.resolved && zone.def.trackTarget && zone.def.direction.type === 'toward_target' && zone.targetId) {
         const aimed = this.entityMgr.get(zone.targetId)
         if (aimed?.alive) {
           const dx = aimed.position.x - zone.center.x

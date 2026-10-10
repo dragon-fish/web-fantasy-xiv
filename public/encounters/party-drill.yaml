@@ -130,6 +130,7 @@ skills:
         direction: { type: toward_target }
         shape: { type: rect, length: 25, width: 5 }
         share: { front: 0.5 }
+        trackTarget: true
         resolveDelay: 5000
         hitEffectDuration: 400
         effects: [{ type: damage, potency: 9000 }]

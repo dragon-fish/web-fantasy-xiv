@@ -99,6 +99,17 @@ describe('AoeZoneManager', () => {
   })
 })
 
+describe('caster offsets', () => {
+  it('shift a caster-anchored zone in the caster frame (y ahead, x to the right)', () => {
+    const zoneMgr = new AoeZoneManager(new EventBus(), new EntityManager(new EventBus()))
+    const at = (facing: number) => zoneMgr.spawn(makeCircleZone({ anchor: { type: 'caster' }, offset: { x: 2, y: 5 } }), 's', { x: 10, y: 0 }, facing, null).center
+    const round = (p: { x: number; y: number }) => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })
+    expect(round(at(0))).toEqual({ x: 12, y: 5 })
+    // Facing east: ahead is +x, the right hand points south
+    expect(round(at(90))).toEqual({ x: 15, y: -2 })
+  })
+})
+
 describe('target_live anchoring', () => {
   it('follows the anchored entity until it resolves, then stays put', async () => {
     const { EventBus } = await import('@/core/event-bus')

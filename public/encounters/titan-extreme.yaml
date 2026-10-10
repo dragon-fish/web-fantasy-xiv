@@ -6,8 +6,9 @@
 # 时间轴不写 NPC 点位提示：机制全部交给 NPC 的通用规则处理。
 
 party:
-  # 通关目标 6:00（7:00 软狂暴）：NPC 输出按本体血量向它收敛，小怪与停顿会让实际时间略长
-  targetTime: 360
+  # NPC 输出按本体血量向这个时间收敛；心核、石卫、石牢和场边大怒震的停顿不在其中，
+  # 实际通关约晚 1 分半（普通水平 ~6:30，7:00 软狂暴）
+  targetTime: 300
   mistakeRate: 0.03
   idle: { x: 0, y: -4 }
   tankSpot: { x: 0, y: 0, facing: north }
@@ -214,6 +215,8 @@ skills:
     zones:
       - anchor: { type: caster }
         direction: { type: toward_target }
+        # 躲不掉：一直对着一仇转，直到结算
+        trackTarget: true
         shape: { type: fan, radius: 16, angle: 120 }
         resolveDelay: 3000
         hitEffectDuration: 400
@@ -282,11 +285,33 @@ skills:
         direction: { type: none }
         shape: { type: circle, radius: 60 }
         telegraph: false
+        marker: knockback
         resolveDelay: 5000
         hitEffectDuration: 500
         effects:
           - { type: damage, potency: 1000 }
           - { type: knockback, distance: 10 }
+
+  # --- 大怒震（场边）：泰坦跳到场边面朝场心（corner_jump）后放出，覆盖除他脚下以外的全场；
+  #     击退后 3s 爆炸：贴脚被推出去，再跑回脚下 ---
+  upheaval_bombs:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: caster }, offset: { x: -11.0, y: -1.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 11.0, y: -1.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -11.0, y: 0.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 11.0, y: 0.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -7.5, y: 9.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 7.5, y: 9.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -5.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 5.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -12.5, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 12.5, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 0.0, y: 18.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -5.5, y: 18.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 5.5, y: 18.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
 
   # --- 花岗岩牢狱：点非坦克关进石牢（P2 1 人，P4 2 人） ---
   rock_throw_single:
@@ -384,25 +409,93 @@ skills:
         effects: [{ type: damage, potency: 3800 }]
 
   # --- 九连桶：外圈 8 块 + 中心 1 块，两波 ---
-  bombs_ring:
+  # 九连桶·环形：外圈顺时针一个接一个，最后中间（每颗出现 6s 后爆炸）
+  bury_clock_cw:
     name: 爆破岩石
     type: ability
     targetType: aoe
     zones:
-      - { anchor: { type: position, x: 0, y: 10.5 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: 7.4, y: 7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: 10.5, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: 7.4, y: -7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: 0, y: -10.5 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: -7.4, y: -7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: -10.5, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: position, x: -7.4, y: 7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-  bombs_center:
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # 九连桶·环形：外圈逆时针，最后中间
+  bury_clock_ccw:
     name: 爆破岩石
     type: ability
     targetType: aoe
     zones:
-      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # 九连桶·环形倒序：中间先炸，再沿外圈逆着转回去
+  bury_clock_cw_rev:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # 九连桶·环形倒序：中间先炸，再沿外圈转回去
+  bury_clock_ccw_rev:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: -10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 7000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 8000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 9000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 10000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: 5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 11000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 8.66, y: -5.0 }, direction: { type: none }, shape: { type: circle, radius: 8 }, resolveDelay: 12000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # 九连桶·正斜：先四个正点，2.5s 后四个斜点和中间
+  bury_cross_cardinal:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0.0, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 11.0, y: 0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: -11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -11.0, y: -0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # 九连桶·正斜：先四个斜点和中间，2.5s 后四个正点
+  bury_cross_diagonal:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -7.78, y: -7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -7.78, y: 7.78 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 11.0, y: 0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0.0, y: -11.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -11.0, y: -0.0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 8500, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
 
   # --- 三穿一：三排依次落下、依次爆炸（落下顺序 = 爆炸顺序） ---
   row_w:
@@ -410,19 +503,25 @@ skills:
     type: ability
     targetType: aoe
     zones:
-      - { anchor: { type: position, x: -10, y: -15 }, direction: { type: fixed, angle: 0 }, shape: { type: rect, length: 30, width: 10 }, resolveDelay: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -9, y: -9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -9, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -9, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
   row_c:
     name: 爆破岩石
     type: ability
     targetType: aoe
     zones:
-      - { anchor: { type: position, x: 0, y: -15 }, direction: { type: fixed, angle: 0 }, shape: { type: rect, length: 30, width: 10 }, resolveDelay: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: -9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
   row_e:
     name: 爆破岩石
     type: ability
     targetType: aoe
     zones:
-      - { anchor: { type: position, x: 10, y: -15 }, direction: { type: fixed, angle: 0 }, shape: { type: rect, length: 30, width: 10 }, resolveDelay: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 9, y: -9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 9, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 9, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
 
   # --- 泰坦之心阶段 ---
   titan_shield:
@@ -528,8 +627,13 @@ phases:
       - { at: 15500, use: gaol_landslide }
       - { at: 19500, use: gaol_landslide }
       - { at: 23000, use: mountain_buster }
-      - { at: 29000, use: upheaval }
-      - { at: 36000, use: landslide }
+      # 大怒震：跳到场边（避开花岗石卫与岩浆所在方位），岩石铺满除脚下以外的全场
+      - { at: 28000, action: disable_ai }
+      - { at: 28000, mechanic: corner_jump, params: { radius: 10, avoidGroup: gaolers } }
+      - { at: 28500, use: upheaval_bombs }
+      - { at: 28500, use: upheaval }
+      - { at: 37000, action: enable_ai }
+      - { at: 38500, use: landslide }
       - { at: 41000, use: tumult }
       - { at: 47000, use: weight_of_land }
       - { at: 52000, use: mountain_buster }
@@ -540,11 +644,13 @@ phases:
       - { at: 65000, use: geocrush }
       - { at: 72000, use: weight_of_land }
       - { at: 76000, use: mountain_buster }
-      # 九连桶：先外后中 / 先中后外
+      # 九连桶·环形：顺/逆时针，或中间先炸
       - at: 82000
         choose:
-          - [{ use: bombs_ring, entity: helper }, { after: 2000, use: bombs_center, entity: helper }]
-          - [{ use: bombs_center, entity: helper }, { after: 2000, use: bombs_ring, entity: helper }]
+          - [{ use: bury_clock_cw, entity: helper }]
+          - [{ use: bury_clock_ccw, entity: helper }]
+          - [{ use: bury_clock_cw_rev, entity: helper }]
+          - [{ use: bury_clock_ccw_rev, entity: helper }]
       - { at: 93000, use: landslide }
       - { at: 99000, loop: 8000 }
 
@@ -574,6 +680,15 @@ phases:
       - { at: 3000, use: titan_unshield }
       - { at: 3000, action: set_targetable, value: true }
       - { at: 3500, action: enable_ai }
+      # 花岗石卫：随机出现在东南西北中的两个方位
+      - at: 5000
+        choose:
+          - [{ action: teleport, entity: gaoler_e, position: { x: 0, y: 11 } }, { action: teleport, entity: gaoler_w, position: { x: 11, y: 0 } }]
+          - [{ action: teleport, entity: gaoler_e, position: { x: 0, y: 11 } }, { action: teleport, entity: gaoler_w, position: { x: 0, y: -11 } }]
+          - [{ action: teleport, entity: gaoler_e, position: { x: 0, y: 11 } }, { action: teleport, entity: gaoler_w, position: { x: -11, y: 0 } }]
+          - [{ action: teleport, entity: gaoler_e, position: { x: 11, y: 0 } }, { action: teleport, entity: gaoler_w, position: { x: 0, y: -11 } }]
+          - [{ action: teleport, entity: gaoler_e, position: { x: 11, y: 0 } }, { action: teleport, entity: gaoler_w, position: { x: -11, y: 0 } }]
+          - [{ action: teleport, entity: gaoler_e, position: { x: 0, y: -11 } }, { action: teleport, entity: gaoler_w, position: { x: -11, y: 0 } }]
       - { at: 6000, action: set_visible, entity: gaoler_e, value: true }
       - { at: 6000, action: set_visible, entity: gaoler_w, value: true }
       - { at: 6500, action: set_targetable, entity: gaoler_e, value: true }
@@ -597,18 +712,23 @@ phases:
       - { at: 40000, use: weight_of_land }
       - { at: 43000, use: weight_of_land }
       - { at: 50000, use: upheaval }
+      # 九连桶·正斜：正点先 / 斜点和中间先
       - at: 58000
         choose:
-          - [{ use: bombs_ring, entity: helper }, { after: 2000, use: bombs_center, entity: helper }]
-          - [{ use: bombs_center, entity: helper }, { after: 2000, use: bombs_ring, entity: helper }]
+          - [{ use: bury_cross_cardinal, entity: helper }]
+          - [{ use: bury_cross_diagonal, entity: helper }]
       - { at: 68000, use: tumult }
       - { at: 74000, use: landslide }
       - { at: 79000, use: rock_throw }
       - { at: 82500, use: gaol_landslide }
       - { at: 86500, use: gaol_landslide }
       - { at: 90000, use: mountain_buster }
-      - { at: 96000, use: upheaval }
-      - { at: 104000, use: geocrush }
+      - { at: 95000, action: disable_ai }
+      - { at: 95000, mechanic: corner_jump, params: { radius: 10, avoidGroup: gaolers } }
+      - { at: 95500, use: upheaval_bombs }
+      - { at: 95500, use: upheaval }
+      - { at: 104000, action: enable_ai }
+      - { at: 105000, use: geocrush }
       - { at: 111000, use: weight_of_land }
       - { at: 116000, loop: 12000 }
 

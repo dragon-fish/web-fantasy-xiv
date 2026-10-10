@@ -147,11 +147,14 @@ export interface AoeZoneDef {
   /**
    * Damage split among everyone hit: `even` divides it equally; `{ front }` (lines / fans) puts
    * `front` of it on the member nearest the origin and splits the rest among the others.
-   * A shared zone aimed `toward_target` keeps turning to its target until it resolves (line stacks).
    */
   share?: 'even' | { front: number }
   /** Splash of a single-target skill: skips the caster's target, which takes the skill's own hit */
   exceptTarget?: boolean
+  /** Aimed `toward_target`: keeps turning to its target until it resolves (line stacks, cleaves that can't be stepped out of) */
+  trackTarget?: boolean
+  /** Caster-anchored zones: shifted by this in the caster's frame (y ahead, x to the right) when spawned */
+  offset?: { x: number; y: number }
   /**
    * Targeted skill (点名), not an AOE: the effects land on the marked member alone. Nothing is
    * drawn on the floor and there is nothing to dodge or spread from; `shape` is unused.

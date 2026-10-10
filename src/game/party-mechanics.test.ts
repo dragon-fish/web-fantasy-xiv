@@ -109,7 +109,7 @@ describe('party mechanics', () => {
     const { zones, boss, member, cast } = setup()
     const marked = member('player', 0, 0) // due south of the boss at (0, 10)
     boss.target = 'player'
-    cast({ anchor: { type: 'caster' }, direction: { type: 'toward_target' }, shape: { type: 'rect', length: 30, width: 4 }, share: 'even' })
+    cast({ anchor: { type: 'caster' }, direction: { type: 'toward_target' }, trackTarget: true, shape: { type: 'rect', length: 30, width: 4 }, share: 'even' })
     const zone = zones.getActiveZones()[0]!
     expect(Math.round(zone.facing)).toBe(180)
     marked.position.x = 10
