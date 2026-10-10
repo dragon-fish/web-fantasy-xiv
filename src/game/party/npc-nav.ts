@@ -4,8 +4,10 @@ import type { AoeShapeDef, Vec2 } from '@/core/types'
 import type { ActiveAoeZone } from '@/skill/aoe-zone'
 import { isPointInAoeShape } from '@/skill/aoe-shape'
 
-/** NPCs keep this far from the edge of an AOE instead of hugging it */
+/** NPCs keep this far from the edge of an AOE instead of hugging it… */
 export const SAFE_MARGIN = 1.5
+/** …unless nothing that comfortable is left: then a gap between lines or the boss's back will do */
+export const TIGHT_MARGIN = 0.5
 
 export interface Ground {
   /** Standable: in bounds and not in a death zone */
@@ -48,35 +50,42 @@ export function pathIsSafe(a: Vec2, b: Vec2, hazards: readonly ActiveAoeZone[], 
 
 /**
  * Safe point closest to `preferred` (where the NPC wants to fight from), mildly favouring short
- * walks from `from`; `jitter` scatters the result so NPCs don't line up on the same edge.
- * Falls back to `from` when nothing nearby is safe.
+ * walks from `from`; `jitter` scatters the result so NPCs don't line up on the same edge. Keeps
+ * SAFE_MARGIN from every AOE when it can, TIGHT_MARGIN when that is all there is (nobody collides
+ * with anyone: running through the boss to its back is fine). Falls back to `from`.
  */
 export function findSafeSpot(from: Vec2, preferred: Vec2, hazards: readonly ActiveAoeZone[], ground: Ground, rng: () => number = Math.random, jitter = 1): Vec2 {
+  return searchSafeSpot(from, preferred, hazards, ground, rng, jitter, SAFE_MARGIN, 24)
+    ?? searchSafeSpot(from, preferred, hazards, ground, rng, jitter, TIGHT_MARGIN, 48)
+    ?? { ...from }
+}
+
+function searchSafeSpot(from: Vec2, preferred: Vec2, hazards: readonly ActiveAoeZone[], ground: Ground, rng: () => number, jitter: number, margin: number, angles: number): Vec2 | null {
   let best: Vec2 | null = null
   let bestScore = Infinity
   const consider = (c: Vec2) => {
     const score = Math.hypot(c.x - preferred.x, c.y - preferred.y) + 0.5 * Math.hypot(c.x - from.x, c.y - from.y)
-    if (score < bestScore && isSafe(c, hazards, ground)) { bestScore = score; best = c }
+    if (score < bestScore && isSafe(c, hazards, ground, margin)) { bestScore = score; best = c }
   }
   consider(preferred)
   if (!best) {
     for (const center of [preferred, from]) {
       for (let r = 1; r <= 30; r += 1) {
-        for (let i = 0; i < 24; i++) {
-          const a = (i * Math.PI * 2) / 24
+        for (let i = 0; i < angles; i++) {
+          const a = (i * Math.PI * 2) / angles
           consider({ x: center.x + Math.sin(a) * r, y: center.y + Math.cos(a) * r })
         }
         if (best && r > bestScore) break
       }
     }
   }
-  if (!best) return { ...from }
+  if (!best) return null
   const base: Vec2 = best
   for (let tries = 0; tries < 6; tries++) {
     const a = rng() * Math.PI * 2
-    const r = rng() * jitter
+    const r = rng() * jitter * (margin / SAFE_MARGIN)
     const c = { x: base.x + Math.sin(a) * r, y: base.y + Math.cos(a) * r }
-    if (isSafe(c, hazards, ground)) return c
+    if (isSafe(c, hazards, ground, margin)) return c
   }
   return base
 }

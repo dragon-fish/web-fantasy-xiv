@@ -11,7 +11,7 @@ import type { Arena } from '@/arena/arena'
 import type { DisplacementAnimator } from '../displacement-animator'
 import { rangeTo } from '@/skill/skill-resolver'
 import { canBeRaised, isHostile, isPartyMember } from '@/combat/party'
-import { findSafeSpot, inHazard, isSafe, pathIsSafe, type Ground } from './npc-nav'
+import { findSafeSpot, inHazard, isSafe, pathIsSafe, TIGHT_MARGIN, type Ground } from './npc-nav'
 import type { NpcKit } from './npc-kits'
 import { mistakeRateFor, type PartyConfig } from './party-config'
 import { REGEN_INTERVAL, REGEN_RATE_COMBAT, REGEN_RATE_IDLE } from '../player-input-driver'
@@ -20,6 +20,8 @@ import { REGEN_INTERVAL, REGEN_RATE_COMBAT, REGEN_RATE_IDLE } from '../player-in
 export const THINK_MS = 150
 const REACTION_MS: [number, number] = [300, 900]
 const LATE_REACTION_MS: [number, number] = [1500, 2500]
+/** Reaction to a cast aimed at oneself (lines and cleaves sent at the tank) */
+const AIMED_REACTION_MS: [number, number] = [100, 300]
 /** Tank mitigation goes up this long before a tankbuster lands */
 const BUSTER_LEAD_MS: [number, number] = [1000, 3000]
 const LOW_HP_MIT = 0.25
@@ -227,7 +229,9 @@ export class NpcBrain {
       live.add(z.id)
       if (!this.seen.has(z.id)) {
         const late = w.rng() < mistakeRateFor(w.config, this.entity.role)
-        this.seen.set(z.id, now + between(w.rng, REACTION_MS) + (late ? between(w.rng, LATE_REACTION_MS) : 0))
+        // A cast aimed at this NPC (the boss turning on its tank) is read at once
+        const aimed = z.targetId === this.entity.id && z.def.anchor.type !== 'party'
+        this.seen.set(z.id, now + between(w.rng, aimed ? AIMED_REACTION_MS : REACTION_MS) + (late ? between(w.rng, LATE_REACTION_MS) : 0))
       }
       if (now >= this.seen.get(z.id)!) out.push(z)
     }
@@ -402,7 +406,8 @@ export class NpcBrain {
     }
     if (isSafe(here, hazards, this.ground) && dist(here, preferred) < 1.2) return here
     const key = hazards.map(z => z.id).sort().join(',')
-    if (this.dodge?.key !== key || !isSafe(this.dodge.spot, hazards, this.ground)) {
+    // A tight spot (a gap, the boss's back) stays good while it is clear by the tight margin
+    if (this.dodge?.key !== key || !isSafe(this.dodge.spot, hazards, this.ground, TIGHT_MARGIN)) {
       this.dodge = { key, spot: findSafeSpot(here, preferred, hazards, this.ground, w.rng) }
     }
     return this.dodge.spot

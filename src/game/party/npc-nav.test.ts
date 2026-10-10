@@ -38,4 +38,12 @@ describe('npc-nav', () => {
     expect(inHazard(justOutside, [zone({ type: 'fan', radius: 16, angle: 120 })])).toBe(false)
     expect(inHazard(justOutside, [zone({ type: 'fan', radius: 16, angle: 120 }, 0, 0, 0, true)])).toBe(true)
   })
+
+  it('settles for a narrow gap between two AOEs when nothing roomier is left', () => {
+    // Two broad lines leave a 2.2m strip along x = 0: too narrow for the comfortable margin
+    const hazards = [zone({ type: 'rect', length: 40, width: 28 }, -15.1, -20), zone({ type: 'rect', length: 40, width: 28 }, 15.1, -20)]
+    const spot = findSafeSpot({ x: 5, y: 0 }, { x: 5, y: 0 }, hazards, arena, fixed, 0)
+    expect(Math.abs(spot.x)).toBeLessThan(1.1)
+    expect(inHazard(spot, hazards)).toBe(false)
+  })
 })
