@@ -5,7 +5,7 @@ import type { Arena } from '@/arena/arena'
 import type { Entity } from '@/entity/entity'
 import type { AoeZoneDef, DamageType, FlurryGuard, SkillDef, SkillEffectDef, BuffDef, Vec2 } from '@/core/types'
 import { calculateDamage } from '@/combat/damage'
-import { isAlly, isPartyMember, partyMembersNear } from '@/combat/party'
+import { canBeRaised, isAlly, isPartyMember, partyMembersNear } from '@/combat/party'
 import { applyPeriodicBuff, isPeriodicEffect } from '@/combat/buff-periodic'
 import { calcDash, calcBackstep, calcKnockback, calcPull } from '@/combat/displacement'
 import { EASING, type EasingFn } from './displacement-animator'
@@ -151,7 +151,7 @@ export class CombatResolver {
             this.resolveTankbuster(caster, target, effect, potency, skillName, extraIncreases)
             break
           }
-          this.applyDamage(caster, target, potency, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
+          this.applyDamage(caster, target, potency, skillName, normalizeDmgType(effect.dmgType), extraIncreases, { hits: effect.hits })
           break
         }
 
@@ -230,7 +230,7 @@ export class CombatResolver {
         }
 
         case 'raise': {
-          if (!target || target.alive || target.customData.raising || !isPartyMember(target)) break
+          if (!target || target.alive || target.customData.raising || !isPartyMember(target) || !canBeRaised(target)) break
           // FFXIV: the raised stand up where the caster is when the raise lands, not at their body.
           // They stay down through the revive hard stun (player-revive.ts stands them up).
           if (caster) {
@@ -415,14 +415,14 @@ export class CombatResolver {
     const parry = this.buffSystem.getParry(target)
     if (!parry) {
       this.bus.emit('combat:parry', { sourceId: caster.id, targetId: target.id, guard: 'none' })
-      this.applyDamage(caster, target, potency, skillName, dmgTypes, extraIncreases, { noRevive: effect.noRevive, hits: effect.hits })
+      this.applyDamage(caster, target, potency, skillName, dmgTypes, extraIncreases, { hits: effect.hits })
       if (effect.onUnparried) this.resolveEffects(effect.onUnparried, caster, target, skillName)
       return
     }
     this.buffSystem.removeBuff(target, parry.defId, 'consumed')
     this.bus.emit('combat:parry', { sourceId: caster.id, targetId: target.id, guard: parry.guard })
     if (parry.damageTaken > 0) {
-      this.applyDamage(caster, target, potency * parry.damageTaken, skillName, dmgTypes, extraIncreases, { noRevive: effect.noRevive, hits: effect.hits, guard: parry.guard })
+      this.applyDamage(caster, target, potency * parry.damageTaken, skillName, dmgTypes, extraIncreases, { hits: effect.hits, guard: parry.guard })
     } else if ((effect.hits ?? 1) > 1) {
       this.bus.emit('combat:flurry', { sourceId: caster.id, targetId: target.id, hits: effect.hits, guard: parry.guard })
     }
@@ -435,7 +435,7 @@ export class CombatResolver {
    * `feedback.hits` > 1 also announces `combat:flurry` (presentation of a multi-hit attack); its guard
    * follows the target's defences unless `feedback.guard` overrides it.
    */
-  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean; noRevive?: boolean; hits?: number; guard?: FlurryGuard } = {}): void {
+  applyDamage(caster: Entity, target: Entity, potency: number, skillName?: string, dmgTypes: DamageType[] = [], extraIncreases: number[] = [], feedback: { isCritical?: boolean; hits?: number; guard?: FlurryGuard } = {}): void {
     const flurry = (guard: FlurryGuard) => {
       if ((feedback.hits ?? 1) > 1) this.bus.emit('combat:flurry', { sourceId: caster.id, targetId: target.id, hits: feedback.hits, guard: feedback.guard ?? guard })
     }
@@ -484,7 +484,7 @@ export class CombatResolver {
     }
 
     flurry(guarded ? 'block' : 'none')
-    this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null, isCritical: feedback.isCritical ?? false, noRevive: feedback.noRevive ?? false, hits: feedback.hits })
+    this.bus.emit('damage:dealt', { source: caster, target, amount: dmg, skill: skillName ? { name: skillName } : null, isCritical: feedback.isCritical ?? false, hits: feedback.hits })
 
     // Lifesteal: heal caster for % of damage dealt
     const lifesteal = this.buffSystem.getLifesteal(caster)

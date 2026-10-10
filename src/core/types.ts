@@ -87,11 +87,10 @@ export interface EffectCondition {
 }
 
 export type SkillEffectDef = (
-  /** `noRevive`: a player killed by this hit skips the revive ladder (e.g. add enrages).
-   *  `hits`: presentation only — show the damage as N quick hits; it still resolves in one frame.
+  /** `hits`: presentation only — show the damage as N quick hits; it still resolves in one frame.
    *  `onUnparried` (resolved on the target, `tankbuster` damage only) is the encounter's own penalty
    *  for not parrying it — the parry system adds none. */
-  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[]; noRevive?: boolean; hits?: number; onUnparried?: SkillEffectDef[] }
+  | { type: 'damage'; potency: number; dmgType?: DamageType | DamageType[]; hits?: number; onUnparried?: SkillEffectDef[] }
   | { type: 'heal'; potency: number }
   /** Heal every living party member within `radius` of the caster; `onEffective` (on the caster) runs
    *  once when at least one of them was missing HP */

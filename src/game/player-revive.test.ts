@@ -1,73 +1,89 @@
 import { EventBus } from '@/core/event-bus'
 import { BuffSystem } from '@/combat/buff'
 import { EntityManager } from '@/entity/entity-manager'
-import { createPlayerRevive, createRaiseSequence, nextReviveTier, REVIVE_BUFFS } from './player-revive'
+import { Arena } from '@/arena/arena'
+import { AoeZoneManager } from '@/skill/aoe-zone'
+import { SkillResolver } from '@/skill/skill-resolver'
+import { CombatResolver } from './combat-resolver'
+import { createPuppetReviver, createRaiseSequence, REVIVE_BUFFS } from './player-revive'
 
 const has = (e: { buffs: { defId: string }[] }, id: string) => e.buffs.some(b => b.defId === id)
 
-function setup() {
+/** The practice puppet raising the player through the real skill / combat resolvers */
+function puppetSetup(denyAfter: 'brink' | 'once' = 'brink') {
   const bus = new EventBus()
+  const mgr = new EntityManager(bus)
   const buffs = new BuffSystem(bus)
-  const player = new EntityManager(bus).create({ id: 'p', type: 'player', hp: 8000, maxHp: 8000, mp: 0, maxMp: 10000 })
+  const zones = new AoeZoneManager(bus, mgr)
+  const skills = new SkillResolver(bus, mgr, buffs, zones)
+  const combat = new CombatResolver(bus, mgr, buffs, new Arena({ name: 't', shape: { type: 'circle', radius: 30 }, boundary: 'wall' }), zones)
+  combat.registerBuffs(REVIVE_BUFFS)
+  const player = mgr.create({ id: 'p', type: 'player', hp: 8000, mp: 0, maxMp: 10000, position: { x: 5, y: 5, z: 0 } })
   const queue: (() => void)[] = []
-  const revive = createPlayerRevive({ bus, player, buffSystem: buffs, schedule: (_ms, fn) => queue.push(fn) })
-  const die = () => { player.hp = 0; player.alive = false; return revive.tryRevive() }
+  const schedule = (_ms: number, fn: () => void) => { queue.push(fn) }
+  createRaiseSequence({ bus, buffSystem: buffs, schedule })
+  const reviver = createPuppetReviver({ bus, entityMgr: mgr, skillResolver: skills, buffSystem: buffs, player, at: { x: 0, y: -12 }, denyAfter, schedule })
+  const failed = vi.fn()
+  const die = () => {
+    player.hp = 0
+    player.alive = false
+    buffs.clearDeathBuffs(player)
+    reviver.onPlayerDeath(failed)
+  }
   const flush = () => { while (queue.length) queue.shift()!() }
-  return { bus, buffs, player, revive, die, flush }
+  return { bus, buffs, player, die, flush, failed }
 }
 
-describe('player revive ladder', () => {
-  it('weakness after the first death, brink after the second, then no revive', () => {
-    const { player, die, flush } = setup()
-    expect(die()).toBe(true); flush()
-    expect(player.alive).toBe(true)
-    expect(nextReviveTier(player)).toBe('revive_brink')
-    expect(die()).toBe(true); flush()
-    expect(player.buffs.some(b => b.defId === 'revive_weakness')).toBe(false)
-    expect(player.maxHp).toBe(6000)
-    expect(player.hp).toBe(6000)
-    expect(die()).toBe(false)
-  })
-
-  it('restores 25% MP and grants transcendence that breaks on any action', () => {
-    const { bus, player, die, flush } = setup()
+describe('practice revive (puppet raiser)', () => {
+  it('raises at its spot: Weakness, then Brink with Unraisable, then death is final', () => {
+    const { player, die, flush, failed } = puppetSetup()
     die(); flush()
-    expect(player.mp).toBe(2500)
-    expect(player.buffs.some(b => b.defId === 'revive_transcendent')).toBe(true)
-    bus.emit('skill:cast_complete', { caster: player, skill: { id: 'auto' } })
-    expect(player.buffs.some(b => b.defId === 'revive_transcendent')).toBe(false)
+    expect(player.alive).toBe(true)
+    expect(player.position).toMatchObject({ x: 0, y: -12 })
+    expect(player.hp).toBe(8000)
+    expect(has(player, 'revive_weakness')).toBe(true)
+    die(); flush()
+    expect(has(player, 'revive_brink')).toBe(true)
+    expect(has(player, 'revive_denied')).toBe(true)
+    expect(player.maxHp).toBe(6000)
+    die(); flush()
+    expect(player.alive).toBe(false)
+    expect(failed).toHaveBeenCalledOnce()
   })
 
-  it('drops the target on revive so auto-attacks do not break transcendence', () => {
-    const { player, die, flush } = setup()
+  it('a short Unraisable covering the death window means no revive', () => {
+    const { buffs, player, die, flush, failed } = puppetSetup()
+    buffs.applyBuff(player, REVIVE_BUFFS.revive_denied, 'boss', 1, 5000)
+    die(); flush()
+    expect(player.alive).toBe(false)
+    expect(failed).toHaveBeenCalledOnce()
+  })
+
+  it('a healer player in a party gets one raise, then is Unraisable', () => {
+    const { player, die, flush } = puppetSetup('once')
+    die(); flush()
+    expect(player.alive).toBe(true)
+    expect(has(player, 'revive_weakness')).toBe(true)
+    expect(has(player, 'revive_denied')).toBe(true)
+  })
+
+  it('restores 25% MP, drops the target, and transcendence breaks on any action', () => {
+    const { bus, player, die, flush } = puppetSetup()
     player.target = 'boss'
     die(); flush()
+    expect(player.mp).toBe(2500)
     expect(player.target).toBeNull()
+    expect(has(player, 'revive_transcendent')).toBe(true)
+    bus.emit('skill:cast_complete', { caster: player, skill: { id: 'auto' } })
+    expect(has(player, 'revive_transcendent')).toBe(false)
   })
 
-  it('no revive once disabled (enrage)', () => {
-    const { revive, die } = setup()
-    revive.disable()
-    expect(die()).toBe(false)
-  })
-
-  it('stays dead until the scheduled revive fires', () => {
-    const { player, revive, die, flush } = setup()
-    die()
-    expect(player.alive).toBe(false)
-    expect(revive.isPending()).toBe(true)
-    flush()
-    expect(revive.isPending()).toBe(false)
-  })
-})
-
-describe('revive keeps death-preserved buffs', () => {
-  it('practice immunity survives a fall death and the revive', async () => {
+  it('practice immunity survives a death and the revive', async () => {
     const { COMMON_BUFFS } = await import('@/jobs/commons/buffs')
-    const { buffs, player, die, flush } = setup()
+    const { buffs, player, die, flush } = puppetSetup()
     buffs.applyBuff(player, COMMON_BUFFS.practice_immunity, player.id)
     die(); flush()
-    expect(player.buffs.some(b => b.defId === 'practice_immunity')).toBe(true)
+    expect(has(player, 'practice_immunity')).toBe(true)
   })
 })
 

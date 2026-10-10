@@ -9,7 +9,7 @@ import { getJob, JobCategory } from '@/jobs'
 import { MechanicHost } from '@/game/mechanics/mechanic-host'
 import { MECHANICS, FAST_FORWARD } from '@/game/mechanics'
 import { matchesCondition } from '@/combat/conditions'
-import { createPlayerRevive, createRaiseSequence, REVIVE_BUFFS } from '@/game/player-revive'
+import { createPuppetReviver, createRaiseSequence, REVIVE_BUFFS } from '@/game/player-revive'
 import { PARRY_BUFFS } from '@/game/parry'
 import { createParryPrompt } from '@/game/parry-prompt'
 import { createPartyRuntime } from '@/game/party/party-runtime'
@@ -469,7 +469,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     s.bus.emit('combat:started', { entities: [s.player, ...(party?.npcs ?? []), boss] })
   }
 
-  s.bus.on('damage:dealt', (payload: { source: Entity; target: Entity; amount: number; skill: any; noRevive?: boolean }) => {
+  s.bus.on('damage:dealt', (payload: { source: Entity; target: Entity; amount: number; skill: any }) => {
     if (payload.target.id === boss.id && !combatStarted) engageCombat()
     // HP-pushed phases: the boss holds at the running phase's floor until the next phase takes over
     const floor = payload.target.id === boss.id ? scheduler.hpFloor() : null
@@ -484,7 +484,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     }
     // Player dead → revive (if the encounter allows and a tier is left) or the death window.
     // Finalization (victory / wipe) happens from deathWindow.tick() in the logic loop.
-    if (payload.target.id === s.player.id && payload.target.hp <= 0) handlePlayerDeath(payload.noRevive)
+    if (payload.target.id === s.player.id && payload.target.hp <= 0) handlePlayerDeath()
     // Mob death: leave its remains (encounter `onDeath.deathZone`), then destroy the entity
     if (payload.target.type === 'mob' && payload.target.hp <= 0 && payload.target.alive) {
       const remains = enc.deathZonesOnDeath.get(payload.target.id)
@@ -523,7 +523,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     }
     s.zoneMgr.cancelAllByCaster(dead.id)
     // FFXIV: death strips buffs and debuffs, except Weakness / Brink (their timers pause on the body)
-    if (party && isPartyMember(dead)) s.buffSystem.clearDeathBuffs(dead)
+    if (isPartyMember(dead)) s.buffSystem.clearDeathBuffs(dead)
     if (dead.id === s.player.id) handlePlayerDeath()
   })
 
@@ -572,43 +572,23 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     },
   }, MECHANICS)
 
-  // Party mode: a healer player stands back up once on their own (nobody else can raise them)
-  const revive = enc.revive || (party && playerRole === 'healer')
-    ? createPlayerRevive({
-      bus: s.bus, player: s.player, buffSystem: s.buffSystem,
+  // Every raise (healers, the practice puppet) goes through the same sequence
+  s.combatResolver.registerBuffs(REVIVE_BUFFS)
+  s.buffDefs = { ...s.buffDefs, ...REVIVE_BUFFS }
+  createRaiseSequence({ bus: s.bus, buffSystem: s.buffSystem, schedule: (ms, fn) => mechanics.after(ms, fn) })
+  // Practice revives; in a party, a healer player gets one (nobody else can raise them)
+  const reviver = enc.revive || (party && playerRole === 'healer')
+    ? createPuppetReviver({
+      bus: s.bus, entityMgr: s.entityMgr, skillResolver: s.skillResolver, buffSystem: s.buffSystem,
+      player: s.player, at: playerStart, denyAfter: party ? 'once' : 'brink',
       schedule: (ms, fn) => mechanics.after(ms, fn),
-      relocate: () => {
-        ;(s.player as any)._fallOffset = 0
-        const spot = nearestSafeSpot({ x: s.player.position.x, y: s.player.position.y })
-        s.player.position.x = spot.x
-        s.player.position.y = spot.y
-      },
     })
     : null
-  if (revive) {
-    s.combatResolver.registerBuffs(REVIVE_BUFFS)
-    s.buffDefs = { ...s.buffDefs, ...REVIVE_BUFFS }
-    s.bus.on('player:revived', () => s.setAnnounce(null))
-  }
-
-  /** Closest point that is inside the arena and outside every lethal zone (spiral search). */
-  function nearestSafeSpot(from: { x: number; y: number }): { x: number; y: number } {
-    const safe = (p: { x: number; y: number }) => s.arena.isInBounds(p) && !deathZoneMgr.isInAnyZone(p)
-    if (safe(from)) return from
-    for (let r = 0.5; r <= 60; r += 0.5) {
-      for (let a = 0; a < 360; a += 15) {
-        const rad = (a * Math.PI) / 180
-        const p = { x: from.x + Math.sin(rad) * r, y: from.y + Math.cos(rad) * r }
-        if (safe(p)) return p
-      }
-    }
-    return { x: 0, y: 0 }
-  }
 
   let handlingDeath = false
-  function handlePlayerDeath(noRevive = false): void {
-    // entity:died below re-enters through its listener; also ignore deaths while a revive is pending
-    if (handlingDeath || s.battleOver || deathWindow.isActive() || revive?.isPending()) return
+  function handlePlayerDeath(): void {
+    // entity:died below re-enters through its listener; also ignore deaths while a raise is pending
+    if (handlingDeath || s.battleOver || deathWindow.isActive() || s.player.customData.raising) return
     handlingDeath = true
     // Pre-combat death (e.g. dev `kill` before engagement) would lock up
     // because scheduler.combatElapsed never advances pre-engage; force
@@ -627,15 +607,13 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     }
     if (party) {
       // Party mode: the fight goes on; wait for a raise (or restart from the pause menu)
-      if (!noRevive && revive?.tryRevive()) revive.disable()
-      else {
-        s.bus.emit('player:died', { gameTime: s.gameLoop.logicTime })
-        s.setAnnounce('等待队友复活，或按 ESC 重新开始')
-      }
-    } else if (noRevive || !revive?.tryRevive()) deathWindow.enter()
+      s.bus.emit('player:died', { gameTime: s.gameLoop.logicTime })
+      s.setAnnounce('等待队友复活，或按 ESC 重新开始')
+      reviver?.onPlayerDeath(() => {})
+    } else if (reviver) reviver.onPlayerDeath(() => deathWindow.enter())
+    else deathWindow.enter()
     handlingDeath = false
   }
-  if (party) createRaiseSequence({ bus: s.bus, buffSystem: s.buffSystem, schedule: (ms, fn) => mechanics.after(ms, fn) })
   s.bus.on('party:raising', ({ entity }: { entity: Entity }) => {
     if (entity.id === s.player.id) s.setAnnounce(null)
   })
@@ -730,7 +708,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         if (target) target.visible = action.value ?? true
         break
       case 'disable_revive':
-        revive?.disable()
+        // From now on deaths are final: everyone becomes Unraisable
+        for (const m of s.entityMgr.getAll().filter(isPartyMember)) s.buffSystem.applyBuff(m, REVIVE_BUFFS.revive_denied, 'timeline')
         break
       case 'set_speed':
         if (target) target.speed = action.speed ?? 0
@@ -862,12 +841,10 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
           amount: DEATH_ZONE_DAMAGE,
           skill: { name: fallReason },
         })
-        // Party mode: whoever falls off ends up back where the fight started (FFXIV)
-        if (party) {
-          s.player.position.x = playerStart.x
-          s.player.position.y = playerStart.y
-          ;(s.player as any)._fallOffset = 0
-        }
+        // Whoever falls off ends up back where the fight started (FFXIV)
+        s.player.position.x = playerStart.x
+        s.player.position.y = playerStart.y
+        ;(s.player as any)._fallOffset = 0
       }
       return // freeze game logic while falling
     }
@@ -920,7 +897,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (party) {
       party.update(dt)
       // Everyone down: the death window still lets lingering DoTs finish the boss before the wipe
-      if (combatStarted && !s.battleOver && party.allDown() && !revive?.isPending() && !deathWindow.isActive()) {
+      if (combatStarted && !s.battleOver && party.allDown() && !s.partyMembers().some(m => m.customData.raising) && !deathWindow.isActive()) {
         s.setAnnounce(null)
         deathWindow.enter()
       }

@@ -373,7 +373,9 @@ skills:
         resolveDelay: 3000
         hitEffectDuration: 400
         # 火焰鸟复活后的狂暴：被它打死不进入复活流程
-        effects: [{ type: damage, potency: 4200, noRevive: true }]
+        effects:
+          - { type: apply_buff, buffId: revive_denied, duration: 5000 }
+          - { type: damage, potency: 4200 }
 
   # --- 跳舞机 → 燃烬天火 → 场地破碎 ---
   eternal_flame:

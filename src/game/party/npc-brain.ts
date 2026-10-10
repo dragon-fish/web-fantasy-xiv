@@ -10,7 +10,7 @@ import type { EnmitySystem } from '@/combat/enmity'
 import type { Arena } from '@/arena/arena'
 import type { DisplacementAnimator } from '../displacement-animator'
 import { rangeTo } from '@/skill/skill-resolver'
-import { isHostile, isPartyMember } from '@/combat/party'
+import { canBeRaised, isHostile, isPartyMember } from '@/combat/party'
 import { findSafeSpot, inHazard, isSafe, pathIsSafe, type Ground } from './npc-nav'
 import { NPC_RAISE_COOLDOWN_MS, type NpcKit } from './npc-kits'
 import type { PartyConfig } from './party-config'
@@ -128,7 +128,7 @@ export function chooseHealerAction(sense: HealerSense): HealerAction {
   if (single && ratio(single) < CRITICAL_BELOW) return { kind: 'heal', target: single }
   if (sense.canRaise) {
     const order = (e: Entity) => (e.role === 'tank' ? 0 : e.id === player.id ? 1 : 2)
-    const next = party.filter(e => !e.alive && !e.customData.raising).sort((a, b) => order(a) - order(b))[0]
+    const next = party.filter(e => !e.alive && !e.customData.raising && canBeRaised(e)).sort((a, b) => order(a) - order(b))[0]
     if (next) return { kind: 'raise', target: next }
   }
   if (single && aoe) {

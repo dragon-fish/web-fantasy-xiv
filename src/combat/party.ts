@@ -8,6 +8,14 @@ export function isPartyMember(e: Entity): boolean {
   return e.team === PARTY_TEAM
 }
 
+/** Unraisable debuff id: raises skip whoever carries it */
+export const REVIVE_DENIED = 'revive_denied'
+
+/** A fallen member a raise may land on */
+export function canBeRaised(e: Entity): boolean {
+  return !e.buffs.some(b => b.defId === REVIVE_DENIED)
+}
+
 /** Can `a` attack `b` (and must not heal it)? */
 export function isHostile(a: Entity, b: Entity): boolean {
   return a.team !== b.team && a.team !== NEUTRAL_TEAM && b.team !== NEUTRAL_TEAM
@@ -39,7 +47,7 @@ export function partyMembersNear(center: Entity, entities: Iterable<Entity>, rad
  */
 export function pickAllyTarget(caster: Entity, entities: Iterable<Entity>, mode: 'lowest-hp' | 'fallen', range: number): Entity | null {
   // Untargetable members (jailed) can be neither healed nor raised
-  const fits = (e: Entity) => isPartyMember(e) && e.targetable && distance(caster, e) <= range && (mode === 'fallen' ? !e.alive : e.alive)
+  const fits = (e: Entity) => isPartyMember(e) && e.targetable && distance(caster, e) <= range && (mode === 'fallen' ? !e.alive && canBeRaised(e) : e.alive)
   const picked = caster.allyTarget ?? caster.target
   let best: Entity | null = null
   let bestScore = Infinity

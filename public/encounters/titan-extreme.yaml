@@ -401,7 +401,9 @@ skills:
         telegraph: false
         resolveDelay: 3000
         hitEffectDuration: 800
-        effects: [{ type: damage, potency: 99999, dmgType: special, noRevive: true }]
+        effects:
+          - { type: apply_buff, buffId: revive_denied, duration: 5000 }
+          - { type: damage, potency: 99999, dmgType: special }
 
   # --- 花岗石卫的全屏 ---
   gaoler_tumult:
@@ -430,7 +432,9 @@ skills:
         telegraph: false
         resolveDelay: 8000
         hitEffectDuration: 800
-        effects: [{ type: damage, potency: 99999, dmgType: special, noRevive: true }]
+        effects:
+          - { type: apply_buff, buffId: revive_denied, duration: 5000 }
+          - { type: damage, potency: 99999, dmgType: special }
 
 phases:
   # ===== P1（100–85%）=====

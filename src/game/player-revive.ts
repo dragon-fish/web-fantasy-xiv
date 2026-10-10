@@ -1,11 +1,15 @@
 // src/game/player-revive.ts
-// Revival. Practice-friendly self-revive (encounter `revive: true`): FFXIV-style Weakness → Brink
-// of Death ladder; dying at Brink ends the attempt through the normal death window. Raises from a
-// party healer play the same resurrection sequence and hard stun.
+// Revival, one path for everyone: a `raise` lands → hard stun under the light → stand up with
+// Weakness → Brink. Practice revives are a hidden puppet ally raising the player; Unraisable
+// (revive_denied) is what ends the ladder. Spec: docs/superpowers/specs/2026-10-10-unified-revive-design.md
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
-import type { BuffDef } from '@/core/types'
+import type { EntityManager } from '@/entity/entity-manager'
+import type { BuffDef, SkillDef, Vec2 } from '@/core/types'
 import type { BuffSystem } from '@/combat/buff'
+import type { SkillResolver } from '@/skill/skill-resolver'
+import { canBeRaised, REVIVE_DENIED } from '@/combat/party'
+import { NEUTRAL_TEAM } from '@/entity/entity'
 import { icon } from '@/jobs/commons/icon-paths'
 
 /** Hard stun from death to standing up; the renderer's resurrection sequence is timed to it */
@@ -26,20 +30,19 @@ export const REVIVE_BUFFS = {
   },
   revive_brink: {
     id: 'revive_brink', name: '濒死', icon: icon('effects', 15011), type: 'debuff',
-    description: '主属性降低 50%，最大体力降低 25%。死亡时不会消失，倒计时暂停；被复活仍为濒死。单人练习中此状态下死亡将结束挑战。',
+    description: '主属性降低 50%，最大体力降低 25%。死亡时不会消失，倒计时暂停；被复活仍为濒死。',
     duration: 60000, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [{ type: 'attack_modifier', value: -0.5 }, { type: 'max_hp_modifier', value: -0.25 }],
+  },
+  revive_denied: {
+    id: REVIVE_DENIED, name: '无法复活', icon: icon('effects', 215959), type: 'debuff',
+    description: '无法被复活。死亡时不会消失。',
+    duration: 0, stackable: false, maxStacks: 1, preserveOnDeath: true,
+    effects: [],
   },
 } satisfies Record<string, BuffDef>
 
 export type ReviveTier = 'revive_weakness' | 'revive_brink'
-
-/** Debuff the player gets when revived after this death; null = no revive left. Read before buffs are cleared. */
-export function nextReviveTier(player: Entity): ReviveTier | null {
-  if (player.buffs.some(b => b.defId === 'revive_brink')) return null
-  if (player.buffs.some(b => b.defId === 'revive_weakness')) return 'revive_brink'
-  return 'revive_weakness'
-}
 
 /** Tier a party raise stands up with: Brink once either tier is already on (it survives death) */
 export function raiseTier(entity: Entity): ReviveTier {
@@ -62,10 +65,11 @@ export interface RaiseDeps {
 
 /**
  * A raise has landed (`party:raising`, body already moved to the caster): the body lies under the
- * light for the revive hard stun, then stands with Weakness (Brink if already weakened) and
- * transcendence. Unlike the practice ladder there is no last death: Brink raises to Brink.
+ * light for the revive hard stun, then stands with Weakness (Brink if already weakened), 25% MP
+ * and transcendence. Brink raises to Brink; only Unraisable stops raises.
  */
 export function createRaiseSequence({ bus, buffSystem, schedule }: RaiseDeps): void {
+  // Transcendence breaks on any action, auto-attacks included
   const breakTranscendence = ({ caster }: { caster: Entity }) => buffSystem.removeBuff(caster, 'revive_transcendent', 'consumed')
   bus.on('skill:cast_start', breakTranscendence)
   bus.on('skill:cast_complete', breakTranscendence)
@@ -78,7 +82,10 @@ export function createRaiseSequence({ bus, buffSystem, schedule }: RaiseDeps): v
       // Brink lowers max HP: apply the tier first
       applyReviveTier(buffSystem, entity, tier)
       entity.hp = Math.max(1, Math.floor(entity.maxHp * hpPercent))
+      entity.mp = Math.min(entity.maxMp, entity.mp + Math.floor(entity.maxMp * 0.25))
       buffSystem.applyBuff(entity, REVIVE_BUFFS.revive_transcendent, entity.id)
+      // Drop the target: auto-attacks would otherwise break transcendence on the first swing.
+      // Pressing any skill re-acquires a target and ends it, as intended.
       if (!entity.npc && entity.target) {
         entity.target = null
         bus.emit('target:released', { entity })
@@ -89,62 +96,68 @@ export function createRaiseSequence({ bus, buffSystem, schedule }: RaiseDeps): v
   })
 }
 
-export interface PlayerReviveDeps {
+/** Instant, unlimited-range raise the puppet raiser casts (full HP: practice revives) */
+export const PUPPET_RAISE: SkillDef = {
+  id: 'puppet_raise', name: '复活', type: 'ability', castTime: 0, cooldown: 0, gcd: false,
+  targetType: 'single', requiresTarget: false, allyTarget: 'fallen', range: Infinity, mpCost: 0,
+  effects: [{ type: 'raise', hpPercent: 1 }],
+}
+
+/** How long after the player's death the puppet keeps trying to raise them */
+export const PUPPET_WINDOW_MS = 1000
+const PUPPET_RETRY_MS = 100
+
+export interface PuppetReviverDeps {
   bus: EventBus
-  player: Entity
+  entityMgr: EntityManager
+  skillResolver: SkillResolver
   buffSystem: BuffSystem
-  /** Run `fn` after `ms` of live battle time */
+  player: Entity
+  /** Where it stands: the raised player gets up there */
+  at: Vec2
+  /** `brink`: Unraisable once the player reaches Brink (practice ladder); `once`: after its one raise */
+  denyAfter: 'brink' | 'once'
   schedule: (ms: number, fn: () => void) => void
-  /** Move the player back onto safe ground before standing up (fell off / died in a pit) */
-  relocate?: () => void
 }
 
-export interface PlayerRevive {
-  /** Call after the player has been marked dead. Returns false when no revive is left. */
-  tryRevive(): boolean
-  isPending(): boolean
-  /** From now on deaths are final (e.g. enrage) */
-  disable(): void
+export interface PuppetReviver {
+  /** The player just died: try to raise them for a short window; `onFail` runs if it never lands */
+  onPlayerDeath(onFail: () => void): void
 }
 
-export function createPlayerRevive({ bus, player, buffSystem, schedule, relocate }: PlayerReviveDeps): PlayerRevive {
-  let pending = false
-  let disabled = false
-
-  // Transcendence breaks on any action, auto-attacks included
-  const breakTranscendence = ({ caster }: { caster: Entity }) => {
-    if (caster.id === player.id) buffSystem.removeBuff(player, 'revive_transcendent', 'consumed')
+/**
+ * Practice revives (and a healer player's one self-revive in a party) are a hidden ally at the
+ * start point casting a raise on the player — the same raise any healer casts. When to stop is
+ * Unraisable's job, not this module's.
+ */
+export function createPuppetReviver(deps: PuppetReviverDeps): PuppetReviver {
+  const { bus, entityMgr, skillResolver, buffSystem, player, denyAfter, schedule } = deps
+  // Neutral: no one's ally or enemy, never counted in the party
+  const puppet = entityMgr.create({
+    id: 'puppet_raiser', type: 'mob', team: NEUTRAL_TEAM, hp: 1, visible: false, targetable: false,
+    position: { x: deps.at.x, y: deps.at.y, z: 0 },
+  })
+  bus.on('party:raised', ({ entity, by }: { entity: Entity; by: Entity | null }) => {
+    if (entity.id !== player.id || by?.id !== puppet.id) return
+    if (denyAfter === 'once' || buffSystem.hasBuff(player, 'revive_brink')) buffSystem.applyBuff(player, REVIVE_BUFFS.revive_denied, puppet.id)
+  })
+  const tryRaise = (): boolean => {
+    if (player.alive || player.customData.raising || !canBeRaised(player)) return false
+    puppet.allyTarget = player.id
+    return skillResolver.tryUse(puppet, PUPPET_RAISE) && !!player.customData.raising
   }
-  bus.on('skill:cast_start', breakTranscendence)
-  bus.on('skill:cast_complete', breakTranscendence)
-
   return {
-    isPending: () => pending,
-    disable: () => { disabled = true },
-    tryRevive() {
-      if (disabled) return false
-      const tier = nextReviveTier(player)
-      if (!tier) return false
-      pending = true
-      buffSystem.clearDeathBuffs(player)
-      bus.emit('player:reviving', { entity: player, tier, delay: REVIVE_DELAY_MS })
-      schedule(REVIVE_DELAY_MS, () => {
-        pending = false
-        relocate?.()
-        player.alive = true
-        applyReviveTier(buffSystem, player, tier)
-        player.hp = player.maxHp
-        player.mp = Math.min(player.maxMp, player.mp + Math.floor(player.maxMp * 0.25))
-        buffSystem.applyBuff(player, REVIVE_BUFFS.revive_transcendent, player.id)
-        // Drop the target: auto-attacks would otherwise break transcendence on the first swing.
-        // Pressing any skill re-acquires a target and ends it, as intended.
-        if (player.target) {
-          player.target = null
-          bus.emit('target:released', { entity: player })
-        }
-        bus.emit('player:revived', { entity: player, tier })
-      })
-      return true
+    onPlayerDeath(onFail) {
+      if (tryRaise()) return
+      let waited = 0
+      const retry = () => {
+        if (player.customData.raising || player.alive) return
+        if (tryRaise()) return
+        waited += PUPPET_RETRY_MS
+        if (waited >= PUPPET_WINDOW_MS) onFail()
+        else schedule(PUPPET_RETRY_MS, retry)
+      }
+      schedule(PUPPET_RETRY_MS, retry)
     },
   }
 }
