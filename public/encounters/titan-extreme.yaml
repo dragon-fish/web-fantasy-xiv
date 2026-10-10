@@ -6,6 +6,8 @@
 # 时间轴不写 NPC 点位提示：机制全部交给 NPC 的通用规则处理。
 
 party:
+  # 通关目标 6:00（7:00 软狂暴）：NPC 输出按本体血量向它收敛，小怪与停顿会让实际时间略长
+  targetTime: 360
   mistakeRate: 0.03
   idle: { x: 0, y: -4 }
   tankSpot: { x: 0, y: 0, facing: north }
@@ -28,7 +30,7 @@ entities:
     type: boss
     model: giant
     group: boss
-    hp: 690000
+    hp: 540000
     attack: 1
     speed: 4
     size: 2.5
@@ -52,7 +54,7 @@ entities:
     type: mob
     model: titan-heart
     group: heart
-    hp: 60000
+    hp: 45000
     attack: 1
     speed: 0
     size: 1.2
