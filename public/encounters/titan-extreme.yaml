@@ -85,7 +85,7 @@ entities:
         shape: { type: circle, radius: 6 }
         behavior: damage
         damage: { potency: 1000, interval: 1000, name: 岩浆 }
-        color: '#ff5a1a'
+        color: '#b81236'
   gaoler_w:
     name: 花岗石卫
     type: mob
@@ -106,7 +106,7 @@ entities:
         shape: { type: circle, radius: 6 }
         behavior: damage
         damage: { potency: 1000, interval: 1000, name: 岩浆 }
-        color: '#ff5a1a'
+        color: '#b81236'
   # 花岗石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「花岗岩坟墓」
   gaol:
     template: true
@@ -363,26 +363,45 @@ skills:
           - { type: damage, potency: 1000 }
           - { type: knockback, distance: 10 }
 
-  # --- 大怒震（场边）：泰坦跳到场边面朝场心（corner_jump）后放出，覆盖除他脚下以外的全场；
-  #     击退后 3s 爆炸：贴脚被推出去，再跑回脚下 ---
+  # --- 大怒震（场边）：泰坦跳到场边面朝场心（corner_jump），岩石覆盖除他脚下以外的全场，
+  #     在击退前一刻爆炸：贴脚躲开岩石，再被推过已经炸完的场地到对面（对面有岩浆就斜着站） ---
+  upheaval_corner:
+    name: 大怒震
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        marker: knockback
+        resolveDelay: 5000
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 1000 }
+          - { type: knockback, distance: 18 }
+
   upheaval_bombs:
     name: 爆炸
     type: ability
     targetType: aoe
     zones:
-      - { anchor: { type: caster }, offset: { x: -11.0, y: -1.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 11.0, y: -1.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: -11.0, y: 0.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 11.0, y: 0.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: -7.5, y: 9.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 7.5, y: 9.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: -5.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 5.0, y: 10.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: -12.5, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 12.5, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 0.0, y: 18.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: -5.5, y: 18.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
-      - { anchor: { type: caster }, offset: { x: 5.5, y: 18.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 8000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -12.5, y: 0.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 12.5, y: 0.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -12.5, y: 2.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 12.5, y: 2.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -12.0, y: 3.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 12.0, y: 3.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -12.5, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 12.5, y: 11.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -7.5, y: 11.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -5.0, y: 11.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 5.0, y: 11.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 7.5, y: 11.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 0.0, y: 18.0 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: -5.5, y: 19.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: caster }, offset: { x: 5.5, y: 19.5 }, direction: { type: none }, shape: { type: circle, radius: 7 }, resolveDelay: 4800, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
 
   # --- 花岗岩牢狱：点非坦克关进石牢（P2 1 人，P4 2 人） ---
   rock_throw_single:
@@ -702,8 +721,8 @@ phases:
       - { at: 28000, action: disable_ai }
       - { at: 28000, mechanic: corner_jump, params: { radius: 10, avoidGroup: gaolers } }
       - { at: 28500, use: upheaval_bombs }
-      - { at: 28500, use: upheaval }
-      - { at: 37000, action: enable_ai }
+      - { at: 28500, use: upheaval_corner }
+      - { at: 35000, action: enable_ai }
       - { at: 38500, use: landslide }
       - { at: 41000, use: tumult }
       - { at: 47000, use: weight_of_land }
@@ -797,8 +816,8 @@ phases:
       - { at: 95000, action: disable_ai }
       - { at: 95000, mechanic: corner_jump, params: { radius: 10, avoidGroup: gaolers } }
       - { at: 95500, use: upheaval_bombs }
-      - { at: 95500, use: upheaval }
-      - { at: 104000, action: enable_ai }
+      - { at: 95500, use: upheaval_corner }
+      - { at: 102000, action: enable_ai }
       - { at: 105000, use: geocrush }
       - { at: 111000, use: weight_of_land }
       - { at: 116000, loop: 12000 }

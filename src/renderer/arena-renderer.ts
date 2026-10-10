@@ -134,7 +134,8 @@ export class ArenaRenderer {
     mesh.material = isWall ? this.wallMat : this.dzMat
     // Damage zones (lava and the like): a glowing floor in their own colour with a bright rim
     if (behavior === 'damage') {
-      const tint = Color3.FromHexString(color ?? '#ff6a1a')
+      // Default deep red: orange is what AOE telegraphs look like
+      const tint = Color3.FromHexString(color ?? '#b81236')
       mesh.material = this.hazardMaterial(tint)
       mesh.position.y = 0.03
       if (shape.type === 'circle') {

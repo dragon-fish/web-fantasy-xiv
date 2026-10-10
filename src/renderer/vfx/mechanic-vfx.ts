@@ -31,7 +31,8 @@ const MARKER_COLORS = {
   spread: Color3.FromHexString('#ff6fd8'),
   stack: Color3.FromHexString('#ffd36b'),
   buster: Color3.FromHexString('#ff4a3a'),
-  knockback: Color3.FromHexString('#ff9a3c'),
+  // Cool white-blue: AOE telegraphs are orange/red, a push must not read as one
+  knockback: Color3.FromHexString('#bff4ff'),
   pull: Color3.FromHexString('#7fb8ff'),
   target: Color3.FromHexString('#ff8a1c'),
 }
@@ -80,12 +81,14 @@ export class MechanicVfx {
             if (!e) return
             const cyc = ((f.age / 1100) + phase) % 1
             const k = kind === 'knockback' ? cyc : 1 - cyc
-            const r = 3 + k * 8
+            const r = e.size + 1 + k * 10
             f.mesh.position.set(e.position.x + Math.sin(a) * r, 0.08, e.position.y + Math.cos(a) * r)
+            // Drawn over AOE telegraphs: a push usually comes with ground to dodge (Titan's bomb carpet)
+            f.mesh.renderingGroupId = 1
             // The 'chevron_up' texture actually points +X (east) at rotation 0, hence the -90°;
             // then face outward (knockback) or inward (pull) along the radial angle `a`
             f.mesh.rotation.y = a - Math.PI / 2 + (kind === 'pull' ? Math.PI : 0)
-            f.mesh.scaling.set(1.6, 1, 1.6)
+            f.mesh.scaling.set(3, 1, 3)
             f.mesh.visibility = Math.sin(cyc * Math.PI) * 0.9
           }))
         }
