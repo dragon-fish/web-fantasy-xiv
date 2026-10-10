@@ -347,7 +347,7 @@ export class ArenaRenderer {
       edgeRing.material = edgeMat
       this.sm.addGlow(edgeRing)
     } else {
-      // Wall boundary: glowing rim + translucent shimmering barrier
+      // Wall boundary: glowing rim + translucent shimmering barrier (rugged rocks on a pillar top)
       const boundary = MeshBuilder.CreateTorus('arena-boundary', { diameter: radius * 2, thickness: 0.12, tessellation: 128 }, scene)
       boundary.position.y = 0.05
       this.wallParts.push(boundary)
@@ -357,7 +357,10 @@ export class ArenaRenderer {
         m.emissiveColor = new Color3(0.3, 0.3, 0.3)
         return m
       })()
-      if (decor) {
+      if (decor && arenaDef.pillar) {
+        this.sm.addGlow(boundary)
+        this.createRimRocks(radius)
+      } else if (decor) {
         this.sm.addGlow(boundary)
         const barrier = MeshBuilder.CreateCylinder('arena-barrier', {
           diameter: radius * 2, height: 1.6, tessellation: 128, cap: Mesh.NO_CAP, sideOrientation: Mesh.DOUBLESIDE,
@@ -374,33 +377,86 @@ export class ArenaRenderer {
   }
 
   /**
-   * Faceted stone column from just under the floor down into the abyss, widening slightly with
-   * depth. Vertex colours fade it to the background colour (the scene has no fog to hide its foot).
+   * Titan's Navel seen from the side: a wide flat top that funnels into a long, narrow, ragged
+   * stone stem dropping into the abyss. Vertex colours fade it to the background colour with depth
+   * (the scene has no fog to hide its foot).
    */
   private createColumn(radius: number): void {
-    const height = 70
-    const column = MeshBuilder.CreateCylinder('arena-column', {
-      height, diameterTop: radius * 2, diameterBottom: radius * 2.5, tessellation: 22, subdivisions: 10,
+    // Profile in units of the top radius: (radius, depth below the floor)
+    const PROFILE: [number, number][] = [
+      [1.0, 0.02], [0.97, 0.08], [0.86, 0.18], [0.7, 0.32], [0.55, 0.5], [0.45, 0.75], [0.4, 1.1],
+      [0.36, 1.6], [0.39, 2.1], [0.33, 2.7], [0.36, 3.3], [0.31, 4.2],
+    ]
+    const depth = PROFILE[PROFILE.length - 1][1] * radius
+    const column = MeshBuilder.CreateLathe('arena-column', {
+      shape: PROFILE.map(([r, d]) => new Vector3(r * radius, -d * radius, 0)),
+      tessellation: 26,
+      sideOrientation: Mesh.DOUBLESIDE,
     }, this.scene)
-    // Top just below the floor: coplanar faces z-fight with the ground disc
-    column.position.y = -height / 2 - 0.02
-    column.convertToFlatShadedMesh()
     const positions = column.getVerticesData('position')!
-    const colors: number[] = []
     for (let i = 0; i < positions.length; i += 3) {
-      const depth = (height / 2 - positions[i + 1]) / height // 0 at the top, 1 at the foot
-      const k = Math.max(0, 1 - depth * 1.6)
+      const x = positions[i], y = positions[i + 1], z = positions[i + 2]
+      // The rim stays round (it meets the floor); below it the rock gets ragged
+      if (y > -0.3 * radius) continue
+      const a = Math.atan2(z, x)
+      const v = y / radius
+      const n = Math.sin(a * 3 + v * 1.7) + 0.6 * Math.sin(a * 7 - v * 2.9) + 0.5 * Math.sin(v * 4.3 + a)
+      const k = 1 + 0.07 * n
+      positions[i] = x * k
+      positions[i + 2] = z * k
+    }
+    column.setVerticesData('position', positions)
+    column.convertToFlatShadedMesh()
+    const flat = column.getVerticesData('position')!
+    const colors: number[] = []
+    for (let i = 0; i < flat.length; i += 3) {
+      const k = Math.max(0, 1 + flat[i + 1] / (depth * 0.8)) // 1 at the top, 0 at 80% of the way down
       colors.push(k, k, k, 1)
     }
     column.setVerticesData('color', colors)
     // Floor stone, darker: the theme's cliff colour is too dark to read the column against the void
     const mat = new StandardMaterial('arena-column-mat', this.scene)
     mat.diffuseColor = Color3.FromHexString(this.theme.tileAlt).scale(0.8)
+    // The sides get little of the overhead light: a touch of self-light keeps the silhouette readable
+    mat.emissiveColor = Color3.FromHexString(this.theme.tileAlt).scale(0.3)
     mat.specularColor = Color3.Black()
     column.material = mat
     column.receiveShadows = true
     column.isPickable = false
     this.column = { mesh: column, radius }
+  }
+
+  /**
+   * The guard rail of a pillar top: a ring of rugged rocks along the rim (it falls when the rim
+   * breaks). Looks only: the wall is still the arena's circle.
+   */
+  private createRimRocks(radius: number): void {
+    let seed = 4242
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    const count = Math.round((Math.PI * 2 * radius) / 1.1)
+    const rocks: Mesh[] = []
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + (rand() - 0.5) * 0.04
+      // Dodecahedra / icosahedra: blunt boulders (sharper polyhedra read as crystals)
+      const rock = MeshBuilder.CreatePolyhedron('rim-rock', { type: 2 + Math.floor(rand() * 2), size: 0.5 }, this.scene)
+      const h = 0.6 + rand() * 0.9
+      rock.scaling.set(1.1 + rand() * 0.9, h, 0.9 + rand() * 0.7)
+      const r = radius + 0.35 + (rand() - 0.5) * 0.3
+      rock.position.set(Math.cos(a) * r, h * 0.3, Math.sin(a) * r)
+      rock.rotation.set((rand() - 0.5) * 0.5, -a + (rand() - 0.5) * 0.8, (rand() - 0.5) * 0.5)
+      rocks.push(rock)
+    }
+    const rim = Mesh.MergeMeshes(rocks, true)!
+    rim.name = 'arena-rim-rocks'
+    rim.convertToFlatShadedMesh()
+    const mat = new StandardMaterial('arena-rim-rocks-mat', this.scene)
+    mat.diffuseColor = Color3.FromHexString(this.theme.tileAlt).scale(0.75)
+    mat.specularColor = Color3.Black()
+    rim.material = mat
+    rim.receiveShadows = true
+    rim.isPickable = false
+    this.sm.addShadowCaster(rim)
+    this.dressing.push(rim)
   }
 
   /** Vertical alpha gradient (opaque at the floor, transparent at the top) for barrier walls. */
