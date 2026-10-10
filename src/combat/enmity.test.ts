@@ -26,16 +26,16 @@ describe('EnmitySystem', () => {
     expect(enmity.top(boss)).toBe(tank)
   })
 
-  it('healing a member on the list draws enmity; overheal counts 1.5×', () => {
+  it('healing a member on the list draws half enmity; overheal counts 1.5× on top', () => {
     const { enmity, boss, healer, tank, heal } = setup()
     heal(healer, tank, 4000, 1000)
-    expect(enmity.get(boss, healer)).toBe(3000 + 1500)
+    expect(enmity.get(boss, healer)).toBe((3000 + 1500) * 0.5)
   })
 
   it('periodic ticks carry only the caster id and still count', () => {
     const { enmity, boss, healer, tank, heal } = setup()
     heal({ id: 'healer' }, tank, 500)
-    expect(enmity.get(boss, healer)).toBe(500)
+    expect(enmity.get(boss, healer)).toBe(250)
   })
 
   it('the next in line takes over when the top falls', () => {

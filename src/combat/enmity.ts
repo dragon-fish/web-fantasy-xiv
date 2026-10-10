@@ -7,7 +7,9 @@ import { isHostile, isPartyMember } from './party'
 
 /** Tank stance: every source of enmity from a tank counts ×10 (heals included) */
 export const TANK_ENMITY_MULTIPLIER = 10
-/** Overheal draws more enmity than effective healing */
+/** Healing draws half the enmity of the same amount of damage */
+export const HEAL_ENMITY = 0.5
+/** Overheal draws more enmity than effective healing (on top of HEAL_ENMITY) */
 export const OVERHEAL_ENMITY = 1.5
 
 interface DamageDealt {
@@ -97,7 +99,7 @@ export class EnmitySystem {
     if (amount < 0 && isPartyMember(target)) {
       // Healing someone draws enmity from every enemy that has them on its list
       const effective = -amount - overheal
-      const enmity = effective + overheal * OVERHEAL_ENMITY
+      const enmity = (effective + overheal * OVERHEAL_ENMITY) * HEAL_ENMITY
       for (const [enemyId, table] of this.tables) {
         if (!table.has(target.id)) continue
         const enemy = this.entities.get(enemyId)
