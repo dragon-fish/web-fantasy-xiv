@@ -931,7 +931,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       }
     }
 
-    updateTimelineSignal(s, dt, scheduler, enc.skills)
+    updateTimelineSignal(s, dt, scheduler, enc.skills, variantPicks)
 
     // Death-window finalize check: runs AFTER tickPeriodicBuffs (fired in
     // GameScene.start before onLogicTick) so this frame's DoT ticks have
@@ -946,13 +946,21 @@ const TIMELINE_WINDOW_MS = 30000
 const TIMELINE_MAX_ENTRIES = 5
 const TIMELINE_FLASH_DURATION = 1000
 
-function updateTimelineSignal(scene: GameScene, dt: number, scheduler: PhaseScheduler, skillMap: Map<string, import('@/core/types').SkillDef>): void {
+function updateTimelineSignal(
+  scene: GameScene, dt: number, scheduler: PhaseScheduler,
+  skillMap: Map<string, import('@/core/types').SkillDef>, variantPicks: ReadonlyMap<string, number>,
+): void {
   const elapsed = scheduler.combatElapsed
   const allActions = scheduler.getAllActions()
   const upcoming: TimelineEntry[] = []
 
   for (const { action, phaseId, absoluteAt } of allActions) {
     if (action.action !== 'use' || !action.use) continue
+    // `choose:` lists every option; once the group has fired only the picked one is real
+    if (action.variant) {
+      const picked = variantPicks.get(action.variant.group)
+      if (picked !== undefined && picked !== action.variant.index) continue
+    }
     const skill = skillMap.get(action.use)
     if (!skill) continue
 
@@ -960,7 +968,12 @@ function updateTimelineSignal(scene: GameScene, dt: number, scheduler: PhaseSche
     if (timeUntil > TIMELINE_WINDOW_MS) continue
     if (timeUntil < -TIMELINE_FLASH_DURATION - (skill.castTime || 0)) continue
 
-    const key = `${phaseId}_${action.at}_${action.use}_${action.entity ?? ''}`
+    // Options of one `choose:` group that fire at the same time under the same name are one row,
+    // before and after the pick (the variants differ in layout, not in what the timeline shows)
+    const key = action.variant
+      ? `${phaseId}_${action.variant.group}_${action.at}_${skill.name}_${action.entity ?? ''}`
+      : `${phaseId}_${action.at}_${action.use}_${action.entity ?? ''}`
+    if (upcoming.some((e) => e.key === key)) continue
     const isInstant = skill.type !== 'spell' || skill.castTime === 0
 
     let state: 'upcoming' | 'casting' | 'flash' = 'upcoming'
