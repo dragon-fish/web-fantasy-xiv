@@ -655,7 +655,19 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   })
 
   // Timeline actions
-  s.bus.on('timeline:action', (action: TimelineAction) => {
+  // An HP push can start the next phase while the old one is mid-cast: the cast is cut (with the
+  // zones it laid down), or the busy caster would drop the new phase's opening cast
+  const phaseCasts = new Map<string, { phaseId: string; skillId: string }>()
+  s.bus.on('phase:stopped', ({ phaseId }: { phaseId: string }) => {
+    for (const [id, cast] of phaseCasts) {
+      if (cast.phaseId !== phaseId) continue
+      phaseCasts.delete(id)
+      const caster = s.entityMgr.get(id)
+      if (caster?.casting?.skillId === cast.skillId) s.skillResolver.interruptCast(caster)
+    }
+  })
+
+  s.bus.on('timeline:action', (action: TimelineAction & { phaseId?: string }) => {
     if (s.battleOver) return
     if (!matchesCondition(action.when, s.player)) return
     if (action.fastForward && !FAST_FORWARD_ACTIONS.has(action.action)) return
@@ -680,7 +692,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
           // Ensure enemies have a target so toward_target AOE works
           if (target.type === 'mob' || target.type === 'boss') target.target = targetIdFor(target)
           const skill = enc.skills.get(action.use)
-          if (skill) s.skillResolver.tryUse(target, skill)
+          if (skill && s.skillResolver.tryUse(target, skill) && target.casting && action.phaseId) {
+            phaseCasts.set(target.id, { phaseId: action.phaseId, skillId: skill.id })
+          }
         }
         break
       case 'lock_facing':

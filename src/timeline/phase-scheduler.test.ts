@@ -64,6 +64,8 @@ describe('PhaseScheduler HP push', () => {
     const bus = new EventBus()
     const fired: string[] = []
     bus.on('timeline:action', (a: any) => fired.push(a.use))
+    const stopped: string[] = []
+    bus.on('phase:stopped', (p: { phaseId: string }) => stopped.push(p.phaseId))
     const phases: PhaseDef[] = [
       { id: 'phase_default', trigger: { type: 'on_combat_start' }, actions: [{ at: 3000, action: 'use', use: 'p1' }] },
       { id: 'enrage', trigger: { type: 'on_combat_start' }, background: true, actions: [{ at: 3000, action: 'use', use: 'enrage' }] },
@@ -74,5 +76,16 @@ describe('PhaseScheduler HP push', () => {
     scheduler.checkTriggers({ groupHpBelow: () => true })
     scheduler.update(3000)
     expect(fired).toEqual(['enrage'])
+    expect(stopped).toEqual(['phase_default'])
+  })
+  it('actions name the phase that fired them (casts are cut when it stops)', () => {
+    const bus = new EventBus()
+    const fired: string[] = []
+    bus.on('timeline:action', (a: any) => fired.push(`${a.phaseId}:${a.use}`))
+    const scheduler = new PhaseScheduler(bus, [
+      { id: 'phase_default', trigger: { type: 'on_combat_start' }, actions: [{ at: 1000, action: 'use', use: 'a' }] },
+    ])
+    scheduler.update(1000)
+    expect(fired).toEqual(['phase_default:a'])
   })
 })
