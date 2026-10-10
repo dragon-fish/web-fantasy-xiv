@@ -30,6 +30,8 @@ export class ArenaRenderer {
   /** Courtyard + props: they fall into the void when the floor breaks */
   private dressing: TransformNode[] = []
   private def: ArenaDef
+  /** Pillar arenas: the column under the floor (shrinks with the floor when the rim breaks off) */
+  private column: { mesh: Mesh; radius: number } | null = null
 
   constructor(private sm: SceneManager, arenaDef: ArenaDef, private bus?: EventBus, options: ArenaRendererOptions = { decor: true }) {
     const scene = this.scene = sm.scene
@@ -199,8 +201,8 @@ export class ArenaRenderer {
   }
 
   /**
-   * The guard rail shatters: edge becomes lethal, a floating-island underside appears and the
-   * surrounding courtyard + props drop into the void.
+   * The guard rail shatters: edge becomes lethal, the surrounding courtyard + props drop into the
+   * void, and the floor gets a floating-island underside (a pillar's column shrinks with it instead).
    */
   private breakFloor(): void {
     if (this.def.shape.type !== 'circle') return
@@ -219,6 +221,17 @@ export class ArenaRenderer {
     edge.scaling.y = 0.3
     edge.material = this.dangerRimMaterial()
     this.sm.addGlow(edge)
+    if (this.column) {
+      const k = radius / this.column.radius
+      this.column.mesh.scaling.x = k
+      this.column.mesh.scaling.z = k
+    } else {
+      this.addFloatingIsland(radius)
+    }
+    this.dropDressing()
+  }
+
+  private addFloatingIsland(radius: number): void {
     const slab = MeshBuilder.CreateCylinder('arena-platform', { height: 1.2, diameter: radius * 2, tessellation: 96 }, this.scene)
     slab.position.y = -0.62
     const cliff = new StandardMaterial('platform-break-mat', this.scene)
@@ -229,7 +242,10 @@ export class ArenaRenderer {
     under.position.y = -1.2 - radius * 0.45
     under.material = cliff
     under.convertToFlatShadedMesh()
+  }
 
+  /** Courtyard and props fall into the void */
+  private dropDressing(): void {
     const falling = this.dressing.map((node, i) => ({ node, v: 0, delay: (i % 7) * 90, spin: (Math.random() - 0.5) * 0.8 }))
     this.dressing = []
     let t = 0
@@ -304,6 +320,7 @@ export class ArenaRenderer {
     ground.material = this.floorMaterial(radius * 2, radius * 2, 'circle', decor)
     ground.receiveShadows = true
     if (decor) this.sm.addGlow(ground)
+    if (arenaDef.pillar) this.createColumn(radius)
 
     if (arenaDef.boundary === 'lethal') {
       // Floating island: thin platform slab + tapering rock underside
@@ -311,7 +328,7 @@ export class ArenaRenderer {
       const slab = MeshBuilder.CreateCylinder('arena-platform', { height: 1.2, diameter: radius * 2, tessellation: 96 }, scene)
       slab.position.y = -0.62
       slab.material = this.cliffMaterial()
-      if (decor) {
+      if (decor && !arenaDef.pillar) {
         const under = MeshBuilder.CreateCylinder('arena-underside', {
           height: radius * 0.9, diameterTop: radius * 2 * 0.98, diameterBottom: radius * 0.35, tessellation: 14, subdivisions: 3,
         }, scene)
@@ -354,6 +371,36 @@ export class ArenaRenderer {
         barrier.isPickable = false
       }
     }
+  }
+
+  /**
+   * Faceted stone column from just under the floor down into the abyss, widening slightly with
+   * depth. Vertex colours fade it to the background colour (the scene has no fog to hide its foot).
+   */
+  private createColumn(radius: number): void {
+    const height = 70
+    const column = MeshBuilder.CreateCylinder('arena-column', {
+      height, diameterTop: radius * 2, diameterBottom: radius * 2.5, tessellation: 22, subdivisions: 10,
+    }, this.scene)
+    // Top just below the floor: coplanar faces z-fight with the ground disc
+    column.position.y = -height / 2 - 0.02
+    column.convertToFlatShadedMesh()
+    const positions = column.getVerticesData('position')!
+    const colors: number[] = []
+    for (let i = 0; i < positions.length; i += 3) {
+      const depth = (height / 2 - positions[i + 1]) / height // 0 at the top, 1 at the foot
+      const k = Math.max(0, 1 - depth * 1.6)
+      colors.push(k, k, k, 1)
+    }
+    column.setVerticesData('color', colors)
+    // Floor stone, darker: the theme's cliff colour is too dark to read the column against the void
+    const mat = new StandardMaterial('arena-column-mat', this.scene)
+    mat.diffuseColor = Color3.FromHexString(this.theme.tileAlt).scale(0.8)
+    mat.specularColor = Color3.Black()
+    column.material = mat
+    column.receiveShadows = true
+    column.isPickable = false
+    this.column = { mesh: column, radius }
   }
 
   /** Vertical alpha gradient (opaque at the floor, transparent at the top) for barrier walls. */
@@ -429,7 +476,8 @@ export class ArenaRenderer {
     const extent = arenaDef.shape.type === 'circle'
       ? arenaDef.shape.radius
       : Math.max(arenaDef.shape.width, arenaDef.shape.height) / 2 * Math.SQRT2
-    const lethal = arenaDef.boundary === 'lethal'
+    // Props float below the rim of a lethal edge or a pillar top; a walled floor sits in a courtyard
+    const lethal = arenaDef.boundary === 'lethal' || arenaDef.pillar === true
 
     if (!lethal) {
       // Darker courtyard stone around the arena so it doesn't float in a void
@@ -452,9 +500,11 @@ export class ArenaRenderer {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + (rand() - 0.5) * 0.25
       const kind = this.theme.props[i % this.theme.props.length]
-      const r = extent + (lethal ? 6 + rand() * 6 : 3.5 + rand() * 5)
+      // Around a pillar the rocks drift far below the top, so the platform reads as high up
+      const r = extent + (arenaDef.pillar ? 8 + rand() * 14 : lethal ? 6 + rand() * 6 : 3.5 + rand() * 5)
+      const y = arenaDef.pillar ? -10 - rand() * 22 : lethal ? -1.5 - rand() * 3 : 0
       const prop = buildProp(scene, kind, this.theme, rand, { floating: lethal })
-      prop.root.position.set(Math.cos(a) * r, lethal ? -1.5 - rand() * 3 : 0, Math.sin(a) * r)
+      prop.root.position.set(Math.cos(a) * r, y, Math.sin(a) * r)
       prop.root.rotation.y = rand() * Math.PI * 2
       this.dressing.push(prop.root)
       prop.loaded.then(({ casters, glows }) => {

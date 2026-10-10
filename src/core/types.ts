@@ -305,6 +305,8 @@ export interface ArenaDef {
   boundary: BoundaryType
   /** Visual theme id (renderer-only; see renderer/arena-theme.ts) */
   theme?: string
+  /** Renderer-only: a circle arena drawn as the top of a tall stone column over an abyss */
+  pillar?: boolean
   /** Initial death zones loaded from encounter YAML */
   deathZones?: DeathZoneDef[]
 }

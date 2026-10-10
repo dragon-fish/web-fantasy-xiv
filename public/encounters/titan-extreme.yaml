@@ -24,6 +24,7 @@ arena:
   radius: 20
   boundary: wall
   theme: stone
+  pillar: true
 
 entities:
   boss:
