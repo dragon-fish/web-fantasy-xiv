@@ -226,15 +226,15 @@ export class CombatResolver {
         }
 
         case 'raise': {
-          if (!target || target.alive || !isPartyMember(target)) break
-          target.alive = true
-          target.hp = Math.max(1, Math.floor(target.maxHp * effect.hpPercent))
-          // FFXIV: the raised stand up where the caster is when the raise lands, not at their body
+          if (!target || target.alive || target.customData.raising || !isPartyMember(target)) break
+          // FFXIV: the raised stand up where the caster is when the raise lands, not at their body.
+          // They stay down through the revive hard stun (player-revive.ts stands them up).
           if (caster) {
             target.position.x = caster.position.x
             target.position.y = caster.position.y
           }
-          this.bus.emit('party:raised', { entity: target, by: caster })
+          target.customData.raising = true
+          this.bus.emit('party:raising', { entity: target, by: caster ?? null, hp: Math.max(1, Math.floor(target.maxHp * effect.hpPercent)) })
           break
         }
 

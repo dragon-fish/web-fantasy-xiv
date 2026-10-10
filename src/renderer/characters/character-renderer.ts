@@ -521,7 +521,8 @@ export class CharacterRenderer implements EntityVisuals {
     if (v.aggroFan) v.aggroFan.isVisible = false
     if (v.entity.type === 'player') {
       this.applyCorpseTint(v)
-      v.root.position.y = this.risingLift(v)
+      // Bodies get moved after death (a fall sends them back to the start): follow the entity
+      v.root.position.set(v.entity.position.x, this.risingLift(v), v.entity.position.y)
       return
     }
     const t = (this.now - (v.deadAt ?? this.now) - CORPSE_FADE_DELAY) / CORPSE_FADE_MS

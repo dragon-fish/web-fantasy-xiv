@@ -57,12 +57,14 @@ export class ReviveVfx {
       texture: featherTexture(scene), capacity: 160,
       size: [0.55, 1.0], life: [1.3, 2.2], speed: [3, 7], gravity: -1.4, spin: true, endScale: 0.7,
     }, GOLD, WHITE)
-    bus.on('player:reviving', (p: { entity: Entity; delay: number }) => this.start(p.entity.id, p.delay))
-    bus.on('player:revived', ({ entity }: { entity: Entity }) => this.end(entity.id))
+    bus.on('player:reviving', (p: { entity: Entity; delay: number }) => this.start(p.entity, p.delay))
+    bus.on('player:revived', ({ entity }: { entity: Entity }) => this.end(entity))
   }
 
-  private start(id: string, delay: number): void {
-    this.desatTarget = 1
+  private start(entity: Entity, delay: number): void {
+    const id = entity.id
+    // The world greys out only for the player's own resurrection, not an ally's
+    if (!entity.npc) this.desatTarget = 1
     const follow = (y: number) => {
       const e = this.vfx.entities.get(id)
       return e ? new Vector3(e.position.x, y, e.position.y) : null
@@ -97,9 +99,9 @@ export class ReviveVfx {
     })
   }
 
-  private end(id: string): void {
-    this.desatTarget = 0
-    const e = this.vfx.entities.get(id)
+  private end(entity: Entity): void {
+    if (!entity.npc) this.desatTarget = 0
+    const e = this.vfx.entities.get(entity.id)
     if (e) this.vfx.flash(new Vector3(e.position.x, 0.08, e.position.y), 'ringThick', GOLD, 9, 600, 'ground')
   }
 

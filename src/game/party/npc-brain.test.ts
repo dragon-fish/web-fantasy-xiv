@@ -51,17 +51,23 @@ describe('chooseHealerAction', () => {
     expect(chooseHealerAction(sense([a, b, healer]))).toEqual({ kind: 'heal', target: a })
   })
 
-  it('with nobody to heal: raidwide prep, then raises (tank before the player before anyone else)', () => {
+  it('raises (tank before the player before anyone else) ahead of top-ups and raidwide prep', () => {
     const player = member('player', 'dps', 0, false)
     const dps = member('dps', 'dps', 0, false)
     const tank = member('tank', 'tank', 0, false)
-    const healer = member('healer', 'healer', 1)
+    const healer = member('healer', 'healer', 0.5)
     const party = [dps, player, tank, healer]
-    expect(chooseHealerAction(sense(party, { raidwideComing: true, player }))).toEqual({ kind: 'prepare' })
-    expect(chooseHealerAction(sense(party, { player }))).toEqual({ kind: 'raise', target: tank })
+    expect(chooseHealerAction(sense(party, { raidwideComing: true, player }))).toEqual({ kind: 'raise', target: tank })
     tank.alive = true
     tank.hp = 10000
     expect(chooseHealerAction(sense(party, { player }))).toEqual({ kind: 'raise', target: player })
-    expect(chooseHealerAction(sense(party, { player, canRaise: false }))).toBeNull()
+    expect(chooseHealerAction(sense(party, { player, canRaise: false }))).toEqual({ kind: 'heal', target: healer })
+  })
+
+  it('a critical member is healed before anyone is raised', () => {
+    const player = member('player', 'dps', 0, false)
+    const tank = member('tank', 'tank', 0.2)
+    const healer = member('healer', 'healer', 1)
+    expect(chooseHealerAction(sense([player, tank, healer], { player }))).toEqual({ kind: 'heal', target: tank })
   })
 })

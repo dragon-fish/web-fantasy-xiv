@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { EventBus } from '@/core/event-bus'
+import type { Entity } from '@/entity/entity'
 
 const props = defineProps<{ bus: EventBus }>()
 const active = ref(false)
@@ -15,10 +16,13 @@ function onEnded() {
   active.value = false
   reviving.value = false
 }
-function onReviving() {
-  reviving.value = true
+// Raises also stand NPC allies up through these events: only the player's own count here
+function onReviving({ entity }: { entity: Entity }) {
+  if (!entity.npc) reviving.value = true
 }
-function onRevived() {
+function onRevived({ entity }: { entity: Entity }) {
+  if (entity.npc) return
+  active.value = false
   reviving.value = false
 }
 

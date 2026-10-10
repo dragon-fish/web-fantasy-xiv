@@ -9,7 +9,7 @@ import { getJob, JobCategory } from '@/jobs'
 import { MechanicHost } from '@/game/mechanics/mechanic-host'
 import { MECHANICS, FAST_FORWARD } from '@/game/mechanics'
 import { matchesCondition } from '@/combat/conditions'
-import { createPlayerRevive, REVIVE_BUFFS } from '@/game/player-revive'
+import { createPlayerRevive, createRaiseSequence, REVIVE_BUFFS } from '@/game/player-revive'
 import { PARRY_BUFFS } from '@/game/parry'
 import { createParryPrompt } from '@/game/parry-prompt'
 import { createPartyRuntime } from '@/game/party/party-runtime'
@@ -626,11 +626,15 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (party) {
       // Party mode: the fight goes on; wait for a raise (or restart from the pause menu)
       if (!noRevive && revive?.tryRevive()) revive.disable()
-      else s.setAnnounce('等待队友复活，或按 ESC 重新开始')
+      else {
+        s.bus.emit('player:died', { gameTime: s.gameLoop.logicTime })
+        s.setAnnounce('等待队友复活，或按 ESC 重新开始')
+      }
     } else if (noRevive || !revive?.tryRevive()) deathWindow.enter()
     handlingDeath = false
   }
-  s.bus.on('party:raised', ({ entity }: { entity: Entity }) => {
+  if (party) createRaiseSequence({ bus: s.bus, buffSystem: s.buffSystem, schedule: (ms, fn) => mechanics.after(ms, fn) })
+  s.bus.on('party:raising', ({ entity }: { entity: Entity }) => {
     if (entity.id === s.player.id) s.setAnnounce(null)
   })
 

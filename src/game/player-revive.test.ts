@@ -1,7 +1,7 @@
 import { EventBus } from '@/core/event-bus'
 import { BuffSystem } from '@/combat/buff'
 import { EntityManager } from '@/entity/entity-manager'
-import { createPlayerRevive, nextReviveTier, REVIVE_BUFFS } from './player-revive'
+import { createPlayerRevive, createRaiseSequence, nextReviveTier, REVIVE_BUFFS } from './player-revive'
 
 function setup() {
   const bus = new EventBus()
@@ -66,5 +66,30 @@ describe('revive keeps death-preserved buffs', () => {
     buffs.applyBuff(player, COMMON_BUFFS.practice_immunity, player.id)
     die(); flush()
     expect(player.buffs.some(b => b.defId === 'practice_immunity')).toBe(true)
+  })
+})
+
+describe('party raise', () => {
+  it('stays down through the hard stun, then stands with the raise HP and transcendence', () => {
+    const bus = new EventBus()
+    const buffs = new BuffSystem(bus)
+    const ally = new EntityManager(bus).create({ id: 'a', type: 'player', hp: 8000, maxHp: 8000 })
+    ally.alive = false
+    ally.customData.raising = true
+    const queue: (() => void)[] = []
+    createRaiseSequence({ bus, buffSystem: buffs, schedule: (_ms, fn) => queue.push(fn) })
+    const raised = vi.fn()
+    bus.on('party:raised', raised)
+    bus.emit('party:raising', { entity: ally, by: null, hp: 4000 })
+    expect(ally.alive).toBe(false)
+    expect(raised).not.toHaveBeenCalled()
+    queue.shift()!()
+    expect(ally.alive).toBe(true)
+    expect(ally.hp).toBe(4000)
+    expect(ally.customData.raising).toBeUndefined()
+    expect(raised).toHaveBeenCalledOnce()
+    expect(ally.buffs.some(b => b.defId === 'revive_transcendent')).toBe(true)
+    bus.emit('skill:cast_start', { caster: ally, skill: { id: 'gcd' } })
+    expect(ally.buffs.some(b => b.defId === 'revive_transcendent')).toBe(false)
   })
 })

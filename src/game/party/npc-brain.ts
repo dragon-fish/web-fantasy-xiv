@@ -106,9 +106,10 @@ export interface HealerSense {
 const ratio = (e: Entity) => e.hp / Math.max(1, e.maxHp)
 
 /**
- * Healer duty. Self-save first (< 33%); then single heals (tank < 70%, others < 60%) by a curved
- * urgency and party heals (two or more < 70%). When both apply, the party heal goes first if it
- * restores more in total, unless someone is critical (< 25%). Then raidwide prep, then raises.
+ * Healer duty. Self-save first (< 33%), then anyone critical (< 25%), then raises — a fight that
+ * keeps chipping the party would otherwise starve them forever. Then single heals (tank < 70%,
+ * others < 60%) by a curved urgency and party heals (two or more < 70%): when both apply, the party
+ * heal goes first if it restores more in total. Then raidwide prep.
  */
 export function chooseHealerAction(sense: HealerSense): HealerAction {
   const { party, self, player, rng } = sense
@@ -124,7 +125,13 @@ export function chooseHealerAction(sense: HealerSense): HealerAction {
     .sort((a, b) => b.urgency - a.urgency)[0]?.e
   const aoe = alive.filter(e => ratio(e) < AOE_HEAL_BELOW).length >= 2
 
-  if (single && aoe && ratio(single) >= CRITICAL_BELOW) {
+  if (single && ratio(single) < CRITICAL_BELOW) return { kind: 'heal', target: single }
+  if (sense.canRaise) {
+    const order = (e: Entity) => (e.role === 'tank' ? 0 : e.id === player.id ? 1 : 2)
+    const next = party.filter(e => !e.alive && !e.customData.raising).sort((a, b) => order(a) - order(b))[0]
+    if (next) return { kind: 'raise', target: next }
+  }
+  if (single && aoe) {
     const missing = (e: Entity) => Math.max(0, e.maxHp - e.hp)
     const partyGain = alive.reduce((sum, e) => sum + Math.min(missing(e), sense.partyHeal), 0)
     const singleGain = Math.min(missing(single), sense.singleHeal)
@@ -133,11 +140,6 @@ export function chooseHealerAction(sense: HealerSense): HealerAction {
   if (single) return { kind: 'heal', target: single }
   if (aoe) return { kind: 'aoe_heal' }
   if (sense.raidwideComing) return { kind: 'prepare' }
-  if (sense.canRaise) {
-    const order = (e: Entity) => (e.role === 'tank' ? 0 : e.id === player.id ? 1 : 2)
-    const next = party.filter(e => !e.alive).sort((a, b) => order(a) - order(b))[0]
-    if (next) return { kind: 'raise', target: next }
-  }
   return null
 }
 

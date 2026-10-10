@@ -1,6 +1,7 @@
 // src/game/player-revive.ts
-// Practice-friendly revival (encounter `revive: true`): FFXIV-style Weakness → Brink of Death
-// ladder. Dying at Brink ends the attempt through the normal death window.
+// Revival. Practice-friendly self-revive (encounter `revive: true`): FFXIV-style Weakness → Brink
+// of Death ladder; dying at Brink ends the attempt through the normal death window. Raises from a
+// party healer play the same resurrection sequence and hard stun.
 import type { EventBus } from '@/core/event-bus'
 import type { Entity } from '@/entity/entity'
 import type { BuffDef } from '@/core/types'
@@ -38,6 +39,38 @@ export function nextReviveTier(player: Entity): ReviveTier | null {
   if (player.buffs.some(b => b.defId === 'revive_brink')) return null
   if (player.buffs.some(b => b.defId === 'revive_weakness')) return 'revive_brink'
   return 'revive_weakness'
+}
+
+export interface RaiseDeps {
+  bus: EventBus
+  buffSystem: BuffSystem
+  /** Run `fn` after `ms` of live battle time */
+  schedule: (ms: number, fn: () => void) => void
+}
+
+/**
+ * A raise has landed (`party:raising`, body already moved to the caster): the body lies under the
+ * light for the revive hard stun, then stands with transcendence like a self-revive.
+ */
+export function createRaiseSequence({ bus, buffSystem, schedule }: RaiseDeps): void {
+  const breakTranscendence = ({ caster }: { caster: Entity }) => buffSystem.removeBuff(caster, 'revive_transcendent', 'consumed')
+  bus.on('skill:cast_start', breakTranscendence)
+  bus.on('skill:cast_complete', breakTranscendence)
+  bus.on('party:raising', ({ entity, by, hp }: { entity: Entity; by: Entity | null; hp: number }) => {
+    bus.emit('player:reviving', { entity, delay: REVIVE_DELAY_MS })
+    schedule(REVIVE_DELAY_MS, () => {
+      delete entity.customData.raising
+      entity.alive = true
+      entity.hp = hp
+      buffSystem.applyBuff(entity, REVIVE_BUFFS.revive_transcendent, entity.id)
+      if (!entity.npc && entity.target) {
+        entity.target = null
+        bus.emit('target:released', { entity })
+      }
+      bus.emit('player:revived', { entity })
+      bus.emit('party:raised', { entity, by })
+    })
+  })
 }
 
 export interface PlayerReviveDeps {
