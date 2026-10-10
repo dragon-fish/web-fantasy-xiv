@@ -83,7 +83,7 @@ describe('PlayerInputDriver passive stacks', () => {
     const buffs = new BuffSystem(bus)
     const player = mgr.create({ id: 'p', type: 'player', hp: 100, position: { x: 0, y: 0, z: 0 } })
     player.inCombat = true
-    const lily: BuffDef = { id: 'lily', name: 'Lily', type: 'buff', duration: 0, stackable: true, maxStacks: 3, effects: [] }
+    const lily: BuffDef = { id: 'lily', name: 'Lily', type: 'buff', duration: Infinity, stackable: true, maxStacks: 3, effects: [] }
     const input = {
       keys: { w: false, a: false, s: false, d: false },
       mouse: { worldPos: { x: 0, y: 0 }, leftDown: false, rightDown: false },

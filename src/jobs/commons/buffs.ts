@@ -48,7 +48,7 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     description: '吸收伤害的护盾。',
     icon: icon('effects', 16676),
     type: 'buff',
-    duration: 0,
+    duration: Infinity,
     stackable: true,
     maxStacks: Infinity,
     shield: true,
@@ -60,7 +60,7 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     description: '除少数情况，其他所有攻击均无效。',
     icon: icon('effects', 15024),
     type: 'buff',
-    duration: 0,
+    duration: Infinity,
     stackable: false,
     maxStacks: 1,
     effects: [{ type: 'damage_immunity' }],
@@ -71,7 +71,7 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     description: '光之战士在脑海中预想战斗。除少数情况，其他所有攻击均无效。',
     icon: icon('effects', 15024),
     type: 'buff',
-    duration: 0,
+    duration: Infinity,
     stackable: false,
     maxStacks: 1,
     // Falling off the arena still kills (fall damage ignores immunity); practice must survive the revive
@@ -95,7 +95,7 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     description: '治疗职能特性：战斗中持续恢复 MP。',
     icon: icon('player_skill_effects', 13909),
     type: 'buff',
-    duration: 0,
+    duration: Infinity,
     stackable: false,
     maxStacks: 1,
     preserveOnDeath: true,
@@ -106,7 +106,7 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     name: '一拳超人',
     description: '攻击力提升 999%。仅限开发模式调试使用。',
     type: 'buff',
-    duration: 0,
+    duration: Infinity,
     stackable: false,
     maxStacks: 1,
     preserveOnDeath: true,
@@ -118,14 +118,14 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
    * - Three modifier effects: +25% base attack / +25% mitigation / +25% base maxHp.
    * - preserveOnDeath: true — reserved for future raise / in-combat respawn systems
    *   (phase 5 has no visible consumer scenario since echo is scene-bound).
-   * - duration: 0 — permanent (tied to scene lifetime, no buff-system expiration).
+   * - duration: Infinity — permanent (tied to scene lifetime, no buff-system expiration).
    */
   echo: {
     id: 'echo',
     name: '超越之力',
     description: '攻击 +25% / 减伤 +25% / 最大生命 +25%',
     type: 'buff',
-    duration: 0,
+    duration: Infinity,
     stackable: false,
     maxStacks: 1,
     preserveOnDeath: true,
@@ -140,7 +140,7 @@ export const COMMON_BUFFS: Record<string, BuffDef> = {
     name: '体力衰减',
     description: '最大生命降低 10%。最多 10 层，叠满即死。',
     type: 'debuff',
-    duration: 0,
+    duration: Infinity,
     stackable: true,
     maxStacks: 10,
     effects: [{ type: 'max_hp_modifier', value: -0.10 }],

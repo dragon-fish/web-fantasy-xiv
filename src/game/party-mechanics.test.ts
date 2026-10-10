@@ -18,7 +18,7 @@ function setup() {
   const combat = new CombatResolver(bus, mgr, buffs, new Arena({ name: 't', shape: { type: 'circle', radius: 60 }, boundary: 'wall' }), zones)
   // Titan's gaol as YAML builds it: a status from the gaol, a puppet that locks its target in on spawn
   combat.registerBuffs({ imprisoned: {
-    id: 'imprisoned', name: '石牢', type: 'debuff', duration: 0, stackable: false, maxStacks: 1,
+    id: 'imprisoned', name: '石牢', type: 'debuff', duration: Infinity, stackable: false, maxStacks: 1,
     preserveOnDeath: true, effects: [{ type: 'stun' }, { type: 'hidden' }, { type: 'untargetable' }],
   } })
   const onSpawn: SkillDef[] = [{
@@ -171,7 +171,7 @@ describe('party mechanics', () => {
   it('statuses end with the enemy that applied them; a downed member (not dead) keeps theirs', () => {
     const { mgr, boss, member, buffs } = setup()
     const npc = member('npc1', 5, 0)
-    const mark = { id: 'mark', name: 'mark', type: 'debuff' as const, duration: 0, stackable: false, maxStacks: 1, effects: [] }
+    const mark = { id: 'mark', name: 'mark', type: 'debuff' as const, duration: Infinity, stackable: false, maxStacks: 1, effects: [] }
     const dot = { ...mark, id: 'dot', effects: [{ type: 'dot' as const, potency: 10, interval: 3000 }] }
     buffs.applyBuff(npc, mark, boss.id)
     buffs.applyBuff(boss, dot, npc.id)

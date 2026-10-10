@@ -18,7 +18,7 @@ const weapon = (id: WeaponId, name: string, folder: string, image: number, color
   ({ id, weapon: id, name, icon: icon(folder, image), color, description, evolution, max: 5 })
 const perk = (id: string, name: string, description: string, max: number, effects: BuffDef['effects'] = [], image = 15021): Card => ({
   id, name, description, max, icon: icon('effects', image), color: '#d7bc79',
-  buff: { id: `sv_${id}`, name, description, icon: icon('effects', image), type: 'buff', duration: 0, stackable: true, maxStacks: max, effects },
+  buff: { id: `sv_${id}`, name, description, icon: icon('effects', image), type: 'buff', duration: Infinity, stackable: true, maxStacks: max, effects },
 })
 export const CARDS: Card[] = [
   weapon('fire', '火炎', 'skill_icons/25_BLM', 451, '#ff884e', '沿最近敌人方向发射穿透火球。每级增加威力与穿透，三级增加弹道。', '核爆：每次命中额外产生范围爆炸。'),

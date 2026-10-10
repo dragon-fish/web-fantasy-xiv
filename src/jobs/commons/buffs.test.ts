@@ -15,8 +15,8 @@ describe('COMMON_BUFFS.echo', () => {
     expect(echo.effects.every(e => (e as any).value === 0.25)).toBe(true)
   })
 
-  it('duration = 0 (permanent, tied to scene lifetime)', () => {
-    expect(echo.duration).toBe(0)
+  it('is permanent (tied to scene lifetime)', () => {
+    expect(echo.duration).toBe(Infinity)
   })
 
   it('id = "echo"', () => {

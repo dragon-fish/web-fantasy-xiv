@@ -150,11 +150,14 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
   const localBuffs: Record<string, BuffDef> = {}
   if (raw.local_buffs) {
     for (const [id, def] of Object.entries(raw.local_buffs as Record<string, any>)) {
+      if (def.duration != null && !(def.duration > 0)) {
+        throw new Error(`[encounter-loader] local_buffs.${id}: duration must be > 0 ms; omit it (or write .inf) for permanent`)
+      }
       localBuffs[id] = {
         id,
         name: def.name ?? id,
         type: def.type ?? 'buff',
-        duration: def.duration ?? 0,
+        duration: def.duration ?? Infinity,
         stackable: def.stackable ?? false,
         maxStacks: def.maxStacks ?? 1,
         effects: def.effects ?? [],

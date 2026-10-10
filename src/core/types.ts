@@ -244,7 +244,8 @@ export interface BuffDef {
   type: BuffType
   /** Renderer hint: 'airborne' lifts the model in an arc for the buff's duration */
   visual?: 'airborne'
-  duration: number // ms, 0 = permanent
+  /** ms; `Infinity` = permanent (no countdown) */
+  duration: number
   /** Timed-buff input grace in ms; defaults to 500. Use 0 for precise defensive windows. */
   durationGrace?: number
   stackable: boolean

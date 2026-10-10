@@ -83,7 +83,7 @@ export function applyPeriodicBuff(
   const snapshot = buildPeriodicSnapshot(periodicEffect, caster, target, buffSystem)
   const baseDuration = buffDef.duration
   // Match BuffSystem.applyBuff: +500ms grace so last tick at exact expireAt can fire.
-  const effectiveDuration = baseDuration > 0 ? baseDuration + 500 : 0
+  const effectiveDuration = baseDuration + 500
 
   // Phase 3 constraints:
   // - stacks is always 1 (stackable periodic buffs not yet supported)

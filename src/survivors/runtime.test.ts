@@ -48,7 +48,7 @@ describe('survivor combat', () => {
     const base = 1000 - first.hp
     runtime.progression.ranks.shatter = 1
     runtime.freeze(first)
-    buffSystem.applyBuff(player, { id: 'boost', name: 'boost', type: 'buff', duration: 0, stackable: false, maxStacks: 1, effects: [{ type: 'damage_increase', value: 0.2 }] }, player.id)
+    buffSystem.applyBuff(player, { id: 'boost', name: 'boost', type: 'buff', duration: Infinity, stackable: false, maxStacks: 1, effects: [{ type: 'damage_increase', value: 0.2 }] }, player.id)
     const before = first.hp
     runtime.hit(first, 1, 'fire')
     expect(before - first.hp).toBeGreaterThan(base)

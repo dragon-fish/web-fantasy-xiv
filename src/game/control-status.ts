@@ -23,10 +23,10 @@ export function pickControlStatus(buffs: BuffInstance[], defOf: (id: string) => 
   let best: ControlStatus | null = null
   for (const inst of buffs) {
     const def = defOf(inst.defId)
-    if (!def || inst.remaining <= 0 || !def.effects.some(e => CONTROL_EFFECTS.has(e.type))) continue
+    if (!def || !Number.isFinite(inst.remaining) || !def.effects.some(e => CONTROL_EFFECTS.has(e.type))) continue
     if (best && best.remaining >= inst.remaining) continue
     // Applied durations can be overridden; never let the bar start above full
-    const total = Math.max(inst.remaining, def.duration > 0 ? def.duration + (def.durationGrace ?? DEFAULT_GRACE) : 0)
+    const total = Math.max(inst.remaining, Number.isFinite(def.duration) ? def.duration + (def.durationGrace ?? DEFAULT_GRACE) : 0)
     best = { defId: def.id, name: def.name, icon: def.icon, remaining: inst.remaining, total }
   }
   return best

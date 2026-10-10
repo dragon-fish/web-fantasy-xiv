@@ -37,7 +37,7 @@ export const REVIVE_BUFFS = {
   revive_denied: {
     id: REVIVE_DENIED, name: '无法复活', icon: icon('effects', 215959), type: 'debuff',
     description: '无法被复活。陷入无法战斗状态时不会消失。',
-    duration: 0, stackable: false, maxStacks: 1, preserveOnDeath: true,
+    duration: Infinity, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [],
   },
 } satisfies Record<string, BuffDef>

@@ -135,7 +135,6 @@ local_buffs:
     type: debuff
     icon: https://r2.epb.wiki/ffxiv/effects/015001_hr1.png
     description: 被关在石牢中，无法行动。石牢被破坏后解除。
-    duration: 0
     preserveOnDeath: true
     effects: [{ type: stun }, { type: hidden }, { type: untargetable }]
   rock_throw_stun:
@@ -146,7 +145,6 @@ local_buffs:
   titan_invuln:
     name: 无敌
     type: buff
-    duration: 0
     effects:
       - { type: invulnerable }
 

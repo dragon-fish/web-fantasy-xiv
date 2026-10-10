@@ -3,11 +3,6 @@ import type { BuffDef, BuffEffectDef } from '@/core/types'
 import type { EventBus } from '@/core/event-bus'
 import type { Entity, BuffInstance } from '@/entity/entity'
 
-/** Remaining time after a refresh: the longer one, a permanent (0) buff never downgrades to timed */
-function longer(a: number, b: number): number {
-  return a === 0 || b === 0 ? 0 : Math.max(a, b)
-}
-
 export class BuffSystem {
   private defs = new Map<string, BuffDef>()
 
@@ -34,17 +29,17 @@ export class BuffSystem {
     // to land the 6th GCD at exactly 15.0s. The extra 0.5s ensures the last
     // action within the intended window always goes through.
     const baseDuration = durationOverride ?? def.duration
-    const effectiveDuration = baseDuration > 0 ? baseDuration + (def.durationGrace ?? 500) : 0
+    if (!(baseDuration > 0)) throw new Error(`[buff] '${def.id}': duration must be > 0 ms, or Infinity for permanent`)
+    const effectiveDuration = baseDuration + (def.durationGrace ?? 500)
 
     const existing = entity.buffs.find((b) => b.defId === def.id)
 
     // Shield buffs: stacks = shield HP.
-    // Permanent (duration=0): replace only if new shield has more stacks.
-    // Timed: replace only if new shield has both more stacks AND more duration.
+    // Replace only if the new shield has more stacks and at least as much time left (permanent = Infinity).
     if (def.shield) {
       if (existing) {
         const amountBetter = existing.stacks < addStacks
-        const durationBetter = effectiveDuration === 0 || existing.remaining < effectiveDuration
+        const durationBetter = existing.remaining <= effectiveDuration
         if (amountBetter && durationBetter) {
           existing.stacks = addStacks
           existing.remaining = effectiveDuration
@@ -60,14 +55,14 @@ export class BuffSystem {
 
     if (existing && !def.stackable) {
       // Non-stackable: just refresh duration (take longer)
-      existing.remaining = longer(existing.remaining, effectiveDuration)
+      existing.remaining = Math.max(existing.remaining, effectiveDuration)
       existing.sourceId = sourceId
       return
     }
     if (existing && def.stackable) {
       // Stackable: add stacks (capped), refresh duration (take longer)
       existing.stacks = Math.min(existing.stacks + addStacks, def.maxStacks)
-      existing.remaining = longer(existing.remaining, effectiveDuration)
+      existing.remaining = Math.max(existing.remaining, effectiveDuration)
       existing.sourceId = sourceId
       this.syncModifiers(entity)
       return
@@ -135,7 +130,7 @@ export class BuffSystem {
     let changed = false
     for (let i = entity.buffs.length - 1; i >= 0; i--) {
       const inst = entity.buffs[i]
-      if (inst.remaining === 0) continue // permanent
+      // Permanent buffs stay at Infinity
       let left = inst.remaining - dt
       // Stack-by-stack buffs drop a stack instead of ending; time past the end carries into the next
       const steps = this.defs.get(inst.defId)?.stackDurations

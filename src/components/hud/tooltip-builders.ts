@@ -110,7 +110,7 @@ export function buildBuffTooltip(buff: {
 
   if (buff.stacks > 1) lines.push(` · <span style="color:#ddd">${buff.stacks} 层</span>`)
 
-  if (buff.remaining > 0) {
+  if (Number.isFinite(buff.remaining)) {
     lines.push(`<div style="color:#999;font-size:11px;margin-top:4px">剩余 ${(buff.remaining / 1000).toFixed(1)}s</div>`)
   }
 
@@ -127,7 +127,7 @@ export function buildBuffTooltip(buff: {
 }
 
 function formatBuffDescription(bd: { name: string; description?: string; duration: number; type: string; effects: { type: string; value?: number }[] }): string {
-  const dur = bd.duration > 0 ? ` ${(bd.duration / 1000).toFixed(0)}s` : ' ∞'
+  const dur = Number.isFinite(bd.duration) ? ` ${(bd.duration / 1000).toFixed(0)}s` : ' ∞'
   const parts: string[] = []
   if (bd.description) parts.push(bd.description)
   const effectDescs = bd.effects.map((e) => formatBuffEffect(e, 1)).join('，')
