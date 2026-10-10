@@ -863,7 +863,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
 
       if (fallElapsed >= FALL_DURATION) {
         falling = false
-        s.player.hp -= DEATH_ZONE_DAMAGE
+        s.player.hp = Math.max(0, s.player.hp - DEATH_ZONE_DAMAGE)
         s.bus.emit('damage:dealt', {
           source: { id: '场地' } as any, target: s.player,
           amount: DEATH_ZONE_DAMAGE,
@@ -892,7 +892,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (s.player.alive && !falling) {
       const pos = { x: s.player.position.x, y: s.player.position.y }
       if (deathZoneMgr.isLethalAt(pos)) {
-        s.player.hp -= DEATH_ZONE_DAMAGE
+        s.player.hp = Math.max(0, s.player.hp - DEATH_ZONE_DAMAGE)
         s.bus.emit('damage:dealt', {
           source: { id: '场地' } as any, target: s.player,
           amount: DEATH_ZONE_DAMAGE,
