@@ -10,6 +10,7 @@ arena:
 
 entities:
   boss:
+    name: 测试头目
     type: boss
     model: tribal
     group: boss

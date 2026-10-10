@@ -26,6 +26,7 @@ arena:
 
 entities:
   boss:
+    name: 朱雀
     type: boss
     model: dragon
     group: boss
@@ -50,15 +51,15 @@ entities:
     targetable: false
     position: { x: 0, y: 0, z: 0 }
   # 场地中央的火焰鸟尸体：被羽毛的苏生神通力或玩家的苏生之炎碰到会复活
-  bird_1: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: 3, y: 3, z: 0 }, facing: 45, onRevive: { use: ashes_to_ashes, after: 15000 } }
-  bird_2: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: 3, y: -3, z: 0 }, facing: 135, onRevive: { use: ashes_to_ashes, after: 15000 } }
-  bird_3: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: -3, y: -3, z: 0 }, facing: 225, onRevive: { use: ashes_to_ashes, after: 15000 } }
-  bird_4: { type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: -3, y: 3, z: 0 }, facing: 315, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_1: { name: 火焰鸟, type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: 3, y: 3, z: 0 }, facing: 45, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_2: { name: 火焰鸟, type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: 3, y: -3, z: 0 }, facing: 135, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_3: { name: 火焰鸟, type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: -3, y: -3, z: 0 }, facing: 225, onRevive: { use: ashes_to_ashes, after: 15000 } }
+  bird_4: { name: 火焰鸟, type: mob, model: firebird, group: scarlet_lady, hp: 6000, attack: 1, speed: 4, size: 0.8, dormant: true, targetable: false, position: { x: -3, y: 3, z: 0 }, facing: 315, onRevive: { use: ashes_to_ashes, after: 15000 } }
   # 苏生之羽刷出的羽毛（两种布局之一）
-  feather_1: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
-  feather_2: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
-  feather_3: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
-  feather_4: { type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_1: { name: 苏生之羽, type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_2: { name: 苏生之羽, type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_3: { name: 苏生之羽, type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
+  feather_4: { name: 苏生之羽, type: mob, model: feather, group: feathers, hp: 3000, attack: 1, speed: 0, size: 0.6, visible: false, targetable: false, autoAttackRange: 0 }
   # 朱红旋律里绕场飞行、撞图标的火焰鸟（纯演出，不可选中）
   hymn_bird: { type: mob, model: phoenix, group: hymn, hp: 1, attack: 1, speed: 0, size: 0.8, visible: false, targetable: false, autoAttackRange: 0, position: { x: 0, y: -25, z: 0 } }
 

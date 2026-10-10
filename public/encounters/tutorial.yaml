@@ -11,6 +11,7 @@ arena:
 
 entities:
   boss:
+    name: 训练场头目
     type: boss
     model: tribal
     group: boss

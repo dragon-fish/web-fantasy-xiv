@@ -12,6 +12,7 @@ arena:
 
 entities:
   boss:
+    name: 利维亚桑
     type: boss
     model: fishman
     group: boss

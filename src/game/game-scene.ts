@@ -191,6 +191,14 @@ export class GameScene {
     this.bus.emit('target:locked', { entity: this.player, target: member })
   }
 
+  /** Target an enemy from the enemy list; untargetable ones can't be picked */
+  selectEnemy(id: string): void {
+    const enemy = this.player && this.entityMgr.get(id)
+    if (!enemy || !enemy.alive || !enemy.targetable || this.player.target === id) return
+    this.player.target = id
+    this.bus.emit('target:locked', { entity: this.player, target: enemy })
+  }
+
   /** Create player entity and bind input driver + camera */
   createPlayer(opts: CreateEntityOptions): Entity {
     this.player = this.entityMgr.create(opts)

@@ -90,6 +90,22 @@ export interface PartyMemberView {
   enmity: { rank: number; ratio: number } | null
 }
 
+/** Your enmity on an enemy (FFXIV enemy list gem): top = it is on you */
+export type EnmityGem = 'top' | 'high' | 'mid' | 'low'
+
+/** One row of the enemy list */
+export interface EnemyView {
+  id: string
+  name: string
+  hp: number
+  maxHp: number
+  targetable: boolean
+  /** The player's current target */
+  selected: boolean
+  enmity: EnmityGem | null
+  cast: { name: string; progress: number } | null
+}
+
 /** Name (and HP when hurt or down) over an NPC ally's head, CSS px within the canvas box */
 export interface AllyTag {
   id: string
@@ -125,6 +141,7 @@ export const useBattleStore = defineStore('battle', {
     qte: null as QtePrompt | null,
     overhead: null as OverheadStatus | null,
     party: [] as PartyMemberView[],
+    enemies: [] as EnemyView[],
     allyTags: [] as AllyTag[],
     gauge: [] as GaugeView[],
     gaugeArt: null as 'whm-lily' | null,

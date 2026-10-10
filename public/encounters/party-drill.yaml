@@ -25,6 +25,7 @@ arena:
 
 entities:
   boss:
+    name: 演练头目
     type: boss
     model: tribal
     group: boss
@@ -36,8 +37,8 @@ entities:
     position: { x: 0, y: 0, z: 0 }
     autoAttackRange: 6
     aggroRange: 8
-  add_1: { type: mob, model: imp, group: adds, hp: 30000, attack: 1, speed: 4, size: 0.6, visible: false, targetable: false, priority: 10, position: { x: -9, y: 8, z: 0 }, autoAttackRange: 3 }
-  add_2: { type: mob, model: imp, group: adds, hp: 30000, attack: 1, speed: 4, size: 0.6, visible: false, targetable: false, priority: 10, position: { x: 9, y: 8, z: 0 }, autoAttackRange: 3 }
+  add_1: { name: 小怪, type: mob, model: imp, group: adds, hp: 30000, attack: 1, speed: 4, size: 0.6, visible: false, targetable: false, priority: 10, position: { x: -9, y: 8, z: 0 }, autoAttackRange: 3 }
+  add_2: { name: 小怪, type: mob, model: imp, group: adds, hp: 30000, attack: 1, speed: 4, size: 0.6, visible: false, targetable: false, priority: 10, position: { x: 9, y: 8, z: 0 }, autoAttackRange: 3 }
 
 player:
   position: { x: 0, y: -12, z: 0 }

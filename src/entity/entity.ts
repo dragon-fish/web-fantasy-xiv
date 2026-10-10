@@ -68,6 +68,8 @@ export interface Entity {
   allyTarget: string | null
   /** Lying dormant (e.g. a corpse awaiting revival): untargetable, inert, revived by `revive` effects */
   dormant?: boolean
+  /** UI hint for the enemy list: true lists it even unseen (a puppet whose cast matters), false never */
+  enemyList?: boolean
 
   hp: number
   /** Derived maxHp = baseMaxHp × (1 + maxHpModifier). Maintained as a getter; BuffSystem syncs `maxHpModifier` on buff changes. */
@@ -117,6 +119,9 @@ export interface CreateEntityOptions {
   team?: string
   npc?: boolean
   dormant?: boolean
+  enemyList?: boolean
+  /** Display name (enemy list, damage log) */
+  name?: string
   hp?: number
   maxHp?: number
   mp?: number
@@ -156,6 +161,7 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     npc: opts.npc,
     allyTarget: null,
     dormant: opts.dormant,
+    enemyList: opts.enemyList,
     hp: opts.hp ?? baseMaxHp,
     maxHp: 0, // placeholder, overwritten below
     mp: opts.mp ?? maxMp,
@@ -176,7 +182,7 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     target: null,
     buffs: [],
     skillIds: opts.skillIds ?? [],
-    customData: {},
+    customData: opts.name ? { displayName: opts.name } : {},
   }
 
   Object.defineProperty(entity, 'attack', {

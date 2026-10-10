@@ -153,6 +153,7 @@ watch(
   HudOverheadStatus
   HudAllyTags
   HudPartyList
+  HudEnemyList
   HudDebugInfo
   HudTimelineDisplay
   HudTooltip

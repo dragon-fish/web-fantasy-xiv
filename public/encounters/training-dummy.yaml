@@ -10,6 +10,7 @@ arena:
 
 entities:
   boss:
+    name: 木人
     type: boss
     model: dummy
     group: boss

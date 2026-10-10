@@ -24,6 +24,7 @@ arena:
 
 entities:
   boss:
+    name: 泰坦
     type: boss
     model: giant
     group: boss
@@ -47,6 +48,7 @@ entities:
     position: { x: 0, y: 0, z: 0 }
   # P3：泰坦之心（DPS 检测）
   heart:
+    name: 泰坦之心
     type: mob
     model: titan-heart
     group: heart
@@ -61,6 +63,7 @@ entities:
     autoAttackRange: 0
   # P4：花岗石卫，原地不动；死后留下岩浆
   gaoler_e:
+    name: 花岗石卫
     type: mob
     model: gaoler
     group: gaolers
@@ -81,6 +84,7 @@ entities:
         damage: { potency: 1000, interval: 1000, name: 岩浆 }
         color: '#ff5a1a'
   gaoler_w:
+    name: 花岗石卫
     type: mob
     model: gaoler
     group: gaolers

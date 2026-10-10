@@ -1,4 +1,5 @@
-import { useBattleStore, type AllyTag, type PartyMemberView } from '@/stores/battle'
+import { useBattleStore, type AllyTag, type EnemyView, type EnmityGem, type PartyMemberView } from '@/stores/battle'
+import { isHostile } from '@/combat/party'
 import type { GameScene } from '@/game/game-scene'
 import type { Entity } from '@/entity/entity'
 import type { BuffDef } from '@/core/types'
@@ -11,6 +12,8 @@ const REVIVE_FLASH_MS = 2600
 /** Status fly text lifetime and how many may float at once */
 const POPUP_MS = 1600
 const MAX_POPUPS = 6
+/** Enemy list rows (FFXIV-like, kept short) */
+const ENEMY_LIST_MAX = 5
 
 export function useStateAdapter(scene: GameScene) {
   const battle = useBattleStore()
@@ -84,6 +87,46 @@ export function useStateAdapter(scene: GameScene) {
         enmity: enmity.get(e.id) ?? null,
       }
     })
+  }
+
+  /** The player's enmity gem on `enemy`; solo fights have no tables: an engaged enemy is on you */
+  function enmityGem(enemy: Entity): EnmityGem | null {
+    if (!scene.enmityStandings) return enemy.inCombat ? 'top' : null
+    const standings = scene.enmityStandings(enemy)
+    const top = standings[0]?.value ?? 0
+    const mine = standings.find(s => s.id === scene.player.id)
+    if (!mine || top <= 0) return null
+    if (standings[0]!.id === scene.player.id) return 'top'
+    const ratio = mine.value / top
+    return ratio >= 0.75 ? 'high' : ratio >= 0.4 ? 'mid' : 'low'
+  }
+
+  /**
+   * FFXIV enemy list: the boss on top, then targetable enemies, then untargetable ones (shown faded,
+   * so a puppet's cast can be watched). Unseen helpers stay off unless flagged `enemyList: true`.
+   */
+  function enemyList(): EnemyView[] {
+    const boss = scene.bossEntity
+    const listed = scene.entityMgr.getAll().filter(e =>
+      e.alive && !e.dormant && e.enemyList !== false && (e.visible || e.enemyList === true) && isHostile(scene.player, e))
+    const rank = (e: Entity) => (e === boss ? 0 : e.targetable ? 1 : 2)
+    return listed
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => rank(a.e) - rank(b.e) || a.i - b.i)
+      .slice(0, ENEMY_LIST_MAX)
+      .map(({ e }) => {
+        const skill = e.casting ? scene.skillResolver.getSkill(e.casting.skillId) : undefined
+        return {
+          id: e.id,
+          name: e.customData.displayName ?? e.id,
+          hp: e.hp,
+          maxHp: scene.buffSystem.getMaxHp(e),
+          targetable: e.targetable,
+          selected: scene.player.target === e.id,
+          enmity: enmityGem(e),
+          cast: e.casting && skill ? { name: skill.name, progress: Math.min(1, e.casting.elapsed / e.casting.castTime) } : null,
+        }
+      })
   }
 
   function allyTags(): AllyTag[] {
@@ -238,6 +281,7 @@ export function useStateAdapter(scene: GameScene) {
         ...(partyMode() ? { allies: { totalDamage: allyDamage, dps: perSecond(allyDamage) } } : {}),
       },
       party: partyList(),
+      enemies: enemyList(),
       allyTags: allyTags(),
     })
   }

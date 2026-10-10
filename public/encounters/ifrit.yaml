@@ -9,7 +9,7 @@ arena:
   theme: fire
 
 boss:
-  name: Test Boss
+  name: 伊弗利特
   type: boss
   model: demon
   hp: 36000
