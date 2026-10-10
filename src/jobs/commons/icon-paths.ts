@@ -31,3 +31,13 @@ export function stackIcons(
 export function classJobIcon(jobId: JobCategory): string {
   return `${CDN_BASE}class_jobs/class_${jobId}.png`
 }
+
+/**
+ * Gold-framed job icon, uploaded per job id as `class_jobs/job_<id>.png` (every job in JOBS has
+ * one). Source: game icons 0768xx (jobs from 076804 in the game's job order: PLD MNK WAR DRG BRD
+ * WHM BLM SMN SCH NIN MCH DRK AST SAM RDM BLU GNB DNC…; base classes from 076822: GLA PGL MRD
+ * LNC ARC CNJ THM). A new job needs its file uploaded first.
+ */
+export function jobIcon(jobId: string): string {
+  return `${CDN_BASE}class_jobs/job_${jobId}.png`
+}

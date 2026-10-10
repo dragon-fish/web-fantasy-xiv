@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PLAYABLE_JOBS, classJobIcon } from '@/jobs'
+import { PLAYABLE_JOBS, jobIcon } from '@/jobs'
 import { useJobStore } from '@/stores/job'
 
 // Picking a job only updates the store: the encounter page derives the runner's jobId from it and
@@ -18,7 +18,7 @@ const jobStore = useJobStore()
       :disabled="j.id === jobStore.job.id"
       @click="jobStore.select(j.id)"
     )
-      img(:src="classJobIcon(j.category)" :alt="j.name")
+      img(:src="jobIcon(j.id)" :alt="j.name")
       span {{ j.name }}
 </template>
 

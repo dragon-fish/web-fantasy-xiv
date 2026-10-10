@@ -261,7 +261,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   })
 
   s.player.customData.displayName = job.name
-  s.player.customData.jobCategory = job.category
+  s.player.customData.jobId = job.id
 
   // Create all entities from encounter data
   const entityMap = new Map<string, Entity>()

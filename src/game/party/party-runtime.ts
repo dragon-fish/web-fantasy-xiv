@@ -103,7 +103,6 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     })
     e.customData.displayName = job.name
     e.customData.jobId = job.id
-    e.customData.jobCategory = job.category
     e.customData.npcStyle = npcStyleOf(job.id)
     kits.set(e.id, buildNpcKit(job))
     starts.set(e.id, { x: e.position.x, y: e.position.y })

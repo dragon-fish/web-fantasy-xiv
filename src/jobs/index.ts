@@ -1,7 +1,7 @@
 // src/jobs/index.ts
 export { JobCategory, JOB_CATEGORY_LABELS, mergeBuffs, mergeBuffMap, buildSkillBar } from './shared'
 export type { PlayerJob } from './shared'
-export { classJobIcon } from './commons/icon-paths'
+export { classJobIcon, jobIcon } from './commons/icon-paths'
 export { COMMON_BUFFS } from './commons/buffs'
 export { WARRIOR_JOB } from './warrior/index'
 export { SAMURAI_JOB } from './samurai/index'

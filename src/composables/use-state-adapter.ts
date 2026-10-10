@@ -5,7 +5,7 @@ import type { Entity } from '@/entity/entity'
 import type { BuffDef } from '@/core/types'
 import { pickControlStatus } from '@/game/control-status'
 import { REVIVE_BUFFS, type ReviveTier } from '@/game/player-revive'
-import { classJobIcon } from '@/jobs'
+import { jobIcon } from '@/jobs'
 
 /** How long the new Weakness / Brink icon flashes over the head after a revive */
 const REVIVE_FLASH_MS = 2600
@@ -73,7 +73,7 @@ export function useStateAdapter(scene: GameScene) {
       return {
         id: e.id,
         name: e.customData.displayName ?? e.id,
-        icon: e.customData.jobCategory ? classJobIcon(e.customData.jobCategory) : undefined,
+        icon: e.customData.jobId ? jobIcon(e.customData.jobId) : undefined,
         hp: e.hp,
         maxHp: scene.buffSystem.getMaxHp(e),
         alive: e.alive,

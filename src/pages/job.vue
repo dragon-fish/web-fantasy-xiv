@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { PLAYABLE_JOBS, JOB_CATEGORY_LABELS, classJobIcon } from '@/jobs'
+import { PLAYABLE_JOBS, JOB_CATEGORY_LABELS, jobIcon } from '@/jobs'
 import { useJobStore } from '@/stores/job'
 
 const jobStore = useJobStore()
@@ -28,7 +28,7 @@ MenuShell
         span.job-equipped-marker(v-if="j.id === jobStore.job.id") ✓
     .job-detail
       .job-detail-header
-        img.job-icon(:src="classJobIcon(job.category)" :alt="JOB_CATEGORY_LABELS[job.category]")
+        img.job-icon(:src="jobIcon(job.id)" :alt="job.name")
         span.job-name {{ job.name }}
         span.job-category {{ JOB_CATEGORY_LABELS[job.category] }}
       .job-description(v-if="job.description") {{ job.description }}
