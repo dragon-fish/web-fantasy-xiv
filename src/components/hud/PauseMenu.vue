@@ -27,6 +27,7 @@ function onQuit() {
   button.pause-menu__btn(@click="onResume") Resume
   button.pause-menu__btn(@click="onRetry") Retry
   button.pause-menu__btn(@click="onQuit") Quit to Menu
+  slot
 </template>
 
 <style lang="scss" scoped>

@@ -69,7 +69,9 @@ TowerEncounterRunner(
 )
   template(#overlay)
     HudPauseMenu(@resume="handleResume" @retry="handleRetry")
+      HudJobSwitcher(v-if="!isTutorial")
     HudBattleEndOverlay(@retry="handleRetry")
+      HudJobSwitcher(v-if="!isTutorial")
     .skip-tutorial(v-if="isTutorial" @click="handleSkipTutorial") 跳过教程 &gt;
 </template>
 

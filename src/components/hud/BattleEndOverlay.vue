@@ -85,6 +85,7 @@ function onBackToMenu() {
       :class="isPractice ? 'battle-end__btn--secondary' : (isWipe ? 'battle-end__btn--secondary' : 'battle-end__btn--victory-primary')"
       @click="onBackToMenu"
     ) 返回首页
+  slot
 </template>
 
 <style lang="scss" scoped>
