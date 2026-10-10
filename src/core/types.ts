@@ -272,9 +272,6 @@ export interface BuffDef {
    * definitions can declare their intent without requiring later migration.
    */
   preserveOnDeath?: boolean
-  /** Ends when the entity that applied it dies (a gaol's Imprisoned). Not the default: a fallen
-   *  player's DoTs keep ticking through the death window. */
-  endsWithSource?: boolean
   effects: BuffEffectDef[]
 }
 

@@ -160,7 +160,6 @@ export function parseEncounterYaml(yamlText: string): EncounterData {
         effects: def.effects ?? [],
         ...(def.icon != null ? { icon: def.icon } : {}),
         ...(def.preserveOnDeath != null ? { preserveOnDeath: def.preserveOnDeath } : {}),
-        ...(def.endsWithSource != null ? { endsWithSource: def.endsWithSource } : {}),
         ...(def.description != null ? { description: def.description } : {}),
         ...(def.visual != null ? { visual: def.visual } : {}),
       }

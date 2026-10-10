@@ -8,13 +8,13 @@
 - **生成**：技能效果 `{ type: spawn, entity: <模板 id> }`，在被命中者的位置生成模板的一个新实例，实例以被命中者为目标、立即进入战斗，继承模板的 NPC 目标优先级。
 - **出生技能**：实体 YAML `onSpawn: [技能 id, ...]`，生成后按顺序释放（瞬发技能立即生效，之后的读条技能接着开始）。
 - **状态效果** `hidden`、`untargetable`：持有期间隐藏 / 不可选中，与时间轴的显隐设定叠加（两者都允许才可见、可选中）。
-- **状态** `endsWithSource`：施加者死亡时解除。局部状态（`local_buffs`）支持 `preserveOnDeath`、`endsWithSource`。
+- **施加者死亡**：敌方实体死亡时，它施加的所有状态解除。队员只会陷入无法战斗、不算死亡，他们施加的状态保留（DoT 继续跳）。局部状态（`local_buffs`）支持 `preserveOnDeath`。
 - **眩晕打断读条**：获得眩晕时，正在进行的读条被打断。
-- **自爆** `self_destruct`：施法者在技能（含其区域）生效后陷入无法战斗。
+- **自爆** `self_destruct`：施法者在技能（含其区域）生效后死亡。
 
 ## 泰坦的石牢（YAML）
 
-- 状态 `imprisoned`「石牢」：眩晕 + 隐藏 + 不可选中，死亡不清除，随施加者解除。
+- 状态 `imprisoned`「石牢」：眩晕 + 隐藏 + 不可选中，陷入无法战斗时不清除，随石牢死亡解除。
 - 模板实体 `gaol`「石牢」：模型 `jail`，15000 HP，不移动，NPC 目标优先级 20，`onSpawn: [gaol_lock, gaol_burst]`。
 - `rock_throw` / `rock_throw_single`：单体点名，结算时 `spawn: gaol`。
 - `gaol_lock`：瞬发，对目标施加 `imprisoned`。

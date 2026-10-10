@@ -137,7 +137,6 @@ local_buffs:
     description: 被关在石牢中，无法行动。石牢被破坏后解除。
     duration: 0
     preserveOnDeath: true
-    endsWithSource: true
     effects: [{ type: stun }, { type: hidden }, { type: untargetable }]
   rock_throw_stun:
     name: 眩晕

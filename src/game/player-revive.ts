@@ -24,19 +24,19 @@ export const REVIVE_BUFFS = {
   },
   revive_weakness: {
     id: 'revive_weakness', name: '衰弱', icon: icon('effects', 15010), type: 'debuff',
-    description: '主属性降低 25%：技能伤害与治疗量降低 25%。死亡时不会消失，倒计时暂停；此状态下死亡，复活后进入濒死。',
+    description: '主属性降低 25%：技能伤害与治疗量降低 25%。陷入无法战斗状态时不会消失，倒计时暂停；此状态下陷入无法战斗，复活后进入濒死。',
     duration: 60000, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [{ type: 'attack_modifier', value: -0.25 }],
   },
   revive_brink: {
     id: 'revive_brink', name: '濒死', icon: icon('effects', 15011), type: 'debuff',
-    description: '主属性降低 50%，最大体力降低 25%。死亡时不会消失，倒计时暂停；被复活仍为濒死。',
+    description: '主属性降低 50%，最大体力降低 25%。陷入无法战斗状态时不会消失，倒计时暂停；被复活仍为濒死。',
     duration: 60000, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [{ type: 'attack_modifier', value: -0.5 }, { type: 'max_hp_modifier', value: -0.25 }],
   },
   revive_denied: {
     id: REVIVE_DENIED, name: '无法复活', icon: icon('effects', 215959), type: 'debuff',
-    description: '无法被复活。死亡时不会消失。',
+    description: '无法被复活。陷入无法战斗状态时不会消失。',
     duration: 0, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [],
   },

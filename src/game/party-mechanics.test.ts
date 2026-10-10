@@ -19,7 +19,7 @@ function setup() {
   // Titan's gaol as YAML builds it: a status from the gaol, a puppet that locks its target in on spawn
   combat.registerBuffs({ imprisoned: {
     id: 'imprisoned', name: '石牢', type: 'debuff', duration: 0, stackable: false, maxStacks: 1,
-    preserveOnDeath: true, endsWithSource: true, effects: [{ type: 'stun' }, { type: 'hidden' }, { type: 'untargetable' }],
+    preserveOnDeath: true, effects: [{ type: 'stun' }, { type: 'hidden' }, { type: 'untargetable' }],
   } })
   const onSpawn: SkillDef[] = [{
     id: 'lock', name: 'lock', type: 'ability', castTime: 0, cooldown: 0, gcd: false, targetType: 'single',
@@ -167,6 +167,19 @@ describe('party mechanics', () => {
     zones.update(1000)
     expect([marked, bystander].filter(m => !m.targetable).map(m => m.id)).toEqual([targetId])
     expect(mgr.getAll().filter(e => e.id.startsWith('gaol'))).toHaveLength(1)
+  })
+  it('statuses end with the enemy that applied them; a downed member (not dead) keeps theirs', () => {
+    const { mgr, boss, member, buffs } = setup()
+    const npc = member('npc1', 5, 0)
+    const mark = { id: 'mark', name: 'mark', type: 'debuff' as const, duration: 0, stackable: false, maxStacks: 1, effects: [] }
+    const dot = { ...mark, id: 'dot', effects: [{ type: 'dot' as const, potency: 10, interval: 3000 }] }
+    buffs.applyBuff(npc, mark, boss.id)
+    buffs.applyBuff(boss, dot, npc.id)
+    npc.alive = false
+    mgr['bus'].emit('entity:died', { entity: npc })
+    expect(buffs.hasBuff(boss, 'dot')).toBe(true)
+    mgr.destroy(boss.id)
+    expect(buffs.hasBuff(npc, 'mark')).toBe(false)
   })
   it('origin: caster — the zone starts at the caster, aimed at the member when it spawned', () => {
     const { zones, member, cast } = setup()
