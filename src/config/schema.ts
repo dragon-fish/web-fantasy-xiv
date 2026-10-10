@@ -103,6 +103,7 @@ function parseZone(raw: any): AoeZoneDef {
     marker: raw.marker,
     telegraph: raw.telegraph,
     share: raw.share,
+    onlyTarget: raw.onlyTarget,
   }
 }
 

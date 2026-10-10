@@ -256,7 +256,22 @@ skills:
           - { type: damage, potency: 1000 }
           - { type: knockback, distance: 10 }
 
-  # --- 花岗岩牢狱：点 2 名非坦克关进石牢 ---
+  # --- 花岗岩牢狱：点非坦克关进石牢（P2 1 人，P4 2 人） ---
+  rock_throw_single:
+    name: 花岗岩牢狱
+    type: ability
+    targetType: aoe
+    zones:
+      - anchor: { select: count, count: 1, exclude: tank }
+        direction: { type: none }
+        shape: { type: circle, radius: 0.6 }
+        marker: spread
+        onlyTarget: true
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 0
+        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
+
   rock_throw:
     name: 花岗岩牢狱
     type: ability
@@ -266,6 +281,7 @@ skills:
         direction: { type: none }
         shape: { type: circle, radius: 0.6 }
         marker: spread
+        onlyTarget: true
         telegraph: false
         resolveDelay: 3000
         hitEffectDuration: 0
@@ -449,7 +465,7 @@ phases:
       - { at: 3300, mechanic: arena_ring, params: { radius: 15 } }
       - { at: 4000, action: enable_ai }
       - { at: 8000, use: landslide }
-      - { at: 12000, use: rock_throw }
+      - { at: 12000, use: rock_throw_single }
       - { at: 15500, use: gaol_landslide }
       - { at: 19500, use: gaol_landslide }
       - { at: 23000, use: mountain_buster }

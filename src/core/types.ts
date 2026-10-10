@@ -152,6 +152,8 @@ export interface AoeZoneDef {
   share?: 'even' | { front: number }
   /** Splash of a single-target skill: skips the caster's target, which takes the skill's own hit */
   exceptTarget?: boolean
+  /** Lands on the marked member only, whoever else stands in it (gaols, debuff markers) */
+  onlyTarget?: boolean
 }
 
 export interface SkillDef {
