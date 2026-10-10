@@ -11,7 +11,7 @@ const member = (id: string, role: 'tank' | 'healer' | 'dps', hpRatio: number, al
 function sense(party: ReturnType<typeof member>[], over: Partial<HealerSense> = {}): HealerSense {
   return {
     party, self: party.find(e => e.role === 'healer')!, player: party[0]!,
-    raidwideComing: false, canRaise: true, singleHeal: 4000, partyHeal: 2500, rng: () => 0.5, ...over,
+    raidwideComing: false, singleHeal: 4000, partyHeal: 2500, rng: () => 0.5, ...over,
   }
 }
 
@@ -61,7 +61,6 @@ describe('chooseHealerAction', () => {
     tank.alive = true
     tank.hp = 10000
     expect(chooseHealerAction(sense(party, { player }))).toEqual({ kind: 'raise', target: player })
-    expect(chooseHealerAction(sense(party, { player, canRaise: false }))).toEqual({ kind: 'heal', target: healer })
   })
 
   it('a critical member is healed before anyone is raised', () => {

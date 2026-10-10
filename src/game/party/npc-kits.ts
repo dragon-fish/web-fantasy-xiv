@@ -32,9 +32,6 @@ export interface NpcKit {
   raise?: SkillDef
 }
 
-/** Raise: 4s cast; the next one is ready 8s after a cast starts */
-export const NPC_RAISE_COOLDOWN_MS = 8000
-
 export const NPC_BUFFS: Record<string, BuffDef> = {
   npc_tank_mit: {
     id: 'npc_tank_mit', name: '坚守', description: '受到的伤害降低 50%。',

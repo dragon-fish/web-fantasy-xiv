@@ -12,7 +12,7 @@ import type { DisplacementAnimator } from '../displacement-animator'
 import { rangeTo } from '@/skill/skill-resolver'
 import { canBeRaised, isHostile, isPartyMember } from '@/combat/party'
 import { findSafeSpot, inHazard, isSafe, pathIsSafe, type Ground } from './npc-nav'
-import { NPC_RAISE_COOLDOWN_MS, type NpcKit } from './npc-kits'
+import type { NpcKit } from './npc-kits'
 import type { PartyConfig } from './party-config'
 import { REGEN_INTERVAL, REGEN_RATE_COMBAT, REGEN_RATE_IDLE } from '../player-input-driver'
 
@@ -96,7 +96,6 @@ export interface HealerSense {
   player: Entity
   /** A raidwide is coming and has not been answered yet */
   raidwideComing: boolean
-  canRaise: boolean
   /** HP one single heal / one party heal restores */
   singleHeal: number
   partyHeal: number
@@ -126,11 +125,9 @@ export function chooseHealerAction(sense: HealerSense): HealerAction {
   const aoe = alive.filter(e => ratio(e) < AOE_HEAL_BELOW).length >= 2
 
   if (single && ratio(single) < CRITICAL_BELOW) return { kind: 'heal', target: single }
-  if (sense.canRaise) {
-    const order = (e: Entity) => (e.role === 'tank' ? 0 : e.id === player.id ? 1 : 2)
-    const next = party.filter(e => !e.alive && !e.customData.raising && canBeRaised(e)).sort((a, b) => order(a) - order(b))[0]
-    if (next) return { kind: 'raise', target: next }
-  }
+  const order = (e: Entity) => (e.role === 'tank' ? 0 : e.id === player.id ? 1 : 2)
+  const fallen = party.filter(e => !e.alive && !e.customData.raising && canBeRaised(e)).sort((a, b) => order(a) - order(b))[0]
+  if (fallen) return { kind: 'raise', target: fallen }
   if (single && aoe) {
     const missing = (e: Entity) => Math.max(0, e.maxHp - e.hp)
     const partyGain = alive.reduce((sum, e) => sum + Math.min(missing(e), sense.partyHeal), 0)
@@ -188,7 +185,6 @@ export class NpcBrain {
   private stackOffset: { zoneId: string; x: number; y: number } | null = null
   /** This think's standable ground: the world's, narrowed by any knockback about to land */
   private ground!: Ground
-  private raiseReadyAt = 0
 
   constructor(readonly entity: Entity, readonly kit: NpcKit, private world: NpcWorld) {}
 
@@ -603,7 +599,7 @@ export class NpcBrain {
       return effect && 'potency' in effect ? effect.potency * e.attack : 0
     }
     const action = chooseHealerAction({
-      party, self: e, player: w.player, raidwideComing: !!raidwide, canRaise: now >= this.raiseReadyAt,
+      party, self: e, player: w.player, raidwideComing: !!raidwide,
       singleHeal: healOf(kit.heal), partyHeal: healOf(kit.aoeHeal), rng: w.rng,
     })
     if (!action) return false
@@ -629,7 +625,7 @@ export class NpcBrain {
         return true
       case 'raise':
         e.allyTarget = action.target.id
-        if (w.skills.tryUse(e, kit.raise!)) this.raiseReadyAt = now + NPC_RAISE_COOLDOWN_MS
+        w.skills.tryUse(e, kit.raise!)
         return true
     }
   }
