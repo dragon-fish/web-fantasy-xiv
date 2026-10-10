@@ -179,6 +179,10 @@ export interface PhaseDef {
   name?: string
   trigger: PhaseTrigger
   actions: TimelineAction[]
+  /** Activating it stops every other running phase (HP-pushed bosses: the old timeline is cut short) */
+  exclusive?: boolean
+  /** While it runs, the boss's HP cannot drop below this percent (it waits there for the push) */
+  hpFloor?: number
 }
 
 export interface TimelineConfig {

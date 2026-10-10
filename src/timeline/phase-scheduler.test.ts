@@ -40,3 +40,24 @@ describe('PhaseScheduler seek', () => {
     expect(seen).toEqual(['set_visible(ff)', 'cast(ff)', 'after'])
   })
 })
+
+describe('PhaseScheduler HP push', () => {
+  it('an exclusive phase cuts the old timeline short and takes over the HP floor', () => {
+    const bus = new EventBus()
+    const fired: string[] = []
+    bus.on('timeline:action', (a: any) => fired.push(a.use))
+    const phases: PhaseDef[] = [
+      { id: 'phase_default', trigger: { type: 'on_combat_start' }, hpFloor: 85,
+        actions: [{ at: 1000, action: 'use', use: 'p1a' }, { at: 5000, action: 'use', use: 'p1b' }] },
+      { id: 'p2', trigger: { type: 'on_hp_below', group: 'boss', percent: 85 }, exclusive: true, hpFloor: 55,
+        actions: [{ at: 1000, action: 'use', use: 'p2a' }] },
+    ]
+    const scheduler = new PhaseScheduler(bus, phases)
+    expect(scheduler.hpFloor()).toBe(85)
+    scheduler.update(2000)
+    scheduler.checkTriggers({ groupHpBelow: (_g, pct) => pct >= 85 })
+    expect(scheduler.hpFloor()).toBe(55)
+    scheduler.update(4000)
+    expect(fired).toEqual(['p1a', 'p2a'])
+  })
+})

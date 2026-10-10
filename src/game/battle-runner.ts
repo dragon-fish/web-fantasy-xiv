@@ -475,6 +475,9 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
 
   s.bus.on('damage:dealt', (payload: { source: Entity; target: Entity; amount: number; skill: any; noRevive?: boolean }) => {
     if (payload.target.id === boss.id && !combatStarted) engageCombat()
+    // HP-pushed phases: the boss holds at the running phase's floor until the next phase takes over
+    const floor = payload.target.id === boss.id ? scheduler.hpFloor() : null
+    if (floor != null) boss.hp = Math.max(boss.hp, Math.ceil(boss.maxHp * floor / 100))
     // Check victory: boss dead
     if (payload.target.id === boss.id && payload.target.hp <= 0) {
       if (!s.battleOver) {
@@ -800,6 +803,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
           const alive = s.entityMgr.getAlive()
           return !alive.some((e) => e.group === group)
         },
+        groupHpBelow: (group, percent) => s.entityMgr.getAlive()
+          .some(e => e.group === group && e.hp > 0 && (e.hp / Math.max(1, e.maxHp)) * 100 <= percent),
       })
       scheduler.update(dt)
       mechanics.update(dt)

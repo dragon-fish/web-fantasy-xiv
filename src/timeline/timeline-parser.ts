@@ -44,7 +44,11 @@ export function parsePhases(
       ? ({ type: 'on_combat_start' } as PhaseTrigger)
       : parseTrigger(raw.trigger)
     const actions = flattenTimeline(raw.actions ?? [])
-    phases.push({ id, name: raw.name, trigger, actions })
+    phases.push({
+      id, name: raw.name, trigger, actions,
+      ...(raw.exclusive ? { exclusive: true } : {}),
+      ...(typeof raw.hpFloor === 'number' ? { hpFloor: raw.hpFloor } : {}),
+    })
   }
   return phases
 }

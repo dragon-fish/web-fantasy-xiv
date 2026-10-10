@@ -72,8 +72,15 @@ export class PhaseScheduler {
     const def = this.phases.find((p) => p.id === phaseId)
     if (!def) return
 
+    if (def.exclusive) this.activePhases = []
     this.activePhases.push({ def, elapsed: 0, pointer: 0 })
     this.bus.emit('phase:activated', { phaseId })
+  }
+
+  /** The boss HP floor (percent) set by the running phases; null when none */
+  hpFloor(): number | null {
+    const floors = this.activePhases.map(a => a.def.hpFloor).filter((f): f is number => f != null)
+    return floors.length ? Math.max(...floors) : null
   }
 
   /**
@@ -171,6 +178,6 @@ export class PhaseScheduler {
 export interface PhaseContext {
   /** Are all entities in this group dead? (e.g. 'adds_group1') */
   allKilledInGroup?: (group: string) => boolean
-  /** Is any entity in this group below the given HP%? (e.g. 'boss', 50) */
+  /** Is any entity in this group at or below the given HP%? (e.g. 'boss', 50) */
   groupHpBelow?: (group: string, percent: number) => boolean
 }
