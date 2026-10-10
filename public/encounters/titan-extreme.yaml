@@ -107,7 +107,8 @@ entities:
         behavior: damage
         damage: { potency: 1000, interval: 1000, name: 岩浆 }
         color: '#b81236'
-  # 花岗石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「花岗岩坟墓」
+  # 花岗石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「花岗岩坟墓」。
+  # NPC 先救人：优先级高于泰坦的核心（50）
   gaol:
     template: true
     name: 花岗石牢
@@ -118,7 +119,7 @@ entities:
     attack: 1
     speed: 0
     size: 1
-    priority: 20
+    priority: 60
     autoAttackRange: 0
     onSpawn: [gaol_lock, gaol_burst]
 
