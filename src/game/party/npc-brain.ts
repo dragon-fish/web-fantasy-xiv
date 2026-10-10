@@ -5,7 +5,7 @@ import type { Entity } from '@/entity/entity'
 import type { EntityManager } from '@/entity/entity-manager'
 import type { SkillResolver } from '@/skill/skill-resolver'
 import type { BuffSystem } from '@/combat/buff'
-import type { ActiveAoeZone, AoeZoneManager } from '@/skill/aoe-zone'
+import { followsAnchor, type ActiveAoeZone, type AoeZoneManager } from '@/skill/aoe-zone'
 import type { EnmitySystem } from '@/combat/enmity'
 import type { Arena } from '@/arena/arena'
 import type { DisplacementAnimator } from '../displacement-animator'
@@ -38,6 +38,12 @@ const HEAL_JITTER = 0.1
 const PANIC_MIT_COUNT = 3
 const PANIC_MIT_BELOW = 0.5
 const ARRIVED = 0.4
+/** A chosen target is kept this long (ms, random within) unless it goes away */
+const TARGET_COMMIT_MS: [number, number] = [2500, 4000]
+/** Random wobble on target priority, in priority units */
+const TARGET_WOBBLE = 0.5
+/** Hold off breaking a jail under an incoming AOE once it is this low */
+const JAIL_HOLD_BELOW = 0.3
 /** Waves of AOEs: only those landing within this long of the soonest one are dodged now */
 const WAVE_MS = 1200
 /** The tank drags the boss back toward the tank spot once it strays this far, and lets go this close (m) */
@@ -168,6 +174,10 @@ export class NpcBrain {
   private dodge: { key: string; spot: Vec2 } | null = null
   /** Free mode's chosen fighting spot, kept while it stays good */
   private fight: Vec2 | null = null
+  /** Current target and until when it is kept */
+  private commit: { id: string; until: number } | null = null
+  /** Waiting on a jail that must not break yet */
+  private holdFire = false
   /** Tank: dragging the boss back toward the tank spot */
   private pulling = false
   /** When the opener's strict centring ends (set on the first tanking think) */
@@ -221,11 +231,14 @@ export class NpcBrain {
    */
   private dodgeable(zones: ActiveAoeZone[]): ActiveAoeZone[] {
     const e = this.entity
-    const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && !z.def.share).map(z => z.anchorEntityId))
+    // Markers that ride on their carrier; circles locked where someone stood are plain ground AOEs
+    const riding = (z: ActiveAoeZone) => followsAnchor(z.def.anchor)
+    const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && riding(z) && !z.def.share).map(z => z.anchorEntityId))
     const avoid = zones.filter((z) => {
-      if (z.def.telegraph === false || z.def.share || z.anchorEntityId === e.id) return false
+      if (z.def.telegraph === false || z.def.share) return false
+      if (z.anchorEntityId === e.id) return !riding(z)
       const carrier = z.anchorEntityId ? this.world.entities.get(z.anchorEntityId) : undefined
-      if (!carrier || !isPartyMember(carrier) || !marked.has(e.id)) return true
+      if (!riding(z) || !carrier || !isPartyMember(carrier) || !marked.has(e.id)) return true
       return yieldRank(e) < yieldRank(carrier) || (yieldRank(e) === yieldRank(carrier) && e.id > carrier.id)
     })
     // Sequenced explosions can cover the whole floor: dodge the next wave only, and step into
@@ -291,22 +304,56 @@ export class NpcBrain {
   }
 
   /** Highest-priority attackable enemy (nearest among equals); the NPC tank sticks to the boss */
+  /**
+   * Target choice is a priority with a little random wobble, and once made it holds for a few
+   * seconds unless the target goes away — near-equal options would otherwise flip every think and
+   * walk the NPC back and forth.
+   */
   private pickTarget(threats: ActiveAoeZone[]): Entity | null {
     const w = this.world
     const e = this.entity
-    // A jail is not broken while an enemy AOE is about to land where its prisoner would step out
-    const unsafeJail = (t: Entity) => !!t.customData.prisonerId && threats.some(z => inHazard(pos(t), [z]))
-    const attackable = (t: Entity) => t.alive && t.visible && t.targetable && !t.dormant && isHostile(e, t) && !unsafeJail(t)
-    if (this.kit.style === 'tank' && attackable(w.boss)) return w.boss
-    // Among equals: nearest; a tank first goes for whatever is not on it yet
-    const score = (t: Entity) => dist(pos(e), pos(t)) + (this.kit.style === 'tank' && t.target === e.id ? 100 : 0)
+    const now = w.now()
+    const usable = (t: Entity) => t.alive && t.visible && t.targetable && !t.dormant && isHostile(e, t)
+    this.holdFire = false
+    const committed = this.commit && w.entities.get(this.commit.id)
+    let target = committed && usable(committed) && now < this.commit!.until ? committed : this.chooseTarget(usable)
+    if (target && target !== committed) {
+      this.commit = { id: target.id, until: now + TARGET_COMMIT_MS[0] + w.rng() * (TARGET_COMMIT_MS[1] - TARGET_COMMIT_MS[0]) }
+    }
+    // A jail about to break under a knockback or telegraphed AOE would free its prisoner into it:
+    // stop short. Ranged turn to the boss meanwhile; melee just wait rather than walk off and back
+    if (target && this.jailAtRisk(target, threats)) {
+      const melee = this.kit.style === 'melee' || this.kit.style === 'tank'
+      const boss = usable(w.boss) ? w.boss : null
+      if (!melee && boss) target = boss
+      else this.holdFire = true
+    }
+    return target
+  }
+
+  private chooseTarget(usable: (t: Entity) => boolean): Entity | null {
+    const w = this.world
+    const e = this.entity
+    // The tank holds the boss — except to break a jail, which everyone helps with
+    const jail = w.entities.getAll().find(t => t.customData.prisonerId && usable(t))
+    if (this.kit.style === 'tank' && usable(w.boss)) return jail ?? w.boss
+    // Priority first (wobbled so near-equal options split at random), then the nearest; a tank
+    // first goes for whatever is not on it yet
+    const score = (t: Entity) => w.priority(t) + w.rng() * TARGET_WOBBLE
+      - dist(pos(e), pos(t)) * 0.01 - (this.kit.style === 'tank' && t.target === e.id ? 1 : 0)
     let best: Entity | null = null
+    let bestScore = -Infinity
     for (const t of w.entities.getAll()) {
-      if (!attackable(t)) continue
-      if (!best || w.priority(t) > w.priority(best)
-        || (w.priority(t) === w.priority(best) && score(t) < score(best))) best = t
+      if (!usable(t)) continue
+      const sc = score(t)
+      if (sc > bestScore) { bestScore = sc; best = t }
     }
     return best
+  }
+
+  private jailAtRisk(t: Entity, threats: ActiveAoeZone[]): boolean {
+    if (!t.customData.prisonerId || t.hp / Math.max(1, t.maxHp) > JAIL_HOLD_BELOW) return false
+    return threats.some(z => (z.def.telegraph !== false || z.def.effects.some(x => x.type === 'knockback')) && inHazard(pos(t), [z]))
   }
 
   /**
@@ -576,7 +623,7 @@ export class NpcBrain {
   private attack(target: Entity, moving: boolean): void {
     const w = this.world
     const e = this.entity
-    if (e.casting) return
+    if (e.casting || this.holdFire) return
     if (rangeTo(e, target) > this.kit.range) {
       // Melee out of reach (mid-mechanic, walking in): a ranged GCD instead of nothing
       const ranged = this.kit.rangedGcd

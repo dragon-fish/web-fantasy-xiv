@@ -1,0 +1,546 @@
+# 泰坦歼殛战 — 4 人小队版
+# 设计：docs/superpowers/specs/2026-10-10-titan-extreme-design.md
+# 时间轴参照 cactbot ui/raidboss/data/02-arr/trial/titan-ex.txt
+# 数值：boss attack = 1，potency 即固定伤害。可躲机制 3800，全屏 1800。
+# 双轴推进：P1 锁 85%、P2 锁 55%；压到节点即切下一阶段（exclusive），剩余时间轴跳过。
+# 时间轴不写 NPC 点位提示：机制全部交给 NPC 的通用规则处理。
+
+party:
+  mistakeRate: 0.03
+  idle: { x: 0, y: -4 }
+  tankSpot: { x: 0, y: 0, facing: north }
+
+checkpoints:
+  p2: 0
+  石牢: 12
+  九连桶: 80
+
+arena:
+  name: 纳沃尔
+  shape: circle
+  radius: 20
+  boundary: wall
+  theme: stone
+
+entities:
+  boss:
+    type: boss
+    model: giant
+    group: boss
+    hp: 690000
+    attack: 1
+    speed: 4
+    size: 2.5
+    facing: 180
+    position: { x: 0, y: 0, z: 0 }
+    autoAttackRange: 7
+    aggroRange: 9
+  # 不可见的施法辅助：与泰坦本体并行的爆破岩石与点名
+  helper:
+    type: mob
+    group: helper
+    hp: 1
+    attack: 1
+    size: 0.1
+    visible: false
+    targetable: false
+    position: { x: 0, y: 0, z: 0 }
+  # P3：泰坦之心（DPS 检测）
+  heart:
+    type: mob
+    model: titan-heart
+    group: heart
+    hp: 60000
+    attack: 1
+    speed: 0
+    size: 1.2
+    visible: false
+    targetable: false
+    priority: 50
+    position: { x: 0, y: -1, z: 0 }
+    autoAttackRange: 0
+  # P4：花岗石卫，原地不动；死后留下岩浆
+  gaoler_e:
+    type: mob
+    model: gaoler
+    group: gaolers
+    hp: 40000
+    attack: 1
+    speed: 0
+    size: 1.4
+    visible: false
+    targetable: false
+    priority: 10
+    facing: 270
+    position: { x: 11, y: 0, z: 0 }
+    autoAttackRange: 4
+    onDeath:
+      deathZone:
+        shape: { type: circle, radius: 6 }
+        behavior: damage
+        damage: { potency: 1000, interval: 1000, name: 岩浆 }
+        color: '#ff5a1a'
+  gaoler_w:
+    type: mob
+    model: gaoler
+    group: gaolers
+    hp: 40000
+    attack: 1
+    speed: 0
+    size: 1.4
+    visible: false
+    targetable: false
+    priority: 10
+    facing: 90
+    position: { x: -11, y: 0, z: 0 }
+    autoAttackRange: 4
+    onDeath:
+      deathZone:
+        shape: { type: circle, radius: 6 }
+        behavior: damage
+        damage: { potency: 1000, interval: 1000, name: 岩浆 }
+        color: '#ff5a1a'
+
+player:
+  position: { x: 0, y: -12, z: 0 }
+
+boss_ai:
+  chaseRange: 5
+  autoAttackRange: 8
+  autoAttackInterval: 3000
+  aggroRange: 9
+
+local_buffs:
+  titan_invuln:
+    name: 无敌
+    type: buff
+    duration: 0
+    effects:
+      - { type: invulnerable }
+
+skills:
+  boss_auto:
+    name: 攻击
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 10
+    effects: [{ type: damage, potency: 600 }]
+
+  # --- 怒震：全屏 4 连（开场下马威） ---
+  tumult:
+    name: 怒震
+    type: spell
+    castTime: 2000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 2000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 2000, hits: 4 }]
+
+  # --- 地裂：正面直线 + 击退 ---
+  landslide:
+    name: 地裂
+    type: spell
+    castTime: 2200
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: caster_facing }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+
+  # --- 大地之重：每人脚下，点名瞬间锁定位置 ---
+  weight_of_land:
+    name: 大地之重
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { select: each, follow: false }
+        direction: { type: none }
+        shape: { type: circle, radius: 6 }
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects: [{ type: damage, potency: 3800 }]
+
+  # --- 山崩：朝一仇的扇形死刑 ---
+  mountain_buster:
+    name: 山崩
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: toward_target }
+        shape: { type: fan, radius: 16, angle: 120 }
+        resolveDelay: 3000
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 8000, dmgType: tankbuster, when: { role: tank } }
+          - { type: damage, potency: 6000, when: { role: [dps, healer] } }
+      # 头顶死刑标记
+      - anchor: { select: enmity, rank: 1 }
+        direction: { type: none }
+        shape: { type: circle, radius: 0.5 }
+        marker: buster
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 0
+        effects: []
+
+  # --- 大地粉碎（转 P2）：全屏；外圈 15m 以外的地板随之碎裂（预兆即坠落范围） ---
+  geocrush_transition:
+    name: 大地粉碎
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 600
+        effects: [{ type: damage, potency: 1800 }]
+      - anchor: { type: position, x: 0, y: 0 }
+        direction: { type: none }
+        shape: { type: ring, innerRadius: 15, outerRadius: 30 }
+        resolveDelay: 3000
+        hitEffectDuration: 600
+        effects: [{ type: damage, potency: 99999, dmgType: special }]
+
+  # --- 大地粉碎（之后）：中心大圆 + 外沿月环，安全带 10–14m ---
+  geocrush:
+    name: 大地粉碎
+    type: spell
+    castTime: 3500
+    targetType: aoe
+    zones:
+      - anchor: { type: position, x: 0, y: 0 }
+        direction: { type: none }
+        shape: { type: circle, radius: 10 }
+        resolveDelay: 3500
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 6000 }]
+      - anchor: { type: position, x: 0, y: 0 }
+        direction: { type: none }
+        shape: { type: ring, innerRadius: 14, outerRadius: 30 }
+        resolveDelay: 3500
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 6000 }]
+
+  # --- 大怒震：全屏击退，贴近泰坦才不会被推出平台 ---
+  upheaval:
+    name: 大怒震
+    type: spell
+    castTime: 5000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 5000
+        hitEffectDuration: 500
+        effects:
+          - { type: damage, potency: 1000 }
+          - { type: knockback, distance: 10 }
+
+  # --- 花岗岩牢狱：点 2 名非坦克关进石牢 ---
+  rock_throw:
+    name: 花岗岩牢狱
+    type: ability
+    targetType: aoe
+    zones:
+      - anchor: { select: count, count: 2, exclude: tank }
+        direction: { type: none }
+        shape: { type: circle, radius: 0.6 }
+        marker: spread
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 0
+        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20 }]
+
+  # --- 石牢期间：朝随机队员的窄扇形击退（读条开始时锁定方向） ---
+  gaol_landslide:
+    name: 地裂
+    type: spell
+    castTime: 2200
+    targetType: aoe
+    zones:
+      - anchor: { select: count, count: 1, origin: caster }
+        direction: { type: none }
+        shape: { type: fan, radius: 35, angle: 30 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3000 }
+          - { type: knockback, distance: 15 }
+
+  # --- 爆破岩石·一侧 ---
+  bombs_east:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - anchor: { type: position, x: 7.5, y: -15 }
+        direction: { type: fixed, angle: 0 }
+        shape: { type: rect, length: 30, width: 15 }
+        resolveDelay: 5000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 3800 }]
+  bombs_west:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - anchor: { type: position, x: -7.5, y: -15 }
+        direction: { type: fixed, angle: 0 }
+        shape: { type: rect, length: 30, width: 15 }
+        resolveDelay: 5000
+        hitEffectDuration: 500
+        effects: [{ type: damage, potency: 3800 }]
+
+  # --- 九连桶：外圈 8 块 + 中心 1 块，两波 ---
+  bombs_ring:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: 10.5 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 7.4, y: 7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 10.5, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 7.4, y: -7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: 0, y: -10.5 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -7.4, y: -7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -10.5, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+      - { anchor: { type: position, x: -7.4, y: 7.4 }, direction: { type: none }, shape: { type: circle, radius: 5.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+  bombs_center:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 5000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # --- 三穿一：三排依次落下、依次爆炸（落下顺序 = 爆炸顺序） ---
+  row_w:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: -10, y: -15 }, direction: { type: fixed, angle: 0 }, shape: { type: rect, length: 30, width: 10 }, resolveDelay: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+  row_c:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 0, y: -15 }, direction: { type: fixed, angle: 0 }, shape: { type: rect, length: 30, width: 10 }, resolveDelay: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+  row_e:
+    name: 爆破岩石
+    type: ability
+    targetType: aoe
+    zones:
+      - { anchor: { type: position, x: 10, y: -15 }, direction: { type: fixed, angle: 0 }, shape: { type: rect, length: 30, width: 10 }, resolveDelay: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
+
+  # --- 泰坦之心阶段 ---
+  titan_shield:
+    name: 大地之心
+    type: ability
+    targetType: single
+    effects: [{ type: apply_buff, buffId: titan_invuln, target: caster }]
+  titan_unshield:
+    name: 大地之怒
+    type: ability
+    targetType: single
+    effects: [{ type: consume_buffs, buffIds: [titan_invuln] }]
+  earthen_fury:
+    name: 大地之怒
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 800
+        effects: [{ type: damage, potency: 1800 }]
+  earthen_fury_fail:
+    name: 大地之怒
+    type: spell
+    castTime: 3000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 3000
+        hitEffectDuration: 800
+        effects: [{ type: damage, potency: 99999, dmgType: special, noRevive: true }]
+
+  # --- 花岗石卫的全屏 ---
+  gaoler_tumult:
+    name: 怒震
+    type: ability
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 500
+        hitEffectDuration: 300
+        effects: [{ type: damage, potency: 800 }]
+
+  # --- 软狂暴 ---
+  upheaval_enrage:
+    name: 大怒震
+    type: spell
+    castTime: 8000
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 8000
+        hitEffectDuration: 800
+        effects: [{ type: damage, potency: 99999, dmgType: special, noRevive: true }]
+
+phases:
+  # ===== P1（100–85%）=====
+  phase_default:
+    hpFloor: 85
+    actions:
+      - { at: 0, action: enable_ai }
+      - { at: 2000, use: tumult }
+      - { at: 10000, use: landslide }
+      - { at: 17000, use: weight_of_land }
+      - { at: 22000, use: mountain_buster }
+      - { at: 29000, use: tumult }
+      - { at: 35000, use: landslide }
+      - { at: 40000, use: mountain_buster }
+      - { at: 46000, use: weight_of_land }
+      - { at: 53000, loop: 10000 }
+
+  # ===== P2（85–55%）=====
+  p2:
+    name: P2
+    trigger: { on_hp_below: { group: boss, percent: 85 } }
+    exclusive: true
+    hpFloor: 55
+    actions:
+      - { at: 0, action: disable_ai }
+      - { at: 0, action: teleport, position: { x: 0, y: 0 } }
+      - { at: 300, use: geocrush_transition }
+      - { at: 3300, mechanic: arena_ring, params: { radius: 15 } }
+      - { at: 4000, action: enable_ai }
+      - { at: 8000, use: landslide }
+      - { at: 12000, use: rock_throw }
+      - { at: 15500, use: gaol_landslide }
+      - { at: 19500, use: gaol_landslide }
+      - { at: 23000, use: mountain_buster }
+      - { at: 29000, use: upheaval }
+      - { at: 36000, use: landslide }
+      - { at: 41000, use: tumult }
+      - { at: 47000, use: weight_of_land }
+      - { at: 52000, use: mountain_buster }
+      - at: 58000
+        choose:
+          - [{ use: bombs_east, entity: helper }]
+          - [{ use: bombs_west, entity: helper }]
+      - { at: 65000, use: geocrush }
+      - { at: 72000, use: weight_of_land }
+      - { at: 76000, use: mountain_buster }
+      # 九连桶：先外后中 / 先中后外
+      - at: 82000
+        choose:
+          - [{ use: bombs_ring, entity: helper }, { after: 2000, use: bombs_center, entity: helper }]
+          - [{ use: bombs_center, entity: helper }, { after: 2000, use: bombs_ring, entity: helper }]
+      - { at: 93000, use: landslide }
+      - { at: 99000, loop: 8000 }
+
+  # ===== P3 心核（30s DPS 检测）=====
+  p3:
+    name: 泰坦之心
+    trigger: { on_hp_below: { group: boss, percent: 55 } }
+    exclusive: true
+    hpFloor: 55
+    actions:
+      - { at: 0, action: disable_ai }
+      - { at: 0, use: titan_shield }
+      - { at: 0, action: set_targetable, value: false }
+      - { at: 500, action: set_visible, entity: heart, value: true }
+      - { at: 1000, action: set_targetable, entity: heart, value: true }
+      - { at: 3000, use: tumult }
+      - { at: 18000, use: tumult }
+      - { at: 30000, use: earthen_fury_fail }
+
+  # ===== P4（55–0%）=====
+  p4:
+    name: P4
+    trigger: { on_all_killed: { group: heart } }
+    exclusive: true
+    actions:
+      - { at: 0, use: earthen_fury }
+      - { at: 3000, use: titan_unshield }
+      - { at: 3000, action: set_targetable, value: true }
+      - { at: 3500, action: enable_ai }
+      - { at: 6000, action: set_visible, entity: gaoler_e, value: true }
+      - { at: 6000, action: set_visible, entity: gaoler_w, value: true }
+      - { at: 6500, action: set_targetable, entity: gaoler_e, value: true }
+      - { at: 6500, action: set_targetable, entity: gaoler_w, value: true }
+      - { at: 6500, action: enable_ai, entity: gaoler_e }
+      - { at: 6500, action: enable_ai, entity: gaoler_w }
+      - { at: 8000, use: gaoler_tumult, entity: gaoler_e }
+      - { at: 12000, use: mountain_buster }
+      # 三穿一：三排依次落下（落下顺序即爆炸顺序）
+      - at: 18000
+        choose:
+          - [{ use: row_w, entity: helper }, { after: 1500, use: row_c, entity: helper }, { after: 3000, use: row_e, entity: helper }]
+          - [{ use: row_e, entity: helper }, { after: 1500, use: row_c, entity: helper }, { after: 3000, use: row_w, entity: helper }]
+          - [{ use: row_c, entity: helper }, { after: 1500, use: row_w, entity: helper }, { after: 3000, use: row_e, entity: helper }]
+          - [{ use: row_c, entity: helper }, { after: 1500, use: row_e, entity: helper }, { after: 3000, use: row_w, entity: helper }]
+          - [{ use: row_w, entity: helper }, { after: 1500, use: row_e, entity: helper }, { after: 3000, use: row_c, entity: helper }]
+          - [{ use: row_e, entity: helper }, { after: 1500, use: row_w, entity: helper }, { after: 3000, use: row_c, entity: helper }]
+      - { at: 29000, use: landslide }
+      - { at: 34000, use: mountain_buster }
+      # 二连大地之重
+      - { at: 40000, use: weight_of_land }
+      - { at: 43000, use: weight_of_land }
+      - { at: 50000, use: upheaval }
+      - at: 58000
+        choose:
+          - [{ use: bombs_ring, entity: helper }, { after: 2000, use: bombs_center, entity: helper }]
+          - [{ use: bombs_center, entity: helper }, { after: 2000, use: bombs_ring, entity: helper }]
+      - { at: 68000, use: tumult }
+      - { at: 74000, use: landslide }
+      - { at: 79000, use: rock_throw }
+      - { at: 82500, use: gaol_landslide }
+      - { at: 86500, use: gaol_landslide }
+      - { at: 90000, use: mountain_buster }
+      - { at: 96000, use: upheaval }
+      - { at: 104000, use: geocrush }
+      - { at: 111000, use: weight_of_land }
+      - { at: 116000, loop: 12000 }
+
+  # ===== 软狂暴：开怪 7:00 =====
+  enrage:
+    trigger: on_combat_start
+    background: true
+    actions:
+      - { at: 420000, use: upheaval_enrage }
+      - { at: 430000, loop: 420000 }

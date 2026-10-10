@@ -5,7 +5,7 @@ import type { Entity } from '@/entity/entity'
 import type { GameScene } from '../game-scene'
 import type { EncounterData } from '../encounter-loader'
 import type { NpcSpotHint, TimelineAction } from '@/config/schema'
-import type { ActiveAoeZone } from '@/skill/aoe-zone'
+import { followsAnchor, type ActiveAoeZone } from '@/skill/aoe-zone'
 import type { DeathZoneManager } from '@/arena/death-zone-manager'
 import type { PlayerJob } from '@/jobs/shared'
 import { getPlayableJob } from '@/jobs'
@@ -156,15 +156,16 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
   })
 
   /**
-   * Markers on two or more members with no timeline hint: spread them on a ring round the caster,
-   * spaced so no two circles overlap (the spot behind the caster is left for the player).
+   * Markers riding on two or more members with no timeline hint: spread them on a ring round the
+   * caster, spaced so no two circles overlap (the spot behind the caster is left for the player).
+   * Circles locked where people stood are not markers to carry: they are simply walked out of.
    */
   const autoSpread = new Set<string>()
   function spreadUnhinted(): void {
     if (spots.hasHint()) return
     const groups = new Map<string, ActiveAoeZone[]>()
     for (const z of s.zoneMgr.getActiveZones()) {
-      if (z.resolved || z.def.share || z.def.anchor.type !== 'party' || !z.anchorEntityId || !z.casterId) continue
+      if (z.resolved || z.def.share || !followsAnchor(z.def.anchor) || z.def.anchor.type !== 'party' || !z.anchorEntityId || !z.casterId) continue
       const key = `${z.casterId}:${z.skillId}`
       groups.set(key, [...(groups.get(key) ?? []), z])
     }
