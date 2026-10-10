@@ -37,17 +37,30 @@ export function telegraphGeometry(shape: AoeShapeDef): TelegraphGeometry {
   }
 }
 
+/**
+ * Where there is floor for telegraphs to lie on, centered on the arena origin. Telegraphs are
+ * projected straight down onto the floor like decals: past its edge (the void around a platform)
+ * they are not drawn. Knockback arrows and push waves are the exception: they hang in the air
+ * (as in FFXIV) and must stay unclipped.
+ */
+export type FloorClip =
+  | { type: 'circle'; radius: number }
+  | { type: 'rect'; halfWidth: number; halfHeight: number }
+
 const NAME = 'aoeTelegraph'
 
 Effect.ShadersStore[`${NAME}VertexShader`] = /* glsl */ `
 precision highp float;
 attribute vec3 position;
 uniform mat4 worldViewProjection;
+uniform mat4 world;
 uniform float forwardOffset;
 varying vec2 vLocal;
+varying vec2 vWorld;
 void main() {
   // Local coordinates relative to the zone origin (rects start at the origin and extend forward)
   vLocal = vec2(position.x, position.z + forwardOffset);
+  vWorld = (world * vec4(position, 1.0)).xz;
   gl_Position = worldViewProjection * vec4(position, 1.0);
 }
 `
@@ -55,6 +68,10 @@ void main() {
 Effect.ShadersStore[`${NAME}FragmentShader`] = /* glsl */ `
 precision highp float;
 varying vec2 vLocal;
+varying vec2 vWorld;
+// Floor under the telegraph: 0 everywhere, 1 circle (x = radius), 2 rect (x, y = half extents)
+uniform float floorShape;
+uniform vec2 floorSize;
 uniform float shape;
 uniform float radius;
 uniform float inner;
@@ -99,6 +116,11 @@ void main() {
   }
   float aa = fwidth(d) * 1.2;
   float inside = 1.0 - smoothstep(-aa, aa, d);
+  if (floorShape > 0.5) {
+    float fd = floorShape < 1.5 ? length(vWorld) - floorSize.x : sdBox(vWorld, floorSize);
+    float faa = fwidth(fd);
+    inside *= 1.0 - smoothstep(-faa, faa, fd);
+  }
   if (inside <= 0.001) discard;
 
   // Bright band hugging the edge, soft gradient toward the middle (FFXIV omen look)
@@ -130,10 +152,22 @@ void main() {
 }
 `
 
+export function setTelegraphFloor(mat: ShaderMaterial, floor: FloorClip | null): void {
+  if (!floor) {
+    mat.setFloat('floorShape', 0)
+  } else if (floor.type === 'circle') {
+    mat.setFloat('floorShape', 1)
+    mat.setVector2('floorSize', new Vector2(floor.radius, 0))
+  } else {
+    mat.setFloat('floorShape', 2)
+    mat.setVector2('floorSize', new Vector2(floor.halfWidth, floor.halfHeight))
+  }
+}
+
 export function createTelegraphMaterial(scene: Scene, name: string, geo: TelegraphGeometry, fill: Color3, rim: Color3): ShaderMaterial {
   const mat = new ShaderMaterial(name, scene, NAME, {
     attributes: ['position'],
-    uniforms: ['flashScale', 'worldViewProjection', 'forwardOffset', 'shape', 'radius', 'inner', 'halfAngle', 'rectSize', 'fillColor', 'rimColor', 'progress', 'time', 'flash', 'opacity'],
+    uniforms: ['flashScale', 'worldViewProjection', 'world', 'floorShape', 'floorSize', 'forwardOffset', 'shape', 'radius', 'inner', 'halfAngle', 'rectSize', 'fillColor', 'rimColor', 'progress', 'time', 'flash', 'opacity'],
     needAlphaBlending: true,
   })
   mat.backFaceCulling = false
@@ -150,6 +184,8 @@ export function createTelegraphMaterial(scene: Scene, name: string, geo: Telegra
   mat.setFloat('time', 0)
   mat.setFloat('flash', 0)
   mat.setFloat('opacity', 1)
+  mat.setFloat('floorShape', 0)
+  mat.setVector2('floorSize', new Vector2(0, 0))
   // Resolve flash fades out for huge zones (an arena-wide flash whites out the screen)
   const area = geo.shape === 3 ? geo.width * geo.length
     : geo.shape === 1 ? geo.radius * geo.radius * geo.halfAngle

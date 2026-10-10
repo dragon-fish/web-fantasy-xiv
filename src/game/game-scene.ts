@@ -151,7 +151,7 @@ export class GameScene {
     const arenaRenderer = new ArenaRenderer(this.sceneManager, config.arena, this.bus, { decor: standardVisuals })
     this.entityRenderer = config.createEntityRenderer?.(this.sceneManager.scene, this.bus)
       ?? new CharacterRenderer(this.sceneManager, this.bus)
-    this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr)
+    this.aoeRenderer = new AoeRenderer(this.sceneManager.scene, this.bus, this.entityMgr, () => arenaRenderer.floorClip())
     this.vfx = standardVisuals
       ? new VfxRenderer(this.sceneManager, this.bus, this.entityMgr,
         entity => this.entityRenderer.getHeight?.(entity) ?? (entity.type === 'boss' ? 3 : 1.8),

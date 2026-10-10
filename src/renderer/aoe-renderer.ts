@@ -6,7 +6,7 @@ import {
 import type { EventBus } from '@/core/event-bus'
 import type { EntityManager } from '@/entity/entity-manager'
 import { followsAnchor, type ActiveAoeZone } from '@/skill/aoe-zone'
-import { createTelegraphMaterial, telegraphGeometry } from './aoe-shader'
+import { createTelegraphMaterial, setTelegraphFloor, telegraphGeometry, type FloorClip } from './aoe-shader'
 
 interface AoeMesh {
   /** zone_removed arrived before the resolve flash finished */
@@ -33,7 +33,8 @@ export class AoeRenderer {
   private meshes = new Map<string, AoeMesh>()
   private now = 0
 
-  constructor(private scene: Scene, bus: EventBus, private entityMgr: EntityManager) {
+  /** `floor`: where telegraphs can be seen (read every frame: the platform can shrink); none = everywhere */
+  constructor(private scene: Scene, bus: EventBus, private entityMgr: EntityManager, private floor: () => FloorClip | null = () => null) {
     bus.on('aoe:zone_created', (payload: { zone: ActiveAoeZone }) => {
       this.createMesh(payload.zone)
     })
@@ -63,10 +64,12 @@ export class AoeRenderer {
   update(time: number): void {
     this.now = time
     const pulse = 0.92 + Math.sin(time * 0.005) * 0.08
+    const floor = this.floor()
 
     for (const entry of this.meshes.values()) {
       const { zone, material } = entry
       material.setFloat('time', time / 1000)
+      setTelegraphFloor(material, floor)
       // Following zones (target_live, party markers) move with their anchor until they resolve
       if (entry.phase === 'telegraph' && followsAnchor(zone.def.anchor)) this.place(entry.mesh, zone)
       if (entry.phase === 'telegraph') {

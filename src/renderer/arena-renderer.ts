@@ -10,6 +10,7 @@ import { resolveArenaTheme, type ArenaTheme } from './arena-theme'
 import { createFloorTextures } from './arena-floor'
 import { buildProp } from './arena-props'
 import { fxTexture } from './fx-textures'
+import type { FloorClip } from './aoe-shader'
 
 const DEATH_ZONE_COLOR = new Color3(0.1, 0.02, 0.13)  // abyss purple
 const DEATH_ZONE_EMISSIVE = new Color3(0.16, 0.03, 0.2)
@@ -30,12 +31,14 @@ export class ArenaRenderer {
   /** Courtyard + props: they fall into the void when the floor breaks */
   private dressing: TransformNode[] = []
   private def: ArenaDef
+  private decor: boolean
   /** Pillar arenas: the column under the floor (shrinks with the floor when the rim breaks off) */
   private column: { mesh: Mesh; radius: number } | null = null
 
   constructor(private sm: SceneManager, arenaDef: ArenaDef, private bus?: EventBus, options: ArenaRendererOptions = { decor: true }) {
     const scene = this.scene = sm.scene
     this.def = arenaDef
+    this.decor = options.decor
     this.theme = resolveArenaTheme(arenaDef.theme)
     if (options.decor) sm.setAtmosphere(this.theme.atmosphere)
 
@@ -266,6 +269,19 @@ export class ArenaRenderer {
   }
 
   private circleGround: { mesh: Mesh; radius: number } | null = null
+
+  /**
+   * Floor that telegraphs lie on. Only a decorated walled arena has ground beyond its boundary
+   * (the courtyard); a pillar's guard rail rocks stick out about a metre past the wall.
+   */
+  floorClip(): FloorClip | null {
+    const { shape, boundary, pillar } = this.def
+    if (boundary === 'wall' && this.decor && !pillar) return null
+    const rim = boundary === 'wall' && pillar ? 1 : 0
+    return shape.type === 'circle'
+      ? { type: 'circle', radius: shape.radius + rim }
+      : { type: 'rect', halfWidth: shape.width / 2 + rim, halfHeight: shape.height / 2 + rim }
+  }
 
   private removeDeathZoneMesh(id: string): void {
     const mesh = this.deathZoneMeshes.get(id)
