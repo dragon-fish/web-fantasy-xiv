@@ -59,6 +59,8 @@ export interface NpcWorld {
   arena: Arena
   displacer: DisplacementAnimator
   ground: Ground
+  /** Where a knocked-back NPC may end up: inside the arena (or stopped by its wall) and off death zones */
+  landable(p: Vec2): boolean
   config: PartyConfig
   player: Entity
   boss: Entity
@@ -170,6 +172,8 @@ export class NpcBrain {
   private openerUntil: number | null = null
   /** Where this NPC stands relative to a stack carrier (fixed per stack) */
   private stackOffset: { zoneId: string; x: number; y: number } | null = null
+  /** This think's standable ground: the world's, narrowed by any knockback about to land */
+  private ground!: Ground
   private raiseReadyAt = 0
 
   constructor(readonly entity: Entity, readonly kit: NpcKit, private world: NpcWorld) {}
@@ -224,6 +228,33 @@ export class NpcBrain {
     })
   }
 
+  /** Unavoidable knockbacks about to land (no telegraph to walk out of): where they push matters */
+  private knockbacks(threats: ActiveAoeZone[]): { zone: ActiveAoeZone; distance: number; from: Vec2 }[] {
+    const out: { zone: ActiveAoeZone; distance: number; from: Vec2 }[] = []
+    for (const z of threats) {
+      if (z.def.telegraph !== false) continue
+      for (const effect of z.def.effects) {
+        if (effect.type !== 'knockback') continue
+        const caster = z.casterId ? this.world.entities.get(z.casterId) : undefined
+        const from = effect.source?.type === 'position' ? { x: effect.source.x, y: effect.source.y } : caster ? pos(caster) : z.center
+        out.push({ zone: z, distance: effect.distance, from })
+      }
+    }
+    return out
+  }
+
+  /** Would standing at `p` survive these knockbacks (landing in bounds, off death zones)? */
+  private landsSafely(p: Vec2, knockbacks: { zone: ActiveAoeZone; distance: number; from: Vec2 }[]): boolean {
+    for (const k of knockbacks) {
+      if (!inHazard(p, [k.zone])) continue
+      const dx = p.x - k.from.x
+      const dy = p.y - k.from.y
+      const len = Math.hypot(dx, dy) || 1
+      if (!this.world.landable({ x: p.x + (dx / len) * k.distance, y: p.y + (dy / len) * k.distance })) return false
+    }
+    return true
+  }
+
   // --- Decisions -----------------------------------------------------------
 
   private think(): void {
@@ -234,9 +265,13 @@ export class NpcBrain {
     const now = w.now()
     const threats = this.threats(now)
     const hazards = this.dodgeable(threats)
+    const knockbacks = this.knockbacks(threats)
+    this.ground = knockbacks.length
+      ? { standable: p => w.ground.standable(p) && this.landsSafely(p, knockbacks) }
+      : w.ground
     const target = this.pickTarget(threats)
     if (target) e.target = target.id
-    this.dest = this.chooseDestination(target, hazards, threats)
+    this.dest = this.chooseDestination(target, hazards, threats, knockbacks.length > 0)
     const moving = dist(pos(e), this.dest) > ARRIVED
 
     // Casters and healers get to safety first, then cast again from there (even with the AOE still pending)
@@ -271,7 +306,7 @@ export class NpcBrain {
    * Movement state: a mechanic spot wins; with nothing to attack, the idle formation; the tank holds
    * the boss at the tank spot; everyone else is in free mode (`fightSpot`).
    */
-  private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[], threats: ActiveAoeZone[]): Vec2 {
+  private chooseDestination(target: Entity | null, hazards: ActiveAoeZone[], threats: ActiveAoeZone[], knockback: boolean): Vec2 {
     const w = this.world
     const e = this.entity
     const stack = this.stackToJoin(threats)
@@ -282,15 +317,15 @@ export class NpcBrain {
     this.fight = null
     const preferred = this.preferredPosition(target)
     const here = pos(e)
-    if (hazards.length === 0) {
+    if (hazards.length === 0 && (!knockback || this.ground.standable(preferred))) {
       this.dodge = null
       // Close enough already: don't chase every small drift of the boss
       return dist(here, preferred) < 1.2 ? here : preferred
     }
-    if (isSafe(here, hazards, w.ground) && dist(here, preferred) < 1.2) return here
+    if (isSafe(here, hazards, this.ground) && dist(here, preferred) < 1.2) return here
     const key = hazards.map(z => z.id).sort().join(',')
-    if (this.dodge?.key !== key || !isSafe(this.dodge.spot, hazards, w.ground)) {
-      this.dodge = { key, spot: findSafeSpot(here, preferred, hazards, w.ground, w.rng) }
+    if (this.dodge?.key !== key || !isSafe(this.dodge.spot, hazards, this.ground)) {
+      this.dodge = { key, spot: findSafeSpot(here, preferred, hazards, this.ground, w.rng) }
     }
     return this.dodge.spot
   }
@@ -356,7 +391,7 @@ export class NpcBrain {
       const bearing = ((Math.atan2(p.x - target.position.x, p.y - target.position.y) * 180) / Math.PI + 360) % 360
       return Math.abs(((bearing - target.facing + 540) % 360) - 180) < 45
     }
-    const good = (p: Vec2) => inRange(p) && isSafe(p, hazards, w.ground)
+    const good = (p: Vec2) => inRange(p) && isSafe(p, hazards, this.ground)
     if (this.fight && good(this.fight)) return this.fight
     if (good(here)) {
       this.fight = null
@@ -368,7 +403,7 @@ export class NpcBrain {
       return here
     }
     this.fight = this.closestFightSpot(target, good, c => (front(c) ? 8 : 0))
-      ?? findSafeSpot(here, here, hazards, w.ground, w.rng)
+      ?? findSafeSpot(here, here, hazards, this.ground, w.rng)
     return this.fight
   }
 
@@ -438,7 +473,7 @@ export class NpcBrain {
       const toward = { x: target.position.x - here.x, y: target.position.y - here.y }
       const len = Math.hypot(toward.x, toward.y) || 1
       const landing = { x: target.position.x - (toward.x / len) * Math.max(0, target.size - 0.1), y: target.position.y - (toward.y / len) * Math.max(0, target.size - 0.1) }
-      if (dist(landing, dest) < 3 && pathIsSafe(here, landing, hazards, w.ground) && isSafe(landing, hazards, w.ground)) {
+      if (dist(landing, dest) < 3 && pathIsSafe(here, landing, hazards, this.ground) && isSafe(landing, hazards, this.ground)) {
         w.skills.tryUse(e, this.kit.dash)
         return
       }
@@ -450,7 +485,7 @@ export class NpcBrain {
       const toDest = { x: dest.x - here.x, y: dest.y - here.y }
       const along = (away.x * toDest.x + away.y * toDest.y) / (len * (Math.hypot(toDest.x, toDest.y) || 1))
       const landing = { x: here.x + (away.x / len) * 10, y: here.y + (away.y / len) * 10 }
-      if (along > 0.8 && dist(landing, dest) < dist(here, dest) && isSafe(landing, hazards, w.ground) && pathIsSafe(here, landing, [], w.ground)) {
+      if (along > 0.8 && dist(landing, dest) < dist(here, dest) && isSafe(landing, hazards, this.ground) && pathIsSafe(here, landing, [], this.ground)) {
         w.skills.tryUse(e, this.kit.backstep)
       }
     }

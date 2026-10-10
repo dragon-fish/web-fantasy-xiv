@@ -200,6 +200,11 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     arena: s.arena,
     displacer: s.displacer,
     ground: { standable: (p: Vec2) => s.arena.isInBounds(p) && !deps.deathZones.isInAnyZone(p) },
+    landable: (p: Vec2) => {
+      // A wall stops the push at the edge; a lethal edge lets it carry on off the platform
+      const at = s.arena.def.boundary === 'lethal' ? p : s.arena.clampPosition(p)
+      return s.arena.isInBounds(at) && !deps.deathZones.isInAnyZone(at)
+    },
     config,
     player: s.player,
     boss,
