@@ -81,6 +81,10 @@ export class CombatResolver {
       })
       const revive = (payload.zone.def.effects as SkillEffectDef[]).find(e => e.type === 'revive')
       if (revive) for (const corpse of payload.dormantHits ?? []) this.revive(corpse, caster)
+      // A spent jail (see killPrisoner) goes with its last zone
+      if (caster?.customData.spent && !this.zoneMgr?.getActiveZones().some(z => z.casterId === caster.id && !z.resolved)) {
+        this.kill(caster, caster, typeof caster.customData.spent === 'string' ? caster.customData.spent : undefined)
+      }
     })
 
     // A broken jail lets its prisoner out
@@ -92,10 +96,8 @@ export class CombatResolver {
     })
 
     // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
-    bus.on('buff:removed', ({ target, buff, reason }: { target: Entity; buff?: BuffDef; reason?: string }) => {
+    bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
       if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
-      // The jail's fuse is its prisoner's Imprisoned timer
-      if (buff?.id === IMPRISONED.id && reason === 'expired') this.burstJail(target)
     })
   }
 
@@ -246,6 +248,10 @@ export class CombatResolver {
           if (target && isPartyMember(target) && target.alive && target.targetable) this.imprison(target, effect)
           break
 
+        case 'kill_prisoner':
+          if (caster) this.killPrisoner(caster, skillName)
+          break
+
         case 'dash_to_ley_lines': {
           if (!caster) break
           const llCenter = caster.customData.leyLinesCenter as { x: number; y: number } | undefined
@@ -329,10 +335,10 @@ export class CombatResolver {
     prisoner.visible = false
     prisoner.targetable = false
     this.buffSystem.registerDef(IMPRISONED)
-    this.buffSystem.applyBuff(prisoner, IMPRISONED, prisoner.id, 1, effect.fuse)
+    this.buffSystem.applyBuff(prisoner, IMPRISONED, prisoner.id)
     const jail = this.entityMgr.create({
       id: `jail_${prisoner.id}_${++this.jailSerial}`, type: 'mob', group: 'jail',
-      // attack 1: `burst` potency is its damage, like every enemy
+      // attack 1: its own casts deal their potency, like every enemy
       hp: effect.hp, maxHp: effect.hp, attack: 1, speed: 0, size: effect.size ?? 1,
       model: effect.model ?? 'jail', position: { x: prisoner.position.x, y: prisoner.position.y, z: 0 },
       facing: prisoner.facing,
@@ -341,29 +347,30 @@ export class CombatResolver {
     jail.customData.prisonerId = prisoner.id
     jail.customData.displayName = effect.name ?? '石牢'
     if (effect.priority != null) jail.customData.priority = effect.priority
-    if (effect.burst) jail.customData.burst = effect.burst
+    if (effect.cast) jail.customData.cast = effect.cast
     this.bus.emit('party:imprisoned', { prisoner, jail })
   }
 
-  /** Fuse ran out: the prisoner dies inside, the blast hits the whole party, the jail is gone */
-  private burstJail(prisoner: Entity): void {
-    const jail = this.entityMgr.getAll().find(e => e.customData.prisonerId === prisoner.id && !e.customData.released)
-    if (!jail) return
+  /**
+   * The jail's own cast went off: its prisoner dies inside, then the jail itself. Casts tick before
+   * zones, so a jail killed right away would cancel the burst zone landing this same frame: it goes
+   * once its last zone has resolved.
+   */
+  private killPrisoner(jail: Entity, skillName?: string): void {
+    const prisoner = jail.customData.prisonerId ? this.entityMgr.get(jail.customData.prisonerId) : undefined
+    if (!prisoner || jail.customData.released) return
     jail.customData.released = true
     this.release(jail)
-    const name = jail.customData.burst?.name ?? jail.customData.displayName
-    if (prisoner.alive && prisoner.hp > 0) {
-      const amount = prisoner.hp
-      prisoner.hp = 0
-      this.bus.emit('damage:dealt', { source: jail, target: prisoner, amount, skill: { name } })
-    }
-    const burst = jail.customData.burst as { potency: number } | undefined
-    if (burst) {
-      for (const m of this.entityMgr.getAll()) {
-        if (m !== prisoner && isPartyMember(m) && m.alive && m.targetable) this.applyDamage(jail, m, burst.potency, name, ['magical'])
-      }
-    }
-    this.entityMgr.destroy(jail.id)
+    this.kill(prisoner, jail, skillName)
+    jail.customData.spent = skillName ?? true
+    if (!this.zoneMgr?.getActiveZones().some(z => z.casterId === jail.id && !z.resolved)) this.kill(jail, jail, skillName)
+  }
+
+  private kill(target: Entity, source: Entity, skillName?: string): void {
+    if (!target.alive || target.hp <= 0) return
+    const amount = target.hp
+    target.hp = 0
+    this.bus.emit('damage:dealt', { source, target, amount, skill: { name: skillName ?? source.customData.displayName } })
   }
 
   private release(jail: Entity): void {

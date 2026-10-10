@@ -267,8 +267,8 @@ skills:
         marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
-        # 30s 内没被打破：石牢崩塌，秒杀里面的人并对全队造成伤害
-        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, fuse: 30000, burst: { potency: 3000, name: 石牢崩塌 } }]
+        # 石牢自己读条「石牢崩塌」：30s 内没被打破就秒杀里面的人并对全队造成伤害
+        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, cast: gaol_burst }]
 
   rock_throw:
     name: 花岗岩牢狱
@@ -280,8 +280,24 @@ skills:
         marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
-        # 30s 内没被打破：石牢崩塌，秒杀里面的人并对全队造成伤害
-        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, fuse: 30000, burst: { potency: 3000, name: 石牢崩塌 } }]
+        # 石牢自己读条「石牢崩塌」：30s 内没被打破就秒杀里面的人并对全队造成伤害
+        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, cast: gaol_burst }]
+
+  # --- 石牢自己的读条：读完时里面的人死亡，全队受到伤害；石牢被打破则读条取消 ---
+  gaol_burst:
+    name: 石牢崩塌
+    type: spell
+    castTime: 30000
+    targetType: aoe
+    effects: [{ type: kill_prisoner }]
+    zones:
+      - anchor: { type: caster }
+        direction: { type: none }
+        shape: { type: circle, radius: 60 }
+        telegraph: false
+        resolveDelay: 30000
+        hitEffectDuration: 600
+        effects: [{ type: damage, potency: 3000 }]
 
   # --- 石牢期间：朝随机队员的窄扇形击退（读条开始时锁定方向） ---
   gaol_landslide:

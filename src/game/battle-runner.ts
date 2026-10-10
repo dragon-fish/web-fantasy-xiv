@@ -618,6 +618,15 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (entity.id === s.player.id) s.setAnnounce(null)
   })
 
+  // A jail with its own cast starts it as it appears (Titan's gaols burst if not broken in time)
+  s.bus.on('party:imprisoned', ({ jail }: { jail: Entity }) => {
+    const id = jail.customData.cast as string | undefined
+    if (!id) return
+    const skill = enc.skills.get(id)
+    if (!skill) { console.warn(`[battle] jail cast: unknown skill '${id}'`); return }
+    s.skillResolver.tryUse(jail, skill)
+  })
+
   // Revived dormant entities join the fight; optional per-entity follow-up skill
   s.bus.on('entity:revived', ({ entity }: { entity: Entity }) => {
     aiEnabled.add(entity.id)

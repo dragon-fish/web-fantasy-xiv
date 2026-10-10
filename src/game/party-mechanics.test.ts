@@ -32,8 +32,7 @@ function setup() {
     }
     skills.tryUse(boss, skill)
   }
-  const tick = (e: ReturnType<typeof member>, ms: number) => buffs.update(e, ms)
-  return { mgr, zones, boss, member, cast, tick }
+  return { mgr, zones, boss, member, cast, skills }
 }
 
 describe('party mechanics', () => {
@@ -116,21 +115,27 @@ describe('party mechanics', () => {
     expect(prisoner.visible).toBe(true)
     expect(prisoner.targetable).toBe(true)
   })
-  it('a gaol left standing past its fuse kills its prisoner and hits the whole party', () => {
-    const { mgr, zones, member, cast, tick } = setup()
+  it('a gaol finishing its own cast kills its prisoner and hits the rest of the party', () => {
+    const { mgr, zones, member, cast, skills } = setup()
+    const burst: SkillDef = {
+      id: 'burst', name: 'burst', type: 'spell', castTime: 4000, cooldown: 0, gcd: false,
+      targetType: 'aoe', requiresTarget: false, range: 0, effects: [{ type: 'kill_prisoner' }],
+      zones: [{ anchor: { type: 'caster' }, direction: { type: 'none' }, shape: { type: 'circle', radius: 60 },
+        telegraph: false, resolveDelay: 4000, hitEffectDuration: 0, effects: [{ type: 'damage', potency: 30 }] }],
+    }
+    mgr['bus'].on('party:imprisoned', ({ jail }: { jail: ReturnType<typeof member> }) => skills.tryUse(jail, burst))
     const prisoner = member('npc1', 5, 0)
     const other = member('npc2', -5, 0)
-    cast({ anchor: { type: 'party', select: 'count', count: 1, exclude: 'tank' }, targeted: true,
-      effects: [{ type: 'imprison', hp: 5000, fuse: 4000, burst: { potency: 3000 } }] })
+    cast({ anchor: { type: 'party', select: 'count', count: 1 }, targeted: true, effects: [{ type: 'imprison', hp: 5000 }] })
     const targetId = zones.getActiveZones()[0]!.targetId
     zones.update(1000)
     const [jailed, free] = targetId === 'npc1' ? [prisoner, other] : [other, prisoner]
-    expect(jailed.targetable).toBe(false)
-    tick(jailed, 4600)
+    skills.updateAll(4000)
+    zones.update(4000)
     expect(jailed.hp).toBe(0)
     expect(jailed.visible).toBe(true)
-    expect(free.hp).toBe(100000 - 3000)
-    expect(mgr.getAll().some(e => e.customData.prisonerId)).toBe(false)
+    expect(free.hp).toBe(100000 - 30)
+    expect(mgr.getAll().find(e => e.customData.prisonerId)?.hp).toBe(0)
   })
   it('targeted: a gaol takes the marked member only, not someone standing on them', () => {
     const { mgr, zones, member, cast } = setup()
