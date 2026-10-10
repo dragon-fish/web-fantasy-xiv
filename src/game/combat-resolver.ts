@@ -83,10 +83,9 @@ export class CombatResolver {
       }
     })
 
-    // An enemy's statuses end when it dies (a dead gaol lets its prisoner out). Party members never
-    // die, they are only incapacitated (FFXIV): what they applied stays, DoTs keep ticking.
-    bus.on('entity:died', ({ entity }: { entity: Entity }) => {
-      if (isPartyMember(entity)) return
+    // Statuses end when whoever applied them dies — leaves the active entity list (a dead gaol lets
+    // its prisoner out). Players are only ever incapacitated: what they applied stays, DoTs tick on.
+    bus.on('entity:removed', ({ entity }: { entity: Entity }) => {
       for (const e of this.entityMgr.getAll()) {
         for (const inst of [...e.buffs]) {
           if (inst.sourceId === entity.id) this.buffSystem.removeBuff(e, inst.defId, 'source_died')

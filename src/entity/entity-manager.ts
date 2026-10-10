@@ -31,6 +31,8 @@ export class EntityManager {
     entity.alive = false
     this.entities.delete(id)
     this.bus.emit('entity:died', { entity })
+    // Off the active list: this is what dying means (players are only ever incapacitated)
+    this.bus.emit('entity:removed', { entity })
   }
 
   getAll(): Entity[] {
