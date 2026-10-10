@@ -736,8 +736,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
         if (target) target.visible = action.value ?? true
         break
       case 'disable_revive':
-        // From now on deaths are final: everyone becomes Unraisable
-        for (const m of s.entityMgr.getAll().filter(isPartyMember)) s.buffSystem.applyBuff(m, REVIVE_BUFFS.revive_denied, 'timeline')
+        // From now on deaths are final: the boss makes everyone Unraisable
+        for (const m of s.entityMgr.getAll().filter(isPartyMember)) s.buffSystem.applyBuff(m, REVIVE_BUFFS.revive_denied, boss.id)
         break
       case 'set_speed':
         if (target) target.speed = action.speed ?? 0
