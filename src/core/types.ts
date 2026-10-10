@@ -111,10 +111,8 @@ export type SkillEffectDef = (
   | { type: 'knockback'; distance: number; source?: DisplacementSource } // push target away from source (default: caster)
   | { type: 'pull'; distance: number; source?: DisplacementSource }      // pull target toward source (default: caster)
   | { type: 'revive' }                                                   // wake dormant entities caught in the zone
-  /** Encase a party member: hidden, untargetable, unable to act, inside a jail entity spawned where
-   *  they stand; destroying the jail sets them free. `priority`: NPC target priority of the jail */
-  /** The jail targets its prisoner; `cast`: a skill it starts casting as it appears (e.g. its own burst) */
-  | { type: 'imprison'; hp: number; name?: string; model?: string; size?: number; priority?: number; cast?: string }
+  /** Bring a template entity onto the field where the target stands, aimed at it (its `onSpawn` skills follow) */
+  | { type: 'spawn'; entity: string }
   /** The caster falls once the skill has gone off, its zones included (self-destruct, Final Sting) */
   | { type: 'self_destruct' }
 ) & { when?: EffectCondition }
@@ -218,6 +216,8 @@ export type BuffEffectDef =
   | { type: 'undying' }                     // HP cannot drop below 1
   | { type: 'silence' }
   | { type: 'stun' }
+  | { type: 'hidden' }                       // not rendered while it lasts (on top of timeline visibility)
+  | { type: 'untargetable' }                 // cannot be selected or hit while it lasts
   | { type: 'invulnerable' }                 // all non-special attacks are fully negated (no damage, no displacement)
   | { type: 'damage_immunity' }              // all non-special damage negated, but displacement still applies
   | { type: 'mp_regen'; potency: number; interval: number }
@@ -272,7 +272,7 @@ export interface BuffDef {
    * definitions can declare their intent without requiring later migration.
    */
   preserveOnDeath?: boolean
-  /** Ends when the entity that applied it dies (a jail's Imprisoned). Not the default: a fallen
+  /** Ends when the entity that applied it dies (a gaol's Imprisoned). Not the default: a fallen
    *  player's DoTs keep ticking through the death window. */
   endsWithSource?: boolean
   effects: BuffEffectDef[]

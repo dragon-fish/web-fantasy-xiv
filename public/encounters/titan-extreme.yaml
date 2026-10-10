@@ -104,6 +104,20 @@ entities:
         behavior: damage
         damage: { potency: 1000, interval: 1000, name: 岩浆 }
         color: '#ff5a1a'
+  # 石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「石牢崩塌」
+  gaol:
+    template: true
+    name: 石牢
+    type: mob
+    model: jail
+    group: gaol
+    hp: 15000
+    attack: 1
+    speed: 0
+    size: 1
+    priority: 20
+    autoAttackRange: 0
+    onSpawn: [gaol_lock, gaol_burst]
 
 player:
   position: { x: 0, y: -12, z: 0 }
@@ -115,6 +129,21 @@ boss_ai:
   aggroRange: 9
 
 local_buffs:
+  # 石牢施加：隐藏、不可选中、无法行动；石牢死亡（被打破或崩塌）即解除
+  imprisoned:
+    name: 石牢
+    type: debuff
+    icon: https://r2.epb.wiki/ffxiv/effects/015001_hr1.png
+    description: 被关在石牢中，无法行动。石牢被破坏后解除。
+    duration: 0
+    preserveOnDeath: true
+    endsWithSource: true
+    effects: [{ type: stun }, { type: hidden }, { type: untargetable }]
+  rock_throw_stun:
+    name: 眩晕
+    type: debuff
+    duration: 1000
+    effects: [{ type: stun }]
   titan_invuln:
     name: 无敌
     type: buff
@@ -271,8 +300,8 @@ skills:
         marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
-        # 石牢自己读条「石牢崩塌」：30s 内没被打破就秒杀里面的人并对全队造成伤害
-        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, cast: gaol_burst }]
+        # 泰坦先把被点名者眩晕一小会儿，石牢再出现在他身上
+        effects: [{ type: apply_buff, buffId: rock_throw_stun }, { type: spawn, entity: gaol }]
 
   rock_throw:
     name: 花岗岩牢狱
@@ -284,8 +313,17 @@ skills:
         marker: target
         resolveDelay: 3000
         hitEffectDuration: 0
-        # 石牢自己读条「石牢崩塌」：30s 内没被打破就秒杀里面的人并对全队造成伤害
-        effects: [{ type: imprison, hp: 15000, name: 石牢, priority: 20, cast: gaol_burst }]
+        # 泰坦先把被点名者眩晕一小会儿，石牢再出现在他身上
+        effects: [{ type: apply_buff, buffId: rock_throw_stun }, { type: spawn, entity: gaol }]
+
+  # --- 石牢出现即锁住目标 ---
+  gaol_lock:
+    name: 石牢
+    type: ability
+    targetType: single
+    requiresTarget: true
+    range: 0
+    effects: [{ type: apply_buff, buffId: imprisoned, target: target }]
 
   # --- 石牢自己的读条（目标是被关的人）：读完时杀死里面的人、全屏伤害、石牢自毁；石牢被打破则读条取消 ---
   gaol_burst:

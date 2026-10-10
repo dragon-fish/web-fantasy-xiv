@@ -49,8 +49,13 @@ export interface Entity {
   readonly type: EntityType
   readonly group: string    // grouping tag for phase triggers (e.g. 'boss', 'adds_group1')
 
-  visible: boolean          // false = off-stage, not rendered (场外小怪)
-  targetable: boolean       // false = cannot be selected/damaged (转场无敌)
+  /** false = off-stage, not rendered (场外小怪). Setting it sets the base; a `hidden` status also hides */
+  visible: boolean
+  /** false = cannot be selected/damaged (转场无敌). Setting it sets the base; an `untargetable` status also counts */
+  targetable: boolean
+  /** Synced by BuffSystem from `hidden` / `untargetable` statuses */
+  statusHidden: boolean
+  statusUntargetable: boolean
   position: Vec3
   facing: number
   speed: number
@@ -171,6 +176,8 @@ export function createEntity(opts: CreateEntityOptions): Entity {
     baseMaxHp,
     attackModifier: 0,
     maxHpModifier: 0,
+    statusHidden: false,
+    statusUntargetable: false,
     autoAttackRange: opts.autoAttackRange ?? 0,
     aggroRange: opts.aggroRange ?? 0,
     alive: true,
@@ -187,6 +194,21 @@ export function createEntity(opts: CreateEntityOptions): Entity {
 
   Object.defineProperty(entity, 'attack', {
     get(this: Entity) { return Math.round(this.baseAttack * (1 + this.attackModifier)) },
+    enumerable: true,
+    configurable: true,
+  })
+  // Timeline / script visibility is the base; statuses (a gaol's Imprisoned) hide on top of it
+  let baseVisible = opts.visible ?? true
+  let baseTargetable = opts.targetable ?? true
+  Object.defineProperty(entity, 'visible', {
+    get(this: Entity) { return baseVisible && !this.statusHidden },
+    set(v: boolean) { baseVisible = v },
+    enumerable: true,
+    configurable: true,
+  })
+  Object.defineProperty(entity, 'targetable', {
+    get(this: Entity) { return baseTargetable && !this.statusUntargetable },
+    set(v: boolean) { baseTargetable = v },
     enumerable: true,
     configurable: true,
   })

@@ -234,6 +234,9 @@ export class BuffSystem {
   private syncModifiers(entity: Entity): void {
     entity.attackModifier = this.getAttackModifier(entity)
     entity.maxHpModifier = this.getMaxHpModifier(entity)
+    const effects = this.collectEffects(entity)
+    entity.statusHidden = effects.some(e => e.effect.type === 'hidden')
+    entity.statusUntargetable = effects.some(e => e.effect.type === 'untargetable')
     if (entity.hp > entity.maxHp) entity.hp = entity.maxHp
     if (entity.maxHp <= 0 && entity.alive) {
       entity.hp = 0

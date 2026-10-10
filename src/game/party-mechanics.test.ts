@@ -15,7 +15,23 @@ function setup() {
   const buffs = new BuffSystem(bus)
   const zones = new AoeZoneManager(bus, mgr)
   const skills = new SkillResolver(bus, mgr, buffs, zones)
-  new CombatResolver(bus, mgr, buffs, new Arena({ name: 't', shape: { type: 'circle', radius: 60 }, boundary: 'wall' }), zones)
+  const combat = new CombatResolver(bus, mgr, buffs, new Arena({ name: 't', shape: { type: 'circle', radius: 60 }, boundary: 'wall' }), zones)
+  // Titan's gaol as YAML builds it: a status from the gaol, a puppet that locks its target in on spawn
+  combat.registerBuffs({ imprisoned: {
+    id: 'imprisoned', name: '石牢', type: 'debuff', duration: 0, stackable: false, maxStacks: 1,
+    preserveOnDeath: true, endsWithSource: true, effects: [{ type: 'stun' }, { type: 'hidden' }, { type: 'untargetable' }],
+  } })
+  const onSpawn: SkillDef[] = [{
+    id: 'lock', name: 'lock', type: 'ability', castTime: 0, cooldown: 0, gcd: false, targetType: 'single',
+    requiresTarget: true, range: 0, effects: [{ type: 'apply_buff', buffId: 'imprisoned', target: 'target' }],
+  }]
+  let spawned = 0
+  combat.setSpawner((id, at) => {
+    const g = mgr.create({ id: `${id}_${++spawned}`, type: 'mob', hp: 5000, attack: 1, position: { x: at.position.x, y: at.position.y, z: 0 } })
+    g.target = at.id
+    for (const s of onSpawn) skills.tryUse(g, s)
+    return g
+  })
   // As the battle runner does: a mob at 0 HP leaves the field
   bus.on('damage:dealt', (p: { target: Entity }) => { if (p.target.type === 'mob' && p.target.hp <= 0 && p.target.alive) mgr.destroy(p.target.id) })
   skills.setPartyMarkerPicker((_caster, anchor) =>
@@ -35,7 +51,7 @@ function setup() {
     }
     skills.tryUse(boss, skill)
   }
-  return { mgr, zones, boss, member, cast, skills }
+  return { mgr, zones, boss, member, cast, skills, buffs, onSpawn }
 }
 
 describe('party mechanics', () => {
@@ -101,36 +117,37 @@ describe('party mechanics', () => {
     zones.update(100)
     expect(Math.round(zone.facing)).toBe(90)
   })
-  it('a jailed member is hidden, untargetable and stunned until the jail breaks', () => {
-    const { mgr, zones, boss, member, cast } = setup()
+  it('a gaol spawned on the marked member locks them in (hidden, untargetable, stunned) until it dies', () => {
+    const { mgr, zones, boss, member, cast, buffs } = setup()
     const prisoner = member('npc1', 5, 0)
-    cast({ anchor: { type: 'party', select: 'each' }, shape: { type: 'circle', radius: 0.5 }, effects: [{ type: 'imprison', hp: 5000 }] })
+    cast({ anchor: { type: 'party', select: 'count', count: 1 }, targeted: true, effects: [{ type: 'spawn', entity: 'gaol' }] })
     zones.update(1000)
     expect(prisoner.visible).toBe(false)
     expect(prisoner.targetable).toBe(false)
-    const jail = mgr.getAll().find(e => e.customData.prisonerId === 'npc1')!
-    expect(jail.position.x).toBe(5)
+    expect(buffs.isStunned(prisoner)).toBe(true)
+    const gaol = mgr.getAll().find(e => e.id.startsWith('gaol'))!
+    expect(gaol.position.x).toBe(5)
     // jailed: out of reach of the next marker
     cast({ anchor: { type: 'party', select: 'each' } })
     expect(zones.getActiveZones().filter(z => !z.resolved).map(z => z.anchorEntityId)).not.toContain('npc1')
-    jail.hp = 0
-    mgr['bus'].emit('damage:dealt', { source: boss, target: jail, amount: 5000 })
+    gaol.hp = 0
+    mgr['bus'].emit('damage:dealt', { source: boss, target: gaol, amount: 5000 })
     expect(prisoner.visible).toBe(true)
     expect(prisoner.targetable).toBe(true)
+    expect(buffs.isStunned(prisoner)).toBe(false)
   })
   it('a gaol casting at its prisoner: the prisoner dies, the party is hit, the gaol self-destructs', () => {
-    const { mgr, zones, member, cast, skills } = setup()
-    const burst: SkillDef = {
+    const { mgr, zones, member, cast, skills, onSpawn } = setup()
+    onSpawn.push({
       id: 'burst', name: 'burst', type: 'spell', castTime: 4000, cooldown: 0, gcd: false,
       targetType: 'aoe', requiresTarget: false, range: 0,
       effects: [{ type: 'damage', potency: 999999, dmgType: 'special' }, { type: 'self_destruct' }],
       zones: [{ anchor: { type: 'caster' }, direction: { type: 'none' }, shape: { type: 'circle', radius: 60 },
         telegraph: false, resolveDelay: 4000, hitEffectDuration: 0, effects: [{ type: 'damage', potency: 30 }] }],
-    }
-    mgr['bus'].on('party:imprisoned', ({ jail }: { jail: ReturnType<typeof member> }) => skills.tryUse(jail, burst))
+    })
     const prisoner = member('npc1', 5, 0)
     const other = member('npc2', -5, 0)
-    cast({ anchor: { type: 'party', select: 'count', count: 1 }, targeted: true, effects: [{ type: 'imprison', hp: 5000 }] })
+    cast({ anchor: { type: 'party', select: 'count', count: 1 }, targeted: true, effects: [{ type: 'spawn', entity: 'gaol' }] })
     const targetId = zones.getActiveZones()[0]!.targetId
     zones.update(1000)
     const [jailed, free] = targetId === 'npc1' ? [prisoner, other] : [other, prisoner]
@@ -139,17 +156,17 @@ describe('party mechanics', () => {
     expect(jailed.hp).toBe(0)
     expect(jailed.visible).toBe(true)
     expect(free.hp).toBe(100000 - 30)
-    expect(mgr.getAll().some(e => e.customData.prisonerId)).toBe(false)
+    expect(mgr.getAll().some(e => e.id.startsWith('gaol'))).toBe(false)
   })
-  it('targeted: a gaol takes the marked member only, not someone standing on them', () => {
+  it('targeted: the mark lands on the marked member only, not someone standing on them', () => {
     const { mgr, zones, member, cast } = setup()
     const marked = member('npc1', 5, 0)
     const bystander = member('npc2', 5, 0)
-    cast({ anchor: { type: 'party', select: 'count', count: 1, exclude: 'healer' }, targeted: true, effects: [{ type: 'imprison', hp: 5000 }] })
+    cast({ anchor: { type: 'party', select: 'count', count: 1, exclude: 'healer' }, targeted: true, effects: [{ type: 'spawn', entity: 'gaol' }] })
     const targetId = zones.getActiveZones()[0]!.targetId
     zones.update(1000)
-    const jailed = [marked, bystander].filter(m => !m.targetable).map(m => m.id)
-    expect(jailed).toEqual([targetId])
+    expect([marked, bystander].filter(m => !m.targetable).map(m => m.id)).toEqual([targetId])
+    expect(mgr.getAll().filter(e => e.id.startsWith('gaol'))).toHaveLength(1)
   })
   it('origin: caster — the zone starts at the caster, aimed at the member when it spawned', () => {
     const { zones, member, cast } = setup()

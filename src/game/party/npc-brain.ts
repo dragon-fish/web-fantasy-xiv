@@ -337,7 +337,7 @@ export class NpcBrain {
     const w = this.world
     const e = this.entity
     // The tank holds the boss — except to break a jail, which everyone helps with
-    const jail = w.entities.getAll().find(t => t.customData.prisonerId && usable(t))
+    const jail = w.entities.getAll().find(t => usable(t) && this.holdsCaptive(t))
     if (this.kit.style === 'tank' && usable(w.boss)) return jail ?? w.boss
     // Priority first (wobbled so near-equal options split at random), then the nearest; a tank
     // first goes for whatever is not on it yet
@@ -353,8 +353,15 @@ export class NpcBrain {
     return best
   }
 
+  /** A jail, in effect: an enemy holding a party member untargetable with a status it applied */
+  private holdsCaptive(t: Entity): boolean {
+    const w = this.world
+    return w.entities.getAll().some(m => isPartyMember(m) && m.buffs.some(b =>
+      b.sourceId === t.id && w.buffs.getDef(b.defId)?.effects.some(x => x.type === 'untargetable')))
+  }
+
   private jailAtRisk(t: Entity, threats: ActiveAoeZone[]): boolean {
-    if (!t.customData.prisonerId || t.hp / Math.max(1, t.maxHp) > JAIL_HOLD_BELOW) return false
+    if (t.hp / Math.max(1, t.maxHp) > JAIL_HOLD_BELOW || !this.holdsCaptive(t)) return false
     return threats.some(z => (z.def.telegraph !== false || z.def.effects.some(x => x.type === 'knockback')) && inHazard(pos(t), [z]))
   }
 

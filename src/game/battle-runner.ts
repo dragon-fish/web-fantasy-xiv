@@ -618,13 +618,32 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
     if (entity.id === s.player.id) s.setAnnounce(null)
   })
 
-  // A jail with its own cast starts it as it appears (Titan's gaols burst if not broken in time)
-  s.bus.on('party:imprisoned', ({ jail }: { jail: Entity }) => {
-    const id = jail.customData.cast as string | undefined
-    if (!id) return
-    const skill = enc.skills.get(id)
-    if (!skill) { console.warn(`[battle] jail cast: unknown skill '${id}'`); return }
-    s.skillResolver.tryUse(jail, skill)
+  // `spawn` effects: a fresh instance of a template where the target stands, aimed at it, then its
+  // onSpawn skills in order (Titan's gaol: lock the target in, then cast its own burst)
+  let spawnSerial = 0
+  s.combatResolver.setSpawner((templateId, at) => {
+    const template = enc.templates.get(templateId)
+    if (!template) { console.warn(`[battle] spawn: unknown template '${templateId}'`); return null }
+    const entity = s.entityMgr.create({
+      ...template, id: `${templateId}_${++spawnSerial}`,
+      position: { x: at.position.x, y: at.position.y, z: 0 }, facing: at.facing,
+    })
+    entity.inCombat = true
+    entity.target = at.id
+    const priority = enc.targetPriority.get(templateId)
+    if (priority != null) entity.customData.priority = priority
+    party?.engage(entity)
+    for (const id of enc.spawnHooks.get(templateId) ?? []) {
+      const skill = enc.skills.get(id)
+      if (!skill) { console.warn(`[battle] onSpawn: unknown skill '${id}'`); continue }
+      s.skillResolver.tryUse(entity, skill)
+    }
+    return entity
+  })
+
+  // Stuns cut the cast in progress (FFXIV)
+  s.bus.on('buff:applied', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
+    if (target.casting && buff?.effects.some(e => e.type === 'stun')) s.skillResolver.interruptCast(target)
   })
 
   // Revived dormant entities join the fight; optional per-entity follow-up skill

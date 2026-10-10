@@ -19,23 +19,15 @@ import type { DisplacementAnimator } from './displacement-animator'
  * applies damage, healing, displacement, and buff effects
  * for ANY caster/target combination.
  */
-/**
- * Inside a jail: cannot move or act; hidden and untargetable while it lasts. Applied by the jail,
- * it ends when the jail dies (broken or burst). Kept through death, or a member killed inside would
- * stay hidden — and unraisable — for good.
- */
-export const IMPRISONED: BuffDef = {
-  id: 'imprisoned', name: '石牢', description: '被关在石牢中，无法行动。石牢被破坏后解除。',
-  icon: 'https://r2.epb.wiki/ffxiv/effects/015001_hr1.png', type: 'debuff', duration: 0,
-  stackable: false, maxStacks: 1, preserveOnDeath: true, endsWithSource: true, effects: [{ type: 'stun' }],
-}
+/** Brings a template entity (YAML `template: true`) onto the field where `at` stands, aimed at it */
+export type EntitySpawner = (templateId: string, at: Entity, source: Entity | null) => Entity | null
 
 export class CombatResolver {
   private buffDefs = new Map<string, BuffDef>()
   private skillNames = new Map<string, string>()
   private skillDefsMap = new Map<string, SkillDef>()
   private lifestealRemainders = new WeakMap<Entity, number>()
-  private jailSerial = 0
+  private spawner: EntitySpawner | null = null
   /** Attack an NPC's damage is computed from (the party director's budget); heals keep the real stat */
   private npcDamageAttack: ((caster: Entity) => number | null) | null = null
 
@@ -91,7 +83,7 @@ export class CombatResolver {
       }
     })
 
-    // Statuses tied to their source end with it (a dead jail lets its prisoner out)
+    // Statuses tied to their source end with it (a dead gaol lets its prisoner out)
     bus.on('entity:died', ({ entity }: { entity: Entity }) => {
       for (const e of this.entityMgr.getAll()) {
         for (const inst of [...e.buffs]) {
@@ -103,8 +95,11 @@ export class CombatResolver {
     // Buff end hooks (e.g. a shield that heals when it breaks or runs out)
     bus.on('buff:removed', ({ target, buff }: { target: Entity; buff?: BuffDef }) => {
       if (buff?.onRemove && target.alive) this.resolveEffects(buff.onRemove, target, target, buff.name)
-      if (buff?.id === IMPRISONED.id) this.release(target)
     })
+  }
+
+  setSpawner(spawner: EntitySpawner): void {
+    this.spawner = spawner
   }
 
   setNpcDamageAttack(provider: (caster: Entity) => number | null): void {
@@ -250,8 +245,8 @@ export class CombatResolver {
           break
         }
 
-        case 'imprison':
-          if (target && isPartyMember(target) && target.alive && target.targetable) this.imprison(target, effect)
+        case 'spawn':
+          if (target && this.spawner) this.spawner(effect.entity, target, caster ?? null)
           break
 
         case 'self_destruct':
@@ -331,33 +326,6 @@ export class CombatResolver {
   }
 
   /** Wake a dormant entity (corpse) — it becomes a live, targetable combatant. */
-  /** Encase a party member in a jail entity; destroying it lets them out (see the damage listener) */
-  private imprison(prisoner: Entity, effect: Extract<SkillEffectDef, { type: 'imprison' }>): void {
-    if (prisoner.casting) {
-      const skillId = prisoner.casting.skillId
-      prisoner.casting = null
-      this.bus.emit('skill:cast_interrupted', { caster: prisoner, skillId, reason: 'imprisoned' })
-    }
-    prisoner.visible = false
-    prisoner.targetable = false
-    const jail = this.entityMgr.create({
-      id: `jail_${prisoner.id}_${++this.jailSerial}`, type: 'mob', group: 'jail',
-      // attack 1: its own casts deal their potency, like every enemy
-      hp: effect.hp, maxHp: effect.hp, attack: 1, speed: 0, size: effect.size ?? 1,
-      model: effect.model ?? 'jail', position: { x: prisoner.position.x, y: prisoner.position.y, z: 0 },
-      facing: prisoner.facing,
-    })
-    jail.inCombat = true
-    jail.target = prisoner.id
-    jail.customData.prisonerId = prisoner.id
-    jail.customData.displayName = effect.name ?? '石牢'
-    if (effect.priority != null) jail.customData.priority = effect.priority
-    if (effect.cast) jail.customData.cast = effect.cast
-    this.buffSystem.registerDef(IMPRISONED)
-    this.buffSystem.applyBuff(prisoner, IMPRISONED, jail.id)
-    this.bus.emit('party:imprisoned', { prisoner, jail })
-  }
-
   /**
    * The caster falls once its skill has gone off. Casts tick before zones, so falling right away
    * would cancel the skill's own zones landing this same frame: it goes with its last zone.
@@ -372,12 +340,6 @@ export class CombatResolver {
     const amount = target.hp
     target.hp = 0
     this.bus.emit('damage:dealt', { source, target, amount, skill: { name: skillName ?? source.customData.displayName } })
-  }
-
-  private release(prisoner: Entity): void {
-    prisoner.visible = true
-    prisoner.targetable = true
-    this.bus.emit('party:released', { prisoner })
   }
 
   revive(entity: Entity, by: Entity | null | undefined): void {
