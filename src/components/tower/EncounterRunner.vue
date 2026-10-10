@@ -154,6 +154,7 @@ watch(
   HudAllyTags
   HudPartyList
   HudEnemyList
+  HudDpsMeter
   HudDebugInfo
   HudTimelineDisplay
   HudTooltip

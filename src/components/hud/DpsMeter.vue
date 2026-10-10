@@ -29,8 +29,14 @@ function formatDamage(n: number): string {
 </template>
 
 <style lang="scss" scoped>
+// Bottom-anchored on the right so it grows upward, clear of the enemy list above it and of the
+// party list on the left
 .dps-meter {
-  margin-top: 6px;
+  position: absolute;
+  right: 20px;
+  bottom: 130px;
+  width: 230px;
+  z-index: 50;
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
