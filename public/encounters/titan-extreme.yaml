@@ -162,20 +162,17 @@ skills:
     range: 10
     effects: [{ type: damage, potency: 600 }]
 
-  # --- 怒震：全屏 4 连（开场下马威） ---
+  # --- 怒震（踩地板）：读条后全屏 4 次，每 1.2s 一次（真的分 4 次结算，不是表演型多段） ---
   tumult:
     name: 怒震
     type: spell
     castTime: 2000
     targetType: aoe
     zones:
-      - anchor: { type: caster }
-        direction: { type: none }
-        shape: { type: circle, radius: 60 }
-        telegraph: false
-        resolveDelay: 2000
-        hitEffectDuration: 400
-        effects: [{ type: damage, potency: 2000, hits: 4 }]
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 2000, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 3200, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 4400, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 5600, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
 
   # --- 地裂：正面直线 + 击退 ---
   # 冲拳：P1–P3 三路（正前与 ±30°），心核被打掉后的 P4 五路（再加 ±60°）
@@ -647,19 +644,14 @@ skills:
           - { type: apply_buff, buffId: revive_denied, duration: 5000 }
           - { type: damage, potency: 99999, dmgType: special }
 
-  # --- 花岗石卫的全屏 ---
+  # --- 花岗石卫的怒震：全屏 2 次，间隔 1.2s ---
   gaoler_tumult:
     name: 怒震
     type: ability
     targetType: aoe
     zones:
-      - anchor: { type: caster }
-        direction: { type: none }
-        shape: { type: circle, radius: 60 }
-        telegraph: false
-        resolveDelay: 500
-        hitEffectDuration: 300
-        effects: [{ type: damage, potency: 800 }]
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 500, hitEffectDuration: 300, effects: [{ type: damage, potency: 400 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 1700, hitEffectDuration: 300, effects: [{ type: damage, potency: 400 }] }
 
   # --- 软狂暴 ---
   upheaval_enrage:

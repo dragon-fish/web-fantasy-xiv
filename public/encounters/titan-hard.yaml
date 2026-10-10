@@ -116,20 +116,25 @@ skills:
     range: 10
     effects: [{ type: damage, potency: 450 }]
 
-  # --- 怒震：全屏（P1–P4 3 段，P5 4 段） ---
+  # --- 怒震（踩地板）：读条后全屏多次，每 1.2s 一次（真的分次结算）：P1 2 次，P2–P4 3 次，P5 4 次 ---
+  tumult_two:
+    name: 怒震
+    type: spell
+    castTime: 2000
+    targetType: aoe
+    zones:
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 2000, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 3200, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+
   tumult:
     name: 怒震
     type: spell
     castTime: 2000
     targetType: aoe
     zones:
-      - anchor: { type: caster }
-        direction: { type: none }
-        shape: { type: circle, radius: 60 }
-        telegraph: false
-        resolveDelay: 2000
-        hitEffectDuration: 400
-        effects: [{ type: damage, potency: 1500, hits: 3 }]
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 2000, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 3200, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 4400, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
 
   tumult_four:
     name: 怒震
@@ -137,13 +142,10 @@ skills:
     castTime: 2000
     targetType: aoe
     zones:
-      - anchor: { type: caster }
-        direction: { type: none }
-        shape: { type: circle, radius: 60 }
-        telegraph: false
-        resolveDelay: 2000
-        hitEffectDuration: 400
-        effects: [{ type: damage, potency: 2000, hits: 4 }]
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 2000, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 3200, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 4400, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
+      - { anchor: { type: caster }, direction: { type: none }, shape: { type: circle, radius: 60 }, telegraph: false, resolveDelay: 5600, hitEffectDuration: 400, effects: [{ type: damage, potency: 500 }] }
 
   # --- 地裂：正前一路直线 + 击退（撞墙即停） ---
   landslide:
@@ -475,10 +477,10 @@ phases:
       - { at: 0, action: enable_ai }
       - { at: 3000, use: rock_buster }
       - { at: 9000, use: landslide }
-      - { at: 15000, use: tumult }
+      - { at: 15000, use: tumult_two }
       - { at: 22000, use: rock_buster }
       - { at: 28000, use: landslide }
-      - { at: 34000, use: tumult }
+      - { at: 34000, use: tumult_two }
       - { at: 41000, loop: 3000 }
 
   # ===== P2（80–60%）=====
