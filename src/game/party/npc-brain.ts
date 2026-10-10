@@ -38,6 +38,8 @@ const HEAL_JITTER = 0.1
 const PANIC_MIT_COUNT = 3
 const PANIC_MIT_BELOW = 0.5
 const ARRIVED = 0.4
+/** Waves of AOEs: only those landing within this long of the soonest one are dodged now */
+const WAVE_MS = 1200
 /** The tank drags the boss back toward the tank spot once it strays this far, and lets go this close (m) */
 const PULL_START = 6
 const PULL_STOP = 2
@@ -220,12 +222,17 @@ export class NpcBrain {
   private dodgeable(zones: ActiveAoeZone[]): ActiveAoeZone[] {
     const e = this.entity
     const marked = new Set(zones.filter(z => z.def.anchor.type === 'party' && !z.def.share).map(z => z.anchorEntityId))
-    return zones.filter((z) => {
+    const avoid = zones.filter((z) => {
       if (z.def.telegraph === false || z.def.share || z.anchorEntityId === e.id) return false
       const carrier = z.anchorEntityId ? this.world.entities.get(z.anchorEntityId) : undefined
       if (!carrier || !isPartyMember(carrier) || !marked.has(e.id)) return true
       return yieldRank(e) < yieldRank(carrier) || (yieldRank(e) === yieldRank(carrier) && e.id > carrier.id)
     })
+    // Sequenced explosions can cover the whole floor: dodge the next wave only, and step into
+    // ground that has just gone off (nine bombs, three rows)
+    const left = (z: ActiveAoeZone) => z.def.resolveDelay - z.elapsed
+    const soonest = Math.min(...avoid.map(left))
+    return avoid.filter(z => left(z) <= soonest + WAVE_MS)
   }
 
   /** Unavoidable knockbacks about to land (no telegraph to walk out of): where they push matters */
