@@ -75,7 +75,7 @@ function onClick(entry: SkillBarEntry) {
   button.skill-slot(
     v-for="entry in battle.skillBarEntries"
     :key="entry.skill.id"
-    :class="{ locked: isLocked(entry), automatic: entry.automatic, evolved: entry.level === 5 }"
+    :class="{ locked: isLocked(entry), disabled: battle.playerIncapacitated, automatic: entry.automatic, evolved: entry.level === 5 }"
     :aria-label="entry.skill.name"
     type="button"
     @click="() => onClick(entry)"
@@ -124,6 +124,11 @@ function onClick(entry: SkillBarEntry) {
   &.locked {
     border-color: rgba(255, 50, 50, 0.4);
     opacity: 0.5;
+  }
+
+  // Can't act at all (down, stunned, jailed): the whole bar greys out
+  &.disabled {
+    filter: grayscale(1) brightness(0.6);
   }
 }
 

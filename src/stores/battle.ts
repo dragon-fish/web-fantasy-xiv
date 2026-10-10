@@ -122,6 +122,8 @@ export const useBattleStore = defineStore('battle', {
     // HP/MP
     playerHp: { current: 0, max: 0 } as HpState,
     playerMp: { current: 0, max: 0 } as HpState,
+    /** Down, stunned (jailed included) or getting up from a raise: every skill is greyed out */
+    playerIncapacitated: false,
     bossHp: { current: 0, max: 0 } as HpState,
     // Cast/GCD
     gcdState: { remaining: 0, total: 0 },

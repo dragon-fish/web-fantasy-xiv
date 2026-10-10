@@ -243,6 +243,7 @@ export function useStateAdapter(scene: GameScene) {
         shield: shield > 0 ? shield : undefined,
       },
       playerMp: player.maxMp > 0 ? { current: player.mp, max: player.maxMp } : battle.playerMp,
+      playerIncapacitated: !player.alive || scene.buffSystem.isStunned(player),
       bossHp: { current: boss.hp, max: scene.buffSystem.getMaxHp(boss), feedback: scene.entityFeedback.healthState(boss) },
       gcdState: { remaining: player.gcdTimer, total: player.gcdDuration },
       playerCast: player.casting
