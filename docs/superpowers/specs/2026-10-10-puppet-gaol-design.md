@@ -14,11 +14,11 @@
 
 ## 泰坦的石牢（YAML）
 
-- 状态 `imprisoned`「石牢」：眩晕 + 隐藏 + 不可选中，陷入无法战斗时不清除，随石牢死亡解除。
-- 模板实体 `gaol`「石牢」：模型 `jail`，15000 HP，不移动，NPC 目标优先级 20，`onSpawn: [gaol_lock, gaol_burst]`。
+- 状态 `imprisoned`「花岗石牢」：眩晕 + 隐藏 + 不可选中，陷入无法战斗时不清除，随石牢死亡解除。
+- 模板实体 `gaol`「花岗石牢」：模型 `jail`，15000 HP，不移动，NPC 目标优先级 20，`onSpawn: [gaol_lock, gaol_burst]`。
 - `rock_throw` / `rock_throw_single`：单体点名，结算时 `spawn: gaol`。
 - `gaol_lock`：瞬发，对目标施加 `imprisoned`。
-- `gaol_burst`「石牢崩塌」：读条 30s；目标必死 + 全屏 3000 + 自爆。
+- `gaol_burst`「花岗岩坟墓」：读条 30s；目标必死 + 全屏 3000 + 自爆。
 
 ## NPC
 

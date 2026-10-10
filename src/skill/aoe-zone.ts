@@ -169,7 +169,7 @@ export class AoeZoneManager {
   ): number {
     switch (dir.type) {
       case 'caster_facing':
-        return casterFacing
+        return (((casterFacing + (dir.offset ?? 0)) % 360) + 360) % 360
       case 'toward_target': {
         if (!targetPos) return casterFacing
         const dx = targetPos.x - center.x

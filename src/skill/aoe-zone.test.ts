@@ -110,6 +110,15 @@ describe('caster offsets', () => {
   })
 })
 
+describe('caster-facing offsets', () => {
+  it('turn a zone from where the caster faces, clockwise', () => {
+    const zoneMgr = new AoeZoneManager(new EventBus(), new EntityManager(new EventBus()))
+    const facing = (offset: number) => zoneMgr.spawn(makeCircleZone({ anchor: { type: 'caster' }, direction: { type: 'caster_facing', offset } }), 's', { x: 0, y: 0 }, 350, null).facing
+    expect(facing(30)).toBe(20)
+    expect(facing(-30)).toBe(320)
+  })
+})
+
 describe('target_live anchoring', () => {
   it('follows the anchored entity until it resolves, then stays put', async () => {
     const { EventBus } = await import('@/core/event-bus')

@@ -49,9 +49,9 @@ entities:
     visible: false
     targetable: false
     position: { x: 0, y: 0, z: 0 }
-  # P3：泰坦之心（DPS 检测）
+  # P3：泰坦的核心（DPS 检测）
   heart:
-    name: 泰坦之心
+    name: 泰坦的核心
     type: mob
     model: titan-heart
     group: heart
@@ -107,10 +107,10 @@ entities:
         behavior: damage
         damage: { potency: 1000, interval: 1000, name: 岩浆 }
         color: '#ff5a1a'
-  # 石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「石牢崩塌」
+  # 花岗石牢：花岗岩牢狱点名结算时出现在被点名者身上（傀儡），锁住目标后原地读条「花岗岩坟墓」
   gaol:
     template: true
-    name: 石牢
+    name: 花岗石牢
     type: mob
     model: jail
     group: gaol
@@ -134,7 +134,7 @@ boss_ai:
 local_buffs:
   # 石牢施加：隐藏、不可选中、无法行动；石牢死亡（被打破或崩塌）即解除
   imprisoned:
-    name: 石牢
+    name: 花岗石牢
     type: debuff
     icon: https://r2.epb.wiki/ffxiv/effects/015001_hr1.png
     description: 被关在石牢中，无法行动。石牢被破坏后解除。
@@ -176,6 +176,7 @@ skills:
         effects: [{ type: damage, potency: 2000, hits: 4 }]
 
   # --- 地裂：正面直线 + 击退 ---
+  # 冲拳：P1–P3 三路（正前与 ±30°），心核被打掉后的 P4 五路（再加 ±60°）
   landslide:
     name: 地裂
     type: spell
@@ -183,7 +184,77 @@ skills:
     targetType: aoe
     zones:
       - anchor: { type: caster }
-        direction: { type: caster_facing }
+        direction: { type: caster_facing, offset: 0 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: -30 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: 30 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+
+  landslide_five:
+    name: 地裂
+    type: spell
+    castTime: 2200
+    targetType: aoe
+    zones:
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: 0 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: -30 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: 30 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: -60 }
+        shape: { type: rect, length: 35, width: 6 }
+        displacementHint: knockback
+        resolveDelay: 2200
+        hitEffectDuration: 400
+        effects:
+          - { type: damage, potency: 3800 }
+          - { type: knockback, distance: 12 }
+      - anchor: { type: caster }
+        direction: { type: caster_facing, offset: 60 }
         shape: { type: rect, length: 35, width: 6 }
         displacementHint: knockback
         resolveDelay: 2200
@@ -295,7 +366,7 @@ skills:
   # --- 大怒震（场边）：泰坦跳到场边面朝场心（corner_jump）后放出，覆盖除他脚下以外的全场；
   #     击退后 3s 爆炸：贴脚被推出去，再跑回脚下 ---
   upheaval_bombs:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -342,7 +413,7 @@ skills:
 
   # --- 石牢出现即锁住目标 ---
   gaol_lock:
-    name: 石牢
+    name: 花岗石牢
     type: ability
     targetType: single
     requiresTarget: true
@@ -351,7 +422,7 @@ skills:
 
   # --- 石牢自己的读条（目标是被关的人）：读完时杀死里面的人、全屏伤害、石牢自毁；石牢被打破则读条取消 ---
   gaol_burst:
-    name: 石牢崩塌
+    name: 花岗岩坟墓
     type: spell
     castTime: 30000
     targetType: aoe
@@ -386,7 +457,7 @@ skills:
 
   # --- 爆破岩石·一侧 ---
   bombs_east:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -397,7 +468,7 @@ skills:
         hitEffectDuration: 500
         effects: [{ type: damage, potency: 3800 }]
   bombs_west:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -411,7 +482,7 @@ skills:
   # --- 九连桶：外圈 8 块 + 中心 1 块，两波 ---
   # 九连桶·环形：外圈顺时针一个接一个，最后中间（每颗出现 6s 后爆炸）
   bury_clock_cw:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -425,7 +496,7 @@ skills:
 
   # 九连桶·环形：外圈逆时针，最后中间
   bury_clock_ccw:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -439,7 +510,7 @@ skills:
 
   # 九连桶·环形倒序：中间先炸，再沿外圈逆着转回去
   bury_clock_cw_rev:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -453,7 +524,7 @@ skills:
 
   # 九连桶·环形倒序：中间先炸，再沿外圈转回去
   bury_clock_ccw_rev:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -467,7 +538,7 @@ skills:
 
   # 九连桶·正斜：先四个正点，2.5s 后四个斜点和中间
   bury_cross_cardinal:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -483,7 +554,7 @@ skills:
 
   # 九连桶·正斜：先四个斜点和中间，2.5s 后四个正点
   bury_cross_diagonal:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -499,7 +570,7 @@ skills:
 
   # --- 三穿一：三排依次落下、依次爆炸（落下顺序 = 爆炸顺序） ---
   row_w:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -507,7 +578,7 @@ skills:
       - { anchor: { type: position, x: -9, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
       - { anchor: { type: position, x: -9, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
   row_c:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -515,7 +586,7 @@ skills:
       - { anchor: { type: position, x: 0, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
       - { anchor: { type: position, x: 0, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
   row_e:
-    name: 爆破岩石
+    name: 爆炸
     type: ability
     targetType: aoe
     zones:
@@ -523,7 +594,7 @@ skills:
       - { anchor: { type: position, x: 9, y: 0 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
       - { anchor: { type: position, x: 9, y: 9 }, direction: { type: none }, shape: { type: circle, radius: 6.5 }, resolveDelay: 6000, telegraphBefore: 6000, hitEffectDuration: 500, effects: [{ type: damage, potency: 3800 }] }
 
-  # --- 泰坦之心阶段 ---
+  # --- 泰坦的核心阶段 ---
   titan_shield:
     name: 大地之心
     type: ability
@@ -656,7 +727,7 @@ phases:
 
   # ===== P3 心核（30s DPS 检测）=====
   p3:
-    name: 泰坦之心
+    name: 泰坦的核心
     trigger: { on_hp_below: { group: boss, percent: 55 } }
     exclusive: true
     hpFloor: 55
@@ -706,7 +777,7 @@ phases:
           - [{ use: row_c, entity: helper }, { after: 1500, use: row_e, entity: helper }, { after: 3000, use: row_w, entity: helper }]
           - [{ use: row_w, entity: helper }, { after: 1500, use: row_e, entity: helper }, { after: 3000, use: row_c, entity: helper }]
           - [{ use: row_e, entity: helper }, { after: 1500, use: row_w, entity: helper }, { after: 3000, use: row_c, entity: helper }]
-      - { at: 29000, use: landslide }
+      - { at: 29000, use: landslide_five }
       - { at: 34000, use: mountain_buster }
       # 二连大地之重
       - { at: 40000, use: weight_of_land }
@@ -718,7 +789,7 @@ phases:
           - [{ use: bury_cross_cardinal, entity: helper }]
           - [{ use: bury_cross_diagonal, entity: helper }]
       - { at: 68000, use: tumult }
-      - { at: 74000, use: landslide }
+      - { at: 74000, use: landslide_five }
       - { at: 79000, use: rock_throw }
       - { at: 82500, use: gaol_landslide }
       - { at: 86500, use: gaol_landslide }

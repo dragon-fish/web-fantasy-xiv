@@ -43,7 +43,8 @@ export type AnchorType =
   | ({ type: 'party'; follow?: boolean; exclude?: Role | Role[]; origin?: 'caster' } & PartySelect)
 
 export type DirectionType =
-  | { type: 'caster_facing' }
+  /** `offset`: degrees clockwise from where the caster faces (spread lines, cones) */
+  | { type: 'caster_facing'; offset?: number }
   | { type: 'toward_target' }
   | { type: 'fixed'; angle: number }
   | { type: 'none' }
