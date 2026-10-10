@@ -20,14 +20,14 @@ export const REVIVE_BUFFS = {
   },
   revive_weakness: {
     id: 'revive_weakness', name: '衰弱', icon: icon('effects', 15010), type: 'debuff',
-    description: '主属性降低 25%：技能伤害与治疗量降低 25%。此状态下死亡会进入濒死。',
-    duration: 60000, stackable: false, maxStacks: 1,
+    description: '主属性降低 25%：技能伤害与治疗量降低 25%。死亡时不会消失，倒计时暂停；此状态下死亡，复活后进入濒死。',
+    duration: 60000, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [{ type: 'attack_modifier', value: -0.25 }],
   },
   revive_brink: {
     id: 'revive_brink', name: '濒死', icon: icon('effects', 15011), type: 'debuff',
-    description: '主属性降低 50%，最大体力降低 25%。此状态下死亡将结束挑战。',
-    duration: 60000, stackable: false, maxStacks: 1,
+    description: '主属性降低 50%，最大体力降低 25%。死亡时不会消失，倒计时暂停；被复活仍为濒死。单人练习中此状态下死亡将结束挑战。',
+    duration: 60000, stackable: false, maxStacks: 1, preserveOnDeath: true,
     effects: [{ type: 'attack_modifier', value: -0.5 }, { type: 'max_hp_modifier', value: -0.25 }],
   },
 } satisfies Record<string, BuffDef>
@@ -41,6 +41,18 @@ export function nextReviveTier(player: Entity): ReviveTier | null {
   return 'revive_weakness'
 }
 
+/** Tier a party raise stands up with: Brink once either tier is already on (it survives death) */
+export function raiseTier(entity: Entity): ReviveTier {
+  return entity.buffs.some(b => b.defId === 'revive_weakness' || b.defId === 'revive_brink') ? 'revive_brink' : 'revive_weakness'
+}
+
+/** The new tier replaces the old one, with a fresh timer */
+function applyReviveTier(buffSystem: BuffSystem, entity: Entity, tier: ReviveTier): void {
+  buffSystem.removeBuff(entity, 'revive_weakness', 'replaced')
+  buffSystem.removeBuff(entity, 'revive_brink', 'replaced')
+  buffSystem.applyBuff(entity, REVIVE_BUFFS[tier], entity.id)
+}
+
 export interface RaiseDeps {
   bus: EventBus
   buffSystem: BuffSystem
@@ -50,24 +62,28 @@ export interface RaiseDeps {
 
 /**
  * A raise has landed (`party:raising`, body already moved to the caster): the body lies under the
- * light for the revive hard stun, then stands with transcendence like a self-revive.
+ * light for the revive hard stun, then stands with Weakness (Brink if already weakened) and
+ * transcendence. Unlike the practice ladder there is no last death: Brink raises to Brink.
  */
 export function createRaiseSequence({ bus, buffSystem, schedule }: RaiseDeps): void {
   const breakTranscendence = ({ caster }: { caster: Entity }) => buffSystem.removeBuff(caster, 'revive_transcendent', 'consumed')
   bus.on('skill:cast_start', breakTranscendence)
   bus.on('skill:cast_complete', breakTranscendence)
-  bus.on('party:raising', ({ entity, by, hp }: { entity: Entity; by: Entity | null; hp: number }) => {
-    bus.emit('player:reviving', { entity, delay: REVIVE_DELAY_MS })
+  bus.on('party:raising', ({ entity, by, hpPercent }: { entity: Entity; by: Entity | null; hpPercent: number }) => {
+    const tier = raiseTier(entity)
+    bus.emit('player:reviving', { entity, tier, delay: REVIVE_DELAY_MS })
     schedule(REVIVE_DELAY_MS, () => {
       delete entity.customData.raising
       entity.alive = true
-      entity.hp = hp
+      // Brink lowers max HP: apply the tier first
+      applyReviveTier(buffSystem, entity, tier)
+      entity.hp = Math.max(1, Math.floor(entity.maxHp * hpPercent))
       buffSystem.applyBuff(entity, REVIVE_BUFFS.revive_transcendent, entity.id)
       if (!entity.npc && entity.target) {
         entity.target = null
         bus.emit('target:released', { entity })
       }
-      bus.emit('player:revived', { entity })
+      bus.emit('player:revived', { entity, tier })
       bus.emit('party:raised', { entity, by })
     })
   })
@@ -116,7 +132,7 @@ export function createPlayerRevive({ bus, player, buffSystem, schedule, relocate
         pending = false
         relocate?.()
         player.alive = true
-        buffSystem.applyBuff(player, REVIVE_BUFFS[tier], player.id)
+        applyReviveTier(buffSystem, player, tier)
         player.hp = player.maxHp
         player.mp = Math.min(player.maxMp, player.mp + Math.floor(player.maxMp * 0.25))
         buffSystem.applyBuff(player, REVIVE_BUFFS.revive_transcendent, player.id)

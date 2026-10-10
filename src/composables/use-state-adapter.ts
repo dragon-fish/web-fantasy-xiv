@@ -99,9 +99,9 @@ export function useStateAdapter(scene: GameScene) {
   }
 
   let reviveFlash: { icon?: string; name: string; until: number } | null = null
-  const onRevived = ({ tier }: { tier?: ReviveTier }) => {
-    // Raises stand up without a Weakness / Brink tier
-    if (!tier) return
+  const onRevived = ({ entity, tier }: { entity: Entity; tier: ReviveTier }) => {
+    // Raises stand NPC allies up through the same event
+    if (entity.npc) return
     const def = REVIVE_BUFFS[tier]
     reviveFlash = { icon: def.icon, name: def.name, until: performance.now() + REVIVE_FLASH_MS }
   }

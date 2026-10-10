@@ -3,6 +3,8 @@ import { BuffSystem } from '@/combat/buff'
 import { EntityManager } from '@/entity/entity-manager'
 import { createPlayerRevive, createRaiseSequence, nextReviveTier, REVIVE_BUFFS } from './player-revive'
 
+const has = (e: { buffs: { defId: string }[] }, id: string) => e.buffs.some(b => b.defId === id)
+
 function setup() {
   const bus = new EventBus()
   const buffs = new BuffSystem(bus)
@@ -70,17 +72,29 @@ describe('revive keeps death-preserved buffs', () => {
 })
 
 describe('party raise', () => {
-  it('stays down through the hard stun, then stands with the raise HP and transcendence', () => {
+  function raiseSetup() {
     const bus = new EventBus()
     const buffs = new BuffSystem(bus)
     const ally = new EntityManager(bus).create({ id: 'a', type: 'player', hp: 8000, maxHp: 8000 })
-    ally.alive = false
-    ally.customData.raising = true
     const queue: (() => void)[] = []
     createRaiseSequence({ bus, buffSystem: buffs, schedule: (_ms, fn) => queue.push(fn) })
+    const raise = () => {
+      ally.alive = false
+      buffs.clearDeathBuffs(ally)
+      ally.customData.raising = true
+      bus.emit('party:raising', { entity: ally, by: null, hpPercent: 0.5 })
+      queue.shift()!()
+    }
+    return { bus, buffs, ally, queue, raise }
+  }
+
+  it('stays down through the hard stun, then stands with the raise HP, Weakness and transcendence', () => {
+    const { bus, ally, queue } = raiseSetup()
+    ally.alive = false
+    ally.customData.raising = true
     const raised = vi.fn()
     bus.on('party:raised', raised)
-    bus.emit('party:raising', { entity: ally, by: null, hp: 4000 })
+    bus.emit('party:raising', { entity: ally, by: null, hpPercent: 0.5 })
     expect(ally.alive).toBe(false)
     expect(raised).not.toHaveBeenCalled()
     queue.shift()!()
@@ -88,8 +102,21 @@ describe('party raise', () => {
     expect(ally.hp).toBe(4000)
     expect(ally.customData.raising).toBeUndefined()
     expect(raised).toHaveBeenCalledOnce()
-    expect(ally.buffs.some(b => b.defId === 'revive_transcendent')).toBe(true)
+    expect(has(ally, 'revive_weakness')).toBe(true)
+    expect(has(ally, 'revive_transcendent')).toBe(true)
     bus.emit('skill:cast_start', { caster: ally, skill: { id: 'gcd' } })
-    expect(ally.buffs.some(b => b.defId === 'revive_transcendent')).toBe(false)
+    expect(has(ally, 'revive_transcendent')).toBe(false)
+  })
+
+  it('dying with Weakness or Brink stands up at Brink — they survive death, unlike other buffs', () => {
+    const { ally, raise } = raiseSetup()
+    raise()
+    raise()
+    expect(has(ally, 'revive_weakness')).toBe(false)
+    expect(has(ally, 'revive_brink')).toBe(true)
+    expect(ally.maxHp).toBe(6000)
+    expect(ally.hp).toBe(3000)
+    raise()
+    expect(has(ally, 'revive_brink')).toBe(true)
   })
 })

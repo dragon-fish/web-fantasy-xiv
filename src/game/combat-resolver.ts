@@ -236,7 +236,7 @@ export class CombatResolver {
             target.position.y = caster.position.y
           }
           target.customData.raising = true
-          this.bus.emit('party:raising', { entity: target, by: caster ?? null, hp: Math.max(1, Math.floor(target.maxHp * effect.hpPercent)) })
+          this.bus.emit('party:raising', { entity: target, by: caster ?? null, hpPercent: effect.hpPercent })
           break
         }
 

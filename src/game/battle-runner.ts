@@ -522,6 +522,8 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
       s.bus.emit('target:released', { entity: s.player })
     }
     s.zoneMgr.cancelAllByCaster(dead.id)
+    // FFXIV: death strips buffs and debuffs, except Weakness / Brink (their timers pause on the body)
+    if (party && isPartyMember(dead)) s.buffSystem.clearDeathBuffs(dead)
     if (dead.id === s.player.id) handlePlayerDeath()
   })
 
