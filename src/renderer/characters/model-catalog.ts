@@ -174,15 +174,15 @@ export const MODELS: Record<string, ModelSpec> = {
   },
   // Titan: the Heart (P3 DPS check) and the Granite Gaolers
   'titan-heart': {
-    id: 'titan-heart', url: 'models/props/big-crystal.glb', height: 3, nominalRadius: 1.2, hover: 0.6, placeholder: 'golem', tint: '#e0a24a', clips: {},
+    id: 'titan-heart', url: 'models/props/big-crystal.glb', height: 3, nominalRadius: 1.2, hover: 0.6, placeholder: 'golem', tint: '#e0a24a', tintMode: 'replace', clips: {},
   },
   gaoler: {
     id: 'gaoler', url: 'models/monsters/giant.glb', height: 3.2, nominalRadius: 1.4, placeholder: 'sentinel', tint: '#9a9184',
     clips: { idle: ['Idle'], move: ['Walk'], attack: ['Attack'], castRelease: ['Attack'], hit: ['HitRecieve'], death: ['Death'] },
   },
-  // Granite Gaol: a boulder encasing a party member
+  // Granite Gaol: a boulder encasing a party member. The rock is ~2.5× wider than tall, so keep it low
   jail: {
-    id: 'jail', url: 'models/props/rock-large.glb', height: 2.2, nominalRadius: 1, placeholder: 'golem', tint: '#a89a86', clips: {},
+    id: 'jail', url: 'models/props/rock-large.glb', height: 1.1, nominalRadius: 1, placeholder: 'golem', tint: '#a89a86', tintMode: 'replace', clips: {},
   },
   'slime-frost': {
     id: 'slime-frost', url: 'models/monsters/slime.glb', height: 1.3, placeholder: 'imp', tint: '#8fd0ff', tintMode: 'replace',
