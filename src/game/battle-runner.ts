@@ -244,6 +244,7 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
   s.jobGaugeArt = job.gaugeArt ?? null
   s.buffDefs = job.buffMap
 
+  const playerStart = { x: enc.player.position?.x ?? 0, y: enc.player.position?.y ?? -12 }
   const playerRole = job.category === JobCategory.Tank ? 'tank' : job.category === JobCategory.Healer ? 'healer' : 'dps'
   s.createPlayer({
     id: 'player', type: 'player',
@@ -840,6 +841,12 @@ async function initScene(canvas: HTMLCanvasElement, uiRoot: HTMLDivElement, enc:
           amount: DEATH_ZONE_DAMAGE,
           skill: { name: fallReason },
         })
+        // Party mode: whoever falls off ends up back where the fight started (FFXIV)
+        if (party) {
+          s.player.position.x = playerStart.x
+          s.player.position.y = playerStart.y
+          ;(s.player as any)._fallOffset = 0
+        }
       }
       return // freeze game logic while falling
     }

@@ -88,6 +88,8 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
   // --- Roster ---
   const roster = pickRoster(deps.playerJob, deps.playerRole, rng)
   const kits = new Map<string, NpcKit>()
+  /** Where each NPC started: a fallen-off NPC's body is sent back there */
+  const starts = new Map<string, Vec2>()
   const npcs: Entity[] = roster.map((job, i) => {
     const role: Role = job.category === 'tank' ? 'tank' : job.category === 'healer' ? 'healer' : 'dps'
     const off = NPC_START_OFFSETS[i]!
@@ -104,6 +106,7 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
     e.customData.jobCategory = job.category
     e.customData.npcStyle = npcStyleOf(job.id)
     kits.set(e.id, buildNpcKit(job))
+    starts.set(e.id, { x: e.position.x, y: e.position.y })
     return e
   })
   const npcRoles = npcs.map(n => n.role!)
@@ -242,9 +245,17 @@ export function createPartyRuntime(deps: PartyRuntimeDeps): PartyRuntime {
       spreadUnhinted()
       for (const b of brains) b.update(dt)
       for (const n of npcs) {
-        if (n.alive && deps.deathZones.isLethalAt({ x: n.position.x, y: n.position.y })) {
-          n.hp = 0
-          s.bus.emit('damage:dealt', { source: { id: '场地' } as Entity, target: n, amount: 999999, skill: { name: '死亡区域' } })
+        if (!n.alive) continue
+        const at = { x: n.position.x, y: n.position.y }
+        const fell = s.arena.def.boundary === 'lethal' && !s.arena.isInBounds(at)
+        if (!fell && !deps.deathZones.isLethalAt(at)) continue
+        n.hp = 0
+        s.bus.emit('damage:dealt', { source: { id: '场地' } as Entity, target: n, amount: 999999, skill: { name: fell ? '场外坠落' : '死亡区域' } })
+        if (fell) {
+          s.displacer.cancel(n.id)
+          const start = starts.get(n.id)!
+          n.position.x = start.x
+          n.position.y = start.y
         }
       }
     },
